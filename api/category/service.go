@@ -111,7 +111,7 @@ func (s *Service) updateCategoryForMonth(budgetID, categoryID, month string,
 	p PayloadMonthCategory) (*Category, error) {
 
 	payload := struct {
-		MonthCategory *PayloadMonthCategory `json:"month_category"`
+		MonthCategory *PayloadMonthCategory `json:"category"`
 	}{
 		&p,
 	}
@@ -130,7 +130,7 @@ func (s *Service) updateCategoryForMonth(budgetID, categoryID, month string,
 	url := fmt.Sprintf("/budgets/%s/months/%s/categories/%s", budgetID,
 		month, categoryID)
 
-	if err := s.c.PUT(url, &resModel, buf); err != nil {
+	if err := s.c.PATCH(url, &resModel, buf); err != nil {
 		return nil, err
 	}
 	return resModel.Data.Category, nil

@@ -321,10 +321,10 @@ func TestService_UpdateCategoryForMonth(t *testing.T) {
 	}
 
 	url := "https://api.youneedabudget.com/v1/budgets/aa248caa-eed7-4575-a990-717386438d2c/months/0001-01-01/categories/13419c12-78d3-4a26-82ca-1cde7aa1d6f8"
-	httpmock.RegisterResponder(http.MethodPut, url,
+	httpmock.RegisterResponder(http.MethodPatch, url,
 		func(req *http.Request) (*http.Response, error) {
 			resModel := struct {
-				MonthCategory *category.PayloadMonthCategory `json:"month_category"`
+				MonthCategory *category.PayloadMonthCategory `json:"category"`
 			}{}
 			err := json.NewDecoder(req.Body).Decode(&resModel)
 			assert.NoError(t, err)
@@ -401,10 +401,10 @@ func TestService_UpdateCategoryForCurrentMonth(t *testing.T) {
 	}
 
 	url := "https://api.youneedabudget.com/v1/budgets/aa248caa-eed7-4575-a990-717386438d2c/months/current/categories/13419c12-78d3-4a26-82ca-1cde7aa1d6f8"
-	httpmock.RegisterResponder(http.MethodPut, url,
+	httpmock.RegisterResponder(http.MethodPatch, url,
 		func(req *http.Request) (*http.Response, error) {
 			resModel := struct {
-				MonthCategory *category.PayloadMonthCategory `json:"month_category"`
+				MonthCategory *category.PayloadMonthCategory `json:"category"`
 			}{}
 			err := json.NewDecoder(req.Body).Decode(&resModel)
 			assert.NoError(t, err)
