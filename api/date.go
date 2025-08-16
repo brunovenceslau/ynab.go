@@ -35,7 +35,7 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 // MarshalJSON parses the expected format for a Date
 func (d *Date) MarshalJSON() ([]byte, error) {
 	val := d.Format(dateLayout)
-	return []byte(fmt.Sprintf(`"%s"`, val)), nil
+	return fmt.Appendf(nil, `"%s"`, val), nil
 }
 
 // DateFromString creates a new Date from a given string date
