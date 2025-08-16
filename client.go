@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 
@@ -38,10 +39,15 @@ type ClientServicer interface {
 }
 
 // NewClient facilitates the creation of a new client instance
-func NewClient(accessToken string) ClientServicer {
+func NewClient(accessToken string, options ...ClientOption) ClientServicer {
 	c := &client{
 		accessToken: accessToken,
+		apiEndpoint: apiEndpoint,
 		client:      http.DefaultClient,
+	}
+
+	for _, option := range options {
+		option(c)
 	}
 
 	c.user = user.NewService(c)
@@ -54,13 +60,31 @@ func NewClient(accessToken string) ClientServicer {
 	return c
 }
 
+// ClientOption allows configuring a new client.
+type ClientOption func(*client)
+
+// WithHTTPClient sets the HTTP client.
+func WithHTTPClient(httpClient *http.Client) ClientOption {
+	return func(c *client) {
+		c.client = httpClient
+	}
+}
+
+// WithBaseURL sets the base URL for the API.
+func WithBaseURL(u url.URL) ClientOption {
+	return func(c *client) {
+		c.apiEndpoint = u.String()
+	}
+}
+
 // client API
 type client struct {
 	sync.Mutex
 
 	accessToken string
+	apiEndpoint string
 
-	client    *http.Client
+	client *http.Client
 
 	user        *user.Service
 	budget      *budget.Service
@@ -133,7 +157,7 @@ func (c *client) DELETE(url string, responseModel interface{}) error {
 
 // do sends a request to the YNAB API
 func (c *client) do(method, url string, responseModel interface{}, requestBody []byte) error {
-	fullURL := fmt.Sprintf("%s%s", apiEndpoint, url)
+	fullURL := fmt.Sprintf("%s%s", c.apiEndpoint, url)
 	req, err := http.NewRequest(method, fullURL, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return err
