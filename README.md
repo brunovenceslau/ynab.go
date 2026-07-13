@@ -1,13 +1,13 @@
 # YNAB API Go Library
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/brunomvsouza/ynab.go)](https://goreportcard.com/report/github.com/brunomvsouza/ynab.go) [![GoDoc Reference](https://godoc.org/github.com/brunomvsouza/ynab.go?status.svg)](https://godoc.org/github.com/brunomvsouza/ynab.go)
+[![Go Report Card](https://goreportcard.com/badge/pkg.venceslau.dev/ynab)](https://goreportcard.com/report/pkg.venceslau.dev/ynab) [![Go Reference](https://pkg.go.dev/badge/pkg.venceslau.dev/ynab.svg)](https://pkg.go.dev/pkg.venceslau.dev/ynab)
 
 This is an UNOFFICIAL Go client for the YNAB API. It covers 100% of the resources made available by the [YNAB API](https://api.youneedabudget.com).
 
 ## Installation
 
 ```
-go get github.com/brunomvsouza/ynab.go
+go get pkg.venceslau.dev/ynab
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/brunomvsouza/ynab.go"
+	"pkg.venceslau.dev/ynab"
 )
 
 const accessToken = "bf0cbb14b4330-not-real-3de12e66a389eaafe2"
@@ -39,7 +39,7 @@ func main() {
 }
 ```
 
-See the [godoc](https://godoc.org/github.com/brunomvsouza/ynab.go) to see all the available methods with example usage.
+See the [reference documentation](https://pkg.go.dev/pkg.venceslau.dev/ynab) to see all the available methods with example usage.
 
 ## Development
 

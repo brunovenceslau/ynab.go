@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Package ynab implements the client API
-package ynab // import "github.com/brunomvsouza/ynab.go"
+package ynab // import "pkg.venceslau.dev/ynab"
 
 import (
 	"bytes"
@@ -14,14 +14,14 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/brunomvsouza/ynab.go/api"
-	"github.com/brunomvsouza/ynab.go/api/account"
-	"github.com/brunomvsouza/ynab.go/api/budget"
-	"github.com/brunomvsouza/ynab.go/api/category"
-	"github.com/brunomvsouza/ynab.go/api/month"
-	"github.com/brunomvsouza/ynab.go/api/payee"
-	"github.com/brunomvsouza/ynab.go/api/transaction"
-	"github.com/brunomvsouza/ynab.go/api/user"
+	"pkg.venceslau.dev/ynab/api"
+	"pkg.venceslau.dev/ynab/api/account"
+	"pkg.venceslau.dev/ynab/api/budget"
+	"pkg.venceslau.dev/ynab/api/category"
+	"pkg.venceslau.dev/ynab/api/month"
+	"pkg.venceslau.dev/ynab/api/payee"
+	"pkg.venceslau.dev/ynab/api/transaction"
+	"pkg.venceslau.dev/ynab/api/user"
 )
 
 const apiEndpoint = "https://api.youneedabudget.com/v1"

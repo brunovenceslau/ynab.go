@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/brunomvsouza/ynab.go"
-	"github.com/brunomvsouza/ynab.go/api"
+	"pkg.venceslau.dev/ynab"
+	"pkg.venceslau.dev/ynab/api"
 )
 
 //nolint:govet

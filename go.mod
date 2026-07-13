@@ -1,4 +1,4 @@
-module github.com/brunomvsouza/ynab.go
+module pkg.venceslau.dev/ynab
 
 go 1.19
 

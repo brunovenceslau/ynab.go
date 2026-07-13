@@ -7,7 +7,7 @@ package api_test
 import (
 	"fmt"
 
-	"github.com/brunomvsouza/ynab.go/api"
+	"pkg.venceslau.dev/ynab/api"
 )
 
 func ExampleDateFromString() {

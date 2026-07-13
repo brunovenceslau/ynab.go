@@ -4,7 +4,7 @@
 
 // Package api implements shared structures and behaviours of
 // the API services
-package api // import "github.com/brunomvsouza/ynab.go/api"
+package api // import "pkg.venceslau.dev/ynab/api"
 
 // ClientReader contract for a read only client
 type ClientReader interface {
