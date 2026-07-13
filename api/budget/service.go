@@ -7,7 +7,7 @@ package budget
 import (
 	"fmt"
 
-	"github.com/brunomvsouza/ynab.go/api"
+	"pkg.venceslau.dev/ynab/api"
 )
 
 // NewService facilitates the creation of a new budget service instance

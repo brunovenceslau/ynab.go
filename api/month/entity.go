@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 // Package month implements month entities and services
-package month // import "github.com/brunomvsouza/ynab.go/api/month"
+package month // import "pkg.venceslau.dev/ynab/api/month"
 
 import (
-	"github.com/brunomvsouza/ynab.go/api"
-	"github.com/brunomvsouza/ynab.go/api/category"
+	"pkg.venceslau.dev/ynab/api"
+	"pkg.venceslau.dev/ynab/api/category"
 )
 
 // Month represents a month for a budget

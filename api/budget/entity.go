@@ -3,17 +3,17 @@
 // found in the LICENSE file.
 
 // Package budget implements budget entities and services
-package budget // import "github.com/brunomvsouza/ynab.go/api/budget"
+package budget // import "pkg.venceslau.dev/ynab/api/budget"
 
 import (
 	"time"
 
-	"github.com/brunomvsouza/ynab.go/api"
-	"github.com/brunomvsouza/ynab.go/api/account"
-	"github.com/brunomvsouza/ynab.go/api/category"
-	"github.com/brunomvsouza/ynab.go/api/month"
-	"github.com/brunomvsouza/ynab.go/api/payee"
-	"github.com/brunomvsouza/ynab.go/api/transaction"
+	"pkg.venceslau.dev/ynab/api"
+	"pkg.venceslau.dev/ynab/api/account"
+	"pkg.venceslau.dev/ynab/api/category"
+	"pkg.venceslau.dev/ynab/api/month"
+	"pkg.venceslau.dev/ynab/api/payee"
+	"pkg.venceslau.dev/ynab/api/transaction"
 )
 
 // Budget represents a budget

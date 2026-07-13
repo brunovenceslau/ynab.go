@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Package user implements transaction user and services
-package user // import "github.com/brunomvsouza/ynab.go/api/user"
+package user // import "pkg.venceslau.dev/ynab/api/user"
 
 // User represents an user
 type User struct {

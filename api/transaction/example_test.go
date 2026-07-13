@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/brunomvsouza/ynab.go"
-	"github.com/brunomvsouza/ynab.go/api"
-	"github.com/brunomvsouza/ynab.go/api/transaction"
+	"pkg.venceslau.dev/ynab"
+	"pkg.venceslau.dev/ynab/api"
+	"pkg.venceslau.dev/ynab/api/transaction"
 )
 
 func ExampleService_CreateTransaction() {
