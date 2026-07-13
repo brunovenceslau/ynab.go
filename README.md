@@ -41,6 +41,18 @@ func main() {
 
 See the [reference documentation](https://pkg.go.dev/pkg.venceslau.dev/ynab) to see all the available methods with example usage.
 
+## Import path & versioning
+
+This module is imported as `pkg.venceslau.dev/ynab` (a vanity path that redirects
+`go get` to the `github.com/brunovenceslau/ynab.go` repository).
+
+It was previously published as `github.com/brunomvsouza/ynab.go`. With the move to
+the vanity path, versioning restarted at `v0.1.0` — the same code as the old
+`v1.5.0`, with an unchanged public API. The `0.x` series lets the API evolve
+before being promoted to a stable `v1.0.0`. The old `v1.0.0`–`v1.5.0` tags are
+kept for historical reference only and are not installable under the new import
+path. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
 ## Development
 
 - Make sure you have Go 1.19 or later installed
