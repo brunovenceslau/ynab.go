@@ -13,6 +13,7 @@ import (
 
 	"pkg.venceslau.dev/ynab"
 	"pkg.venceslau.dev/ynab/api"
+	"pkg.venceslau.dev/ynab/api/month"
 )
 
 func TestService_GetMonths(t *testing.T) {
@@ -47,6 +48,7 @@ func TestService_GetMonths(t *testing.T) {
 	f := &api.Filter{LastKnowledgeOfServer: 10}
 	snapshot, err := client.Month().GetMonths("aa248caa-eed7-4575-a990-717386438d2c", f)
 	assert.NoError(t, err)
+	assert.IsType(t, &month.SearchResultSnapshot{}, snapshot)
 
 	m := snapshot.Months[0]
 
@@ -99,6 +101,7 @@ func TestService_GetMonth(t *testing.T) {
 	client := ynab.NewClient("")
 	m, err := client.Month().GetMonth("aa248caa-eed7-4575-a990-717386438d2c", date)
 	assert.NoError(t, err)
+	assert.IsType(t, &month.Month{}, m)
 
 	var (
 		expectedAgeOfMoney   int64 = 14
