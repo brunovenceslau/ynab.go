@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
+	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
 // integrationEnv is what a live case gets to work with.
@@ -39,6 +40,42 @@ func registerIntegrationCase(c integrationCase) {
 	integrationMu.Lock()
 	defer integrationMu.Unlock()
 	integrationCases = append(integrationCases, c)
+}
+
+// TestIntegrationCoverage is the tokenless completeness gate (G8's
+// second layer): every one of the 44 operations must be covered by at
+// least one registered live-integration case. It runs in the normal
+// suite — no tag, no token.
+func TestIntegrationCoverage(t *testing.T) {
+	t.Parallel()
+
+	integrationMu.Lock()
+	cases := make([]integrationCase, len(integrationCases))
+	copy(cases, integrationCases)
+	integrationMu.Unlock()
+
+	covered := map[string]bool{}
+	for _, c := range cases {
+		for _, op := range c.ops {
+			covered[op] = true
+		}
+	}
+
+	table := contract.Table()
+	require.Len(t, table, 44)
+	for _, op := range table {
+		require.True(t, covered[op.ID], "operation %s has no live-integration case", op.ID)
+	}
+	for op := range covered {
+		found := false
+		for _, row := range table {
+			if row.ID == op {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "integration case declares unknown operation %s", op)
+	}
 }
 
 func init() {

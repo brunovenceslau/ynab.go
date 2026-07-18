@@ -37,6 +37,10 @@ update-spec:
 smoke:
 	go test -tags=smoke -count=1 -run 'TestLiveSmoke' ./...
 
+# -p 1: the live suite is never concurrent with itself.
+integration:
+	go test -tags=integration -count=1 -p 1 -run 'TestLiveIntegration' ./...
+
 ACTIONLINT_VERSION := v1.7.12
 ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
