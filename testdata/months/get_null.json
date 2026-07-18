@@ -1,0 +1,63 @@
+{
+  "data": {
+    "month": {
+      "month": "2026-07-01",
+      "note": null,
+      "income": 5000000,
+      "budgeted": 4500000,
+      "activity": -3200000,
+      "to_be_budgeted": 500000,
+      "age_of_money": null,
+      "deleted": false,
+      "income_formatted": "$5,000.00",
+      "income_currency": 5000.0,
+      "budgeted_formatted": "$4,500.00",
+      "budgeted_currency": 4500.0,
+      "activity_formatted": "-$3,200.00",
+      "activity_currency": -3200.0,
+      "to_be_budgeted_formatted": "$500.00",
+      "to_be_budgeted_currency": 500.0,
+      "categories": [
+        {
+          "id": "ca333333-3333-3333-3333-333333333333",
+          "category_group_id": "cg111111-1111-1111-1111-111111111111",
+          "category_group_name": "Everyday",
+          "name": "Bare",
+          "hidden": false,
+          "internal": false,
+          "original_category_group_id": null,
+          "note": null,
+          "budgeted": 0,
+          "activity": 0,
+          "balance": 0,
+          "goal_type": null,
+          "goal_needs_whole_amount": null,
+          "goal_day": null,
+          "goal_cadence": null,
+          "goal_cadence_frequency": null,
+          "goal_creation_month": null,
+          "goal_target": null,
+          "goal_target_month": null,
+          "goal_target_date": null,
+          "goal_percentage_complete": null,
+          "goal_months_to_budget": null,
+          "goal_under_funded": null,
+          "goal_overall_funded": null,
+          "goal_overall_left": null,
+          "goal_snoozed_at": null,
+          "deleted": false,
+          "balance_formatted": "$0.00",
+          "balance_currency": 0.0,
+          "activity_formatted": "$0.00",
+          "activity_currency": 0.0,
+          "budgeted_formatted": "$0.00",
+          "budgeted_currency": 0.0,
+          "goal_target_formatted": null,
+          "goal_target_currency": null,
+          "goal_under_funded_formatted": null,
+          "goal_under_funded_currency": null
+        }
+      ]
+    }
+  }
+}

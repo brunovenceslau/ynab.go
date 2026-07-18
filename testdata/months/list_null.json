@@ -1,0 +1,25 @@
+{
+  "data": {
+    "months": [
+      {
+        "month": "2026-05-01",
+        "note": null,
+        "income": 5000000,
+        "budgeted": 4500000,
+        "activity": -3200000,
+        "to_be_budgeted": 500000,
+        "age_of_money": null,
+        "deleted": false,
+        "income_formatted": "$5,000.00",
+        "income_currency": 5000.0,
+        "budgeted_formatted": "$4,500.00",
+        "budgeted_currency": 4500.0,
+        "activity_formatted": "-$3,200.00",
+        "activity_currency": -3200.0,
+        "to_be_budgeted_formatted": "$500.00",
+        "to_be_budgeted_currency": 500.0
+      }
+    ],
+    "server_knowledge": 3001
+  }
+}
