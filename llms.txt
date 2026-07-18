@@ -23,16 +23,16 @@ request. Rate limit is ~200 requests/hour — prefer delta reads.
 
 - [Package documentation](https://pkg.go.dev/pkg.venceslau.dev/ynab): every
   symbol documented, 26 runnable examples
-- [README](https://github.com/brunovenceslau/ynab/blob/main/README.md):
+- [README](https://github.com/brunovenceslau/ynab.go/blob/main/README.md):
   install, quick start, the plan handle, delta sync, errors
-- [CHANGELOG](https://github.com/brunovenceslau/ynab/blob/main/CHANGELOG.md):
+- [CHANGELOG](https://github.com/brunovenceslau/ynab.go/blob/main/CHANGELOG.md):
   versions and the migration note from the archived v1.x line
-- [API_NOTES](https://github.com/brunovenceslau/ynab/blob/main/API_NOTES.md):
+- [API_NOTES](https://github.com/brunovenceslau/ynab.go/blob/main/API_NOTES.md):
   observed-vs-documented YNAB API divergences, with live evidence
 
 ## Optional
 
-- [CONTRIBUTING](https://github.com/brunovenceslau/ynab/blob/main/CONTRIBUTING.md):
+- [CONTRIBUTING](https://github.com/brunovenceslau/ynab.go/blob/main/CONTRIBUTING.md):
   gate workflow (lint/test/contract), ground rules, triage SLA
-- [SECURITY](https://github.com/brunovenceslau/ynab/blob/main/SECURITY.md):
+- [SECURITY](https://github.com/brunovenceslau/ynab.go/blob/main/SECURITY.md):
   private vulnerability reporting for a token-handling client

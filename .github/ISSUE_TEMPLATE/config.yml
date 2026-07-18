@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/brunovenceslau/ynab/security/advisories/new
+    url: https://github.com/brunovenceslau/ynab.go/security/advisories/new
     about: Token exposure or anything security-shaped — never a public issue.

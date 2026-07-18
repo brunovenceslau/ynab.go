@@ -32,7 +32,9 @@ if [ "${CHECK_VERSION_SKIP_NET:-}" = "1" ]; then
 fi
 
 meta=$(curl --proto '=https' --tlsv1.2 --max-time 30 -fsSL 'https://pkg.venceslau.dev/ynab?go-get=1')
-expected='pkg.venceslau.dev/ynab git https://github.com/brunovenceslau/ynab'
+# The closing quote is part of the match: an unanchored substring once
+# accepted a truncated repo path (ynab vs ynab.go).
+expected='content="pkg.venceslau.dev/ynab git https://github.com/brunovenceslau/ynab.go"'
 if ! printf '%s\n' "$meta" | grep -qF "$expected"; then
 	echo "error: vanity host is not serving the go-import meta tag:" >&2
 	echo "  expected to find: <meta name=\"go-import\" content=\"$expected\">" >&2

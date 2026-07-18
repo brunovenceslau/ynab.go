@@ -7,8 +7,8 @@ and they are the same ones CI runs.
 ## Getting started
 
 ```sh
-git clone https://github.com/brunovenceslau/ynab
-cd ynab
+git clone https://github.com/brunovenceslau/ynab.go
+cd ynab.go
 make lint test contract
 ```
 

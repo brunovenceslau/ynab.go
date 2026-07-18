@@ -37,5 +37,5 @@ examples; the concepts map one-to-one (budget → plan), but no source
 compatibility is provided or implied. The archived releases remain
 available under their original tags for existing consumers.
 
-[Unreleased]: https://github.com/brunovenceslau/ynab/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/brunovenceslau/ynab/releases/tag/v1.0.0
+[Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.0.0
