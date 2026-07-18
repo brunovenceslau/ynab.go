@@ -2,6 +2,7 @@ package ynab
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -446,6 +447,120 @@ func (s *TransactionsService) CreateBatch(ctx context.Context, specs []Transacti
 		return nil, err
 	}
 	return &data, nil
+}
+
+// TransactionUpdate is the partial payload for TransactionsService.Update
+// and the patches built by PatchByID/PatchByImportID. Unset fields stay
+// unchanged on the server; SetNull clears.
+type TransactionUpdate struct {
+	AccountID  Optional[string]     `json:"account_id,omitzero"`
+	Date       Optional[Date]       `json:"date,omitzero"`
+	Amount     Optional[Milliunits] `json:"amount,omitzero"`
+	PayeeID    Optional[string]     `json:"payee_id,omitzero"`
+	PayeeName  Optional[string]     `json:"payee_name,omitzero"`
+	CategoryID Optional[string]     `json:"category_id,omitzero"`
+	Memo       Optional[string]     `json:"memo,omitzero"`
+	Cleared    ClearedStatus        `json:"cleared,omitzero"`
+	Approved   Optional[bool]       `json:"approved,omitzero"`
+	FlagColor  Optional[FlagColor]  `json:"flag_color,omitzero"`
+}
+
+// TransactionPatch is one element of an UpdateBatch. Its identity is
+// exactly one of transaction id or import id — both unexported, so the
+// XOR holds by construction: build patches only with PatchByID or
+// PatchByImportID.
+type TransactionPatch struct {
+	id       string
+	importID string
+	TransactionUpdate
+}
+
+// PatchByID addresses a batch update by transaction id.
+func PatchByID(id string, update TransactionUpdate) TransactionPatch {
+	return TransactionPatch{id: id, TransactionUpdate: update}
+}
+
+// PatchByImportID addresses a batch update by import id (lookup only —
+// changing an import id is not allowed by the API).
+func PatchByImportID(importID string, update TransactionUpdate) TransactionPatch {
+	return TransactionPatch{importID: importID, TransactionUpdate: update}
+}
+
+// MarshalJSON emits the update fields plus exactly one identity key.
+func (p TransactionPatch) MarshalJSON() ([]byte, error) {
+	raw, err := json.Marshal(p.TransactionUpdate)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, err
+	}
+	if p.id != "" {
+		fields["id"], err = json.Marshal(p.id)
+	} else {
+		fields["import_id"], err = json.Marshal(p.importID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(fields)
+}
+
+// Update replaces the given fields of one transaction (HTTP PUT).
+//
+// YNAB operationId: updateTransaction
+func (s *TransactionsService) Update(
+	ctx context.Context, transactionID string, update TransactionUpdate,
+) (*Transaction, ServerKnowledge, error) {
+	data, err := do[transactionResult](ctx, s.plan.client,
+		http.MethodPut, s.plan.path("transactions", transactionID), nil, body{"transaction": update})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transaction, data.ServerKnowledge, nil
+}
+
+// UpdateBatch patches several transactions in one request. Each patch
+// addresses its transaction by id or import id, exactly as constructed.
+//
+// YNAB operationId: updateTransactions
+func (s *TransactionsService) UpdateBatch(ctx context.Context, patches []TransactionPatch) (*BatchResult, error) {
+	data, err := do[BatchResult](ctx, s.plan.client,
+		http.MethodPatch, s.plan.path("transactions"), nil, body{"transactions": patches})
+	if err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+// Delete removes a transaction and returns its final state with the new
+// server knowledge.
+//
+// YNAB operationId: deleteTransaction
+func (s *TransactionsService) Delete(ctx context.Context, transactionID string) (*Transaction, ServerKnowledge, error) {
+	data, err := do[transactionResult](ctx, s.plan.client,
+		http.MethodDelete, s.plan.path("transactions", transactionID), nil, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transaction, data.ServerKnowledge, nil
+}
+
+// Import asks the server to import available linked-account transactions
+// (bodiless POST). The ids of newly imported transactions are returned;
+// an empty slice simply means nothing was waiting — the wire's 200-empty
+// vs 201-with-ids split folds into len(ids).
+//
+// YNAB operationId: importTransactions
+func (s *TransactionsService) Import(ctx context.Context) ([]string, error) {
+	data, err := do[struct {
+		TransactionIDs []string `json:"transaction_ids"`
+	}](ctx, s.plan.client, http.MethodPost, s.plan.path("transactions", "import"), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return data.TransactionIDs, nil
 }
 
 // encode renders the filter's query parameters, nil when unfiltered.
