@@ -3,6 +3,11 @@ version: "2"
 run:
   timeout: 5m
   tests: true
+  # Tags only add files (smoke_test.go, integration_live_test.go) —
+  # without them the tagged files are invisible to every linter.
+  build-tags:
+    - smoke
+    - integration
 
 issues:
   max-issues-per-linter: 0
@@ -75,6 +80,11 @@ linters:
           - goconst
           - dupl
           - funlen
+      # The live suites are sequential BY CONTRACT: one real API, shared
+      # rate budget, writes that must never interleave (paralleltest).
+      - path: (smoke|integration_live)_test\.go
+        linters:
+          - paralleltest
       # The contract spec scanner and the ynabtest fake server read
       # repo-local files (vendored spec, golden fixtures) at paths their
       # own tables supply — not user input (G304 file inclusion).

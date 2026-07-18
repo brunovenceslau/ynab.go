@@ -44,8 +44,11 @@ func registerIntegrationCase(c integrationCase) {
 
 // TestIntegrationCoverage is the tokenless completeness gate (G8's
 // second layer): every one of the 44 operations must be covered by at
-// least one registered live-integration case. It runs in the normal
-// suite — no tag, no token.
+// least one registered live-integration case, and no case may claim an
+// operation the contract table doesn't know. It runs in the normal
+// suite — no tag, no token. Limit acknowledged: ops is self-declared
+// metadata, so the gate proves a case exists per operation, not that
+// the case body still calls it — that half is the live runner's job.
 func TestIntegrationCoverage(t *testing.T) {
 	t.Parallel()
 
@@ -62,7 +65,6 @@ func TestIntegrationCoverage(t *testing.T) {
 	}
 
 	table := contract.Table()
-	require.Len(t, table, 44)
 	for _, op := range table {
 		require.True(t, covered[op.ID], "operation %s has no live-integration case", op.ID)
 	}
@@ -76,6 +78,7 @@ func TestIntegrationCoverage(t *testing.T) {
 		}
 		require.True(t, found, "integration case declares unknown operation %s", op)
 	}
+	require.Len(t, table, 44)
 }
 
 func init() {

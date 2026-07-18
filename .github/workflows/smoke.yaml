@@ -1,6 +1,8 @@
 # G8's live half — the weekly read-only smoke against the real API.
 # Without the YNAB_TEST_TOKEN secret the test self-skips, so the job
-# stays green on forks and before the secret exists.
+# stays green on forks and before the secret exists. The secret is
+# scoped to the one step that needs it.
+# Actions are SHA-pinned (tag in the comment); bump deliberately.
 name: smoke
 
 on:
@@ -14,14 +16,17 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.25.x'
 
-      - name: make smoke         # local equivalent: make smoke
+      - name: make smoke
         env:
           YNAB_TEST_TOKEN: ${{ secrets.YNAB_TEST_TOKEN }}
         run: make smoke

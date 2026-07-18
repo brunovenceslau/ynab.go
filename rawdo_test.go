@@ -99,6 +99,8 @@ func TestRawDo(t *testing.T) {
 		_, err := client.RawDo(t.Context(), http.MethodGet, "p", nil, nil)
 		require.Error(t, err)
 		require.True(t, ynab.IsRetryable(err), "a connection failure is retryable")
+		var apiErr *ynab.Error
+		require.NotErrorAs(t, err, &apiErr, "a dial failure is transport-class, not a mapped status")
 	})
 
 	t.Run("config errors surface before any I/O", func(t *testing.T) {

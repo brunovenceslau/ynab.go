@@ -2,6 +2,7 @@
 # against the baked-in Version constant and the vanity go-import meta
 # tag, then re-runs the full local gate suite at the tagged commit.
 # Tags are pushed manually and deliberately; this job publishes nothing.
+# Actions are SHA-pinned (tag in the comment); bump deliberately.
 name: release
 
 on:
@@ -14,24 +15,27 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.25.x'
 
       - name: check version      # local equivalent: scripts/check-version.sh vX.Y.Z
         run: scripts/check-version.sh "$GITHUB_REF_NAME"
 
-      - name: make lint          # local equivalent: make lint
+      - name: make lint
         run: make lint
 
-      - name: make test          # local equivalent: make test
+      - name: make test
         run: make test
 
-      - name: make contract      # local equivalent: make contract
+      - name: make contract
         run: make contract
 
-      - name: make vulncheck     # local equivalent: make vulncheck
+      - name: make vulncheck
         run: make vulncheck

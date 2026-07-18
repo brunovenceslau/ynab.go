@@ -1,6 +1,9 @@
-# CI — every step maps 1:1 to a locally runnable command (the mapping is
-# the step name). The tip leg is post-push-verified: it cannot run on the
-# dev host and exists to catch upcoming-Go breakage early.
+# CI — every step is a make target, so a red step reproduces locally
+# with one command. The tip leg is post-push-verified: it cannot run on
+# the dev host and exists to catch upcoming-Go breakage early, so it
+# runs only vet/test/contract — lint and vulncheck tooling routinely
+# lags unreleased Go and would dilute that signal.
+# Actions are SHA-pinned (tag in the comment); bump deliberately.
 name: ci
 
 on:
@@ -11,59 +14,81 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # the tip leg builds Go from source
     strategy:
       fail-fast: false
       matrix:
         go: ['1.25.x', 'tip']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         if: matrix.go != 'tip'
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         if: matrix.go == 'tip'
         with:
-          go-version: stable
+          go-version: stable # bootstraps gotip only; never tests the code
 
-      - name: install gotip (pinned)
+      - name: install gotip (pinned wrapper)
         if: matrix.go == 'tip'
         run: |
           go install golang.org/dl/gotip@v0.0.0-20260707194042-2a89cd203549
-          gotip download
-          echo "$(gotip env GOROOT)/bin" >> "$GITHUB_PATH"
+          "$(go env GOPATH)/bin/gotip" download
+          echo "$("$(go env GOPATH)/bin/gotip" env GOROOT)/bin" >> "$GITHUB_PATH"
 
       - name: go version
         run: go version
 
-      - name: make lint          # local equivalent: make lint
+      - name: make vet
+        if: matrix.go == 'tip'
+        run: make vet
+
+      - name: make lint
+        if: matrix.go != 'tip'
         run: make lint
 
-      - name: make test          # local equivalent: make test
+      - name: make test
         run: make test
 
-      - name: make contract      # local equivalent: make contract
+      - name: make contract
         run: make contract
 
-      - name: vet tagged files   # local equivalent: go vet -tags='smoke integration' ./...
-        run: go vet -tags='smoke integration' ./...
-
-      - name: make vulncheck     # local equivalent: make vulncheck
+      - name: make vulncheck
+        if: matrix.go != 'tip'
         run: make vulncheck
 
-      - name: mod tidy diff      # local equivalent: go mod tidy && git diff --exit-code
-        run: go mod tidy && git diff --exit-code go.mod go.sum
+      - name: make tidy-check
+        if: matrix.go != 'tip'
+        run: make tidy-check
 
-      - name: make coverage      # local equivalent: make coverage
+      - name: make actionlint
+        if: matrix.go != 'tip'
+        run: make actionlint
+
+      - name: check-version self-test (network-free half)
+        if: matrix.go != 'tip'
+        run: |
+          CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh "v$(sed -n 's/^const Version = "\(.*\)"$/\1/p' client.go)"
+          ! CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v1.0.0-rc1
+          ! CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v0.0.0
+
+      - name: make coverage
         if: matrix.go != 'tip'
         run: make coverage
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.go != 'tip'
         with:
           name: coverage

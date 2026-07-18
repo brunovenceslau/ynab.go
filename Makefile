@@ -1,17 +1,22 @@
 # Tool pins — never @latest. Bump deliberately, one place only.
 GOLANGCI_LINT_VERSION := v2.12.2
 GOVULNCHECK_VERSION := v1.6.0
-# CGO_ENABLED=0: the tool needs no cgo and the host gcc cannot build runtime/cgo.
+ACTIONLINT_VERSION := v1.7.12
+# CGO_ENABLED=0: the tools need no cgo and the host gcc cannot build runtime/cgo.
 GOLANGCI_LINT := CGO_ENABLED=0 go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOVULNCHECK := CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
-.PHONY: test lint contract coverage update-spec smoke vulncheck
+.PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint
 
 test:
 	go test -race -shuffle=on ./...
 
-lint:
-	go vet ./...
+# The tags only add files — untagged files are always still vetted.
+vet:
+	go vet -tags='smoke integration' ./...
+
+lint: vet
 	$(GOLANGCI_LINT) run
 
 contract:
@@ -41,9 +46,10 @@ smoke:
 integration:
 	go test -tags=integration -count=1 -p 1 -run 'TestLiveIntegration' ./...
 
-ACTIONLINT_VERSION := v1.7.12
-ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+# Fails if go.mod/go.sum are untidy; running it locally is also the fix.
+tidy-check:
+	go mod tidy
+	git diff --exit-code go.mod go.sum
 
-.PHONY: actionlint
 actionlint:
 	$(ACTIONLINT) .github/workflows/*.yaml

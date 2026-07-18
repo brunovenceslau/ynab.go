@@ -1,19 +1,18 @@
 #!/usr/bin/env sh
-# Release gate: the tag being released must equal the Version constant
-# baked into the User-Agent, and the vanity host must still serve the
-# go-import meta tag that makes pkg.venceslau.dev/ynab resolvable.
+# Release gate: the tag being released must be plain vX.Y.Z semver and
+# equal the Version constant baked into the User-Agent, and the vanity
+# host must still serve the go-import meta tag that makes
+# pkg.venceslau.dev/ynab resolvable. CHECK_VERSION_SKIP_NET=1 skips the
+# vanity-host check so the pure half is testable offline (CI self-test).
 # Usage: check-version.sh vX.Y.Z
 set -eu
 
 tag="${1:?usage: check-version.sh vX.Y.Z}"
 
-case "$tag" in
-v[0-9]*.[0-9]*.[0-9]*) ;;
-*)
-	echo "error: tag '$tag' is not a vX.Y.Z semver tag" >&2
+if ! printf '%s\n' "$tag" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+	echo "error: tag '$tag' is not a plain vX.Y.Z semver tag" >&2
 	exit 1
-	;;
-esac
+fi
 
 version=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' client.go)
 if [ -z "$version" ]; then
@@ -27,7 +26,12 @@ if [ "$tag" != "v$version" ]; then
 fi
 echo "ok: tag $tag matches Version $version"
 
-meta=$(curl --proto '=https' --tlsv1.2 -fsSL 'https://pkg.venceslau.dev/ynab?go-get=1')
+if [ "${CHECK_VERSION_SKIP_NET:-}" = "1" ]; then
+	echo "ok: vanity check skipped (CHECK_VERSION_SKIP_NET=1)"
+	exit 0
+fi
+
+meta=$(curl --proto '=https' --tlsv1.2 --max-time 30 -fsSL 'https://pkg.venceslau.dev/ynab?go-get=1')
 expected='pkg.venceslau.dev/ynab git https://github.com/brunovenceslau/ynab'
 if ! printf '%s\n' "$meta" | grep -qF "$expected"; then
 	echo "error: vanity host is not serving the go-import meta tag:" >&2

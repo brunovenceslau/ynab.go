@@ -7,7 +7,6 @@ package ynab_test
 // YNAB_TEST_TOKEN; skips cleanly without it.
 
 import (
-	"errors"
 	"os"
 	"testing"
 
@@ -50,17 +49,20 @@ func TestLiveSmoke(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, months)
 
-	// Delta round-trip: a read from the fresh cursor answers quickly and
-	// near-empty.
+	// Delta round-trip from the fresh cursor. The delta is normally empty,
+	// but a server-side change between the two reads may legally surface
+	// entries — assert they decode, never their absence, so a concurrent
+	// mutation can't fake a drift-red badge.
 	delta, deltaSK, err := plan.Accounts.List(ctx, ynab.Since(accountsSK))
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int64(deltaSK), int64(accountsSK))
-	require.Empty(t, delta, "nothing changed between the two reads")
+	for _, a := range delta {
+		require.True(t, a.Type.Valid(), "delta returned unknown account type %q", a.Type)
+	}
 
-	// Taxonomy smoke: a nonsense plan id must answer through the sentinel
-	// taxonomy, never a decode error.
+	// Taxonomy smoke: a well-formed unknown plan id answers 404.2 over the
+	// real wire, which must map through the sentinel taxonomy — the one
+	// thing httptest can't prove.
 	_, err = client.Plan("00000000-0000-0000-0000-000000000000").Settings(ctx)
-	require.Error(t, err)
-	require.True(t, errors.Is(err, ynab.ErrNotFound) || errors.Is(err, ynab.ErrBadRequest),
-		"expected a taxonomy answer, got: %v", err)
+	require.ErrorIs(t, err, ynab.ErrNotFound)
 }
