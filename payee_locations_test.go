@@ -50,11 +50,23 @@ func init() {
 			locations, err := plan.PayeeLocations.List(t.Context())
 			require.NoError(t, err)
 
-			// A test plan usually has no locations (mobile-app writes only);
-			// the list decode itself is the assertion. When one exists,
-			// exercise the by-id and by-payee paths too.
+			// The API cannot create locations (mobile-app writes only), so
+			// a test plan is legitimately empty. Every op is still
+			// exercised over the real wire either way.
 			if len(locations) == 0 {
-				t.Log("no payee locations on the test plan; list decode covered getPayeeLocations")
+				payees, _, err := plan.Payees.List(t.Context())
+				require.NoError(t, err)
+				require.NotEmpty(t, payees, "every plan has default payees")
+
+				// By-payee against a real payee: a 200 with an empty list.
+				byPayee, err := plan.PayeeLocations.ListByPayee(t.Context(), payees[0].ID)
+				require.NoError(t, err)
+				require.Empty(t, byPayee)
+
+				// By-id against a well-formed unknown id: the live 404 must
+				// map through the sentinel taxonomy.
+				_, err = plan.PayeeLocations.Get(t.Context(), "00000000-0000-0000-0000-000000000000")
+				require.ErrorIs(t, err, ynab.ErrNotFound)
 				return
 			}
 			got, err := plan.PayeeLocations.Get(t.Context(), locations[0].ID)
