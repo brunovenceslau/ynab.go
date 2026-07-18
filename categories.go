@@ -52,33 +52,37 @@ func (f GoalFrequency) Valid() bool {
 // and the full-plan export collections. Amounts are specific to the
 // current plan month unless read through GetForMonth.
 type CategoryBase struct {
-	ID                      string      `json:"id"`
-	CategoryGroupID         string      `json:"category_group_id"`
-	CategoryGroupName       string      `json:"category_group_name"`
-	Name                    string      `json:"name"`
-	Hidden                  bool        `json:"hidden"`
-	Internal                bool        `json:"internal"`
-	OriginalCategoryGroupID *string     `json:"original_category_group_id"` // deprecated: always null
-	Note                    *string     `json:"note"`
-	Budgeted                Milliunits  `json:"budgeted"`
-	Activity                Milliunits  `json:"activity"`
-	Balance                 Milliunits  `json:"balance"`
-	GoalType                *GoalType   `json:"goal_type"`
-	GoalNeedsWholeAmount    *bool       `json:"goal_needs_whole_amount"`
-	GoalDay                 *int        `json:"goal_day"`
-	GoalCadence             *int        `json:"goal_cadence"`
-	GoalCadenceFrequency    *int        `json:"goal_cadence_frequency"`
-	GoalCreationMonth       *Month      `json:"goal_creation_month"`
-	GoalTarget              *Milliunits `json:"goal_target"`
-	GoalTargetMonth         *Month      `json:"goal_target_month"` // deprecated: use GoalTargetDate
-	GoalTargetDate          *Date       `json:"goal_target_date"`
-	GoalPercentageComplete  *int        `json:"goal_percentage_complete"`
-	GoalMonthsToBudget      *int        `json:"goal_months_to_budget"`
-	GoalUnderFunded         *Milliunits `json:"goal_under_funded"`
-	GoalOverallFunded       *Milliunits `json:"goal_overall_funded"`
-	GoalOverallLeft         *Milliunits `json:"goal_overall_left"`
-	GoalSnoozedAt           *time.Time  `json:"goal_snoozed_at"`
-	Deleted                 bool        `json:"deleted"`
+	ID                      string     `json:"id"`
+	CategoryGroupID         string     `json:"category_group_id"`
+	CategoryGroupName       string     `json:"category_group_name"`
+	Name                    string     `json:"name"`
+	Hidden                  bool       `json:"hidden"`
+	Internal                bool       `json:"internal"`
+	OriginalCategoryGroupID *string    `json:"original_category_group_id"` // deprecated: always null
+	Note                    *string    `json:"note"`
+	Budgeted                Milliunits `json:"budgeted"`
+	Activity                Milliunits `json:"activity"`
+	Balance                 Milliunits `json:"balance"`
+	GoalType                *GoalType  `json:"goal_type"`
+	GoalNeedsWholeAmount    *bool      `json:"goal_needs_whole_amount"`
+	GoalDay                 *int       `json:"goal_day"`
+	GoalCadence             *int       `json:"goal_cadence"`
+	GoalCadenceFrequency    *int       `json:"goal_cadence_frequency"`
+	// Both goal months are calendar dates on the wire (spec format:
+	// date) — the live API returns real day components (e.g. a
+	// goal_target_month of 2027-08-19), so Month's day-01 invariant
+	// must not apply here.
+	GoalCreationMonth      *Date       `json:"goal_creation_month"`
+	GoalTarget             *Milliunits `json:"goal_target"`
+	GoalTargetMonth        *Date       `json:"goal_target_month"` // deprecated: use GoalTargetDate
+	GoalTargetDate         *Date       `json:"goal_target_date"`
+	GoalPercentageComplete *int        `json:"goal_percentage_complete"`
+	GoalMonthsToBudget     *int        `json:"goal_months_to_budget"`
+	GoalUnderFunded        *Milliunits `json:"goal_under_funded"`
+	GoalOverallFunded      *Milliunits `json:"goal_overall_funded"`
+	GoalOverallLeft        *Milliunits `json:"goal_overall_left"`
+	GoalSnoozedAt          *time.Time  `json:"goal_snoozed_at"`
+	Deleted                bool        `json:"deleted"`
 }
 
 // Category is a plan category. The *_formatted/*_currency companions are

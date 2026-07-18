@@ -79,7 +79,7 @@
             "goal_cadence_frequency": null,
             "goal_creation_month": "2026-01-01",
             "goal_target": 12000000,
-            "goal_target_month": null,
+            "goal_target_month": "2027-06-15",
             "goal_target_date": "2027-06-15",
             "goal_percentage_complete": 10,
             "goal_months_to_budget": null,

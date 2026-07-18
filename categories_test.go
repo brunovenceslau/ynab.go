@@ -126,11 +126,15 @@ func TestCategoriesList(t *testing.T) {
 		require.True(t, groceries.GoalType.Valid())
 		require.Equal(t, ynab.Milliunits(500000), *groceries.GoalTarget)
 		require.Equal(t, "weekly shop", *groceries.Note)
-		require.Equal(t, ynab.NewMonth(2025, time.January), *groceries.GoalCreationMonth)
+		require.Equal(t, ynab.NewDate(2025, time.January, 1), *groceries.GoalCreationMonth)
 
 		vacation := groups[1].Categories[0]
 		require.Equal(t, ynab.GoalTypeTBD, *vacation.GoalType)
 		require.Equal(t, ynab.NewDate(2027, time.June, 15), *vacation.GoalTargetDate)
+		// Regression (first live run): the deprecated goal_target_month is a
+		// calendar DATE mirroring goal_target_date — the real API returns
+		// day components in it, so a Month here would fail to decode.
+		require.Equal(t, ynab.NewDate(2027, time.June, 15), *vacation.GoalTargetMonth)
 		require.Nil(t, vacation.Note)
 	})
 
