@@ -1,0 +1,10 @@
+{
+  "data": {
+    "transactions": [],
+    "transaction_ids": [],
+    "duplicate_import_ids": [
+      "YNAB:-294230:2026-07-10:1"
+    ],
+    "server_knowledge": 6501
+  }
+}

@@ -25,3 +25,9 @@ func BaseURLOf(c *Client) string {
 func EncodeTransactionFilter(f TransactionFilter) url.Values {
 	return f.encode()
 }
+
+// ValidateTransactionSpec exposes the pre-flight validation for the
+// SplitEven property test.
+func ValidateTransactionSpec(s TransactionSpec) error {
+	return s.validate("Transactions.Create")
+}

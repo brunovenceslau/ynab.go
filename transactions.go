@@ -2,6 +2,7 @@ package ynab
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -324,6 +325,127 @@ func (s *TransactionsService) Get(ctx context.Context, transactionID string) (*T
 		return nil, 0, err
 	}
 	return data.Transaction, data.ServerKnowledge, nil
+}
+
+// TransactionSpec is the payload for TransactionsService.Create and
+// CreateBatch. AccountID, Date, and Amount are required. A split
+// transaction sets CategoryID to SetNull and lists its legs in Splits —
+// the legs' amounts must sum exactly to Amount (SplitEven always
+// satisfies this).
+type TransactionSpec struct {
+	AccountID string     `json:"account_id"`
+	Date      Date       `json:"date"`
+	Amount    Milliunits `json:"amount"`
+
+	PayeeID Optional[string] `json:"payee_id,omitzero"`
+	// PayeeName resolves or creates a payee by name when PayeeID is not
+	// set; bounded at 200 characters.
+	PayeeName  Optional[string] `json:"payee_name,omitzero"`
+	CategoryID Optional[string] `json:"category_id,omitzero"`
+	// Memo is bounded at 500 characters.
+	Memo      Optional[string]    `json:"memo,omitzero"`
+	Cleared   ClearedStatus       `json:"cleared,omitzero"`
+	Approved  Optional[bool]      `json:"approved,omitzero"`
+	FlagColor Optional[FlagColor] `json:"flag_color,omitzero"`
+	// ImportID marks the transaction imported and deduplicates by
+	// (account, import_id); bounded at 36 characters. Convention:
+	// "YNAB:<milliunits>:<date>:<n>".
+	ImportID Optional[string] `json:"import_id,omitzero"`
+
+	Splits []SubtransactionSpec `json:"subtransactions,omitzero"`
+}
+
+// SubtransactionSpec is one leg of a split in TransactionSpec.
+type SubtransactionSpec struct {
+	Amount     Milliunits       `json:"amount"`
+	PayeeID    Optional[string] `json:"payee_id,omitzero"`
+	PayeeName  Optional[string] `json:"payee_name,omitzero"`
+	CategoryID Optional[string] `json:"category_id,omitzero"`
+	Memo       Optional[string] `json:"memo,omitzero"`
+}
+
+// Spec-declared transaction write bounds. (The payee-name bound here is
+// the transaction field's 200, distinct from the payee entity's 500.)
+const (
+	importIDMax     = 36
+	txnPayeeNameMax = 200
+	memoMax         = 500
+)
+
+// validate applies the spec-stated invariants — and only those — before
+// any I/O.
+func (s TransactionSpec) validate(op string) error {
+	if v, ok := s.ImportID.Get(); ok && len(v) > importIDMax {
+		return &ArgumentError{Op: op, Field: "import_id", Reason: "must be at most 36 characters"}
+	}
+	if v, ok := s.PayeeName.Get(); ok && len(v) > txnPayeeNameMax {
+		return &ArgumentError{Op: op, Field: "payee_name", Reason: "must be at most 200 characters"}
+	}
+	if v, ok := s.Memo.Get(); ok && len(v) > memoMax {
+		return &ArgumentError{Op: op, Field: "memo", Reason: "must be at most 500 characters"}
+	}
+	if len(s.Splits) > 0 {
+		var sum Milliunits
+		for _, leg := range s.Splits {
+			sum = sum.Add(leg.Amount)
+		}
+		if sum != s.Amount {
+			return &ArgumentError{Op: op, Reason: "split amounts must sum exactly to Amount"}
+		}
+	}
+	return nil
+}
+
+// BatchResult is what CreateBatch returns. DuplicateImportIDs lists the
+// import_ids skipped because the same (account, import_id) already
+// existed — a batch-level answer where the single Create returns 409.
+type BatchResult struct {
+	Transactions       []Transaction   `json:"transactions"`
+	TransactionIDs     []string        `json:"transaction_ids"`
+	DuplicateImportIDs []string        `json:"duplicate_import_ids"`
+	ServerKnowledge    ServerKnowledge `json:"server_knowledge"`
+}
+
+// Create adds one transaction (HTTP 201). A duplicate import_id on the
+// account answers 409 — errors.Is(err, ErrConflict) — unlike CreateBatch,
+// which reports duplicates in BatchResult.DuplicateImportIDs.
+//
+// YNAB operationId: createTransaction
+func (s *TransactionsService) Create(
+	ctx context.Context, spec TransactionSpec,
+) (*Transaction, ServerKnowledge, error) {
+	if err := spec.validate("Transactions.Create"); err != nil {
+		return nil, 0, err
+	}
+	data, err := do[transactionResult](ctx, s.plan.client,
+		http.MethodPost, s.plan.path("transactions"), nil, body{"transaction": spec})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transaction, data.ServerKnowledge, nil
+}
+
+// CreateBatch adds several transactions in one request (HTTP 201).
+// Duplicate import_ids do not fail the call: they come back in
+// BatchResult.DuplicateImportIDs with a nil error.
+//
+// YNAB operationId: createTransaction
+func (s *TransactionsService) CreateBatch(ctx context.Context, specs []TransactionSpec) (*BatchResult, error) {
+	for i, spec := range specs {
+		if err := spec.validate("Transactions.CreateBatch"); err != nil {
+			var argErr *ArgumentError
+			if errors.As(err, &argErr) {
+				argErr.Reason += " (spec " + strconv.Itoa(i) + ")"
+			}
+			return nil, err
+		}
+	}
+	data, err := do[BatchResult](ctx, s.plan.client,
+		http.MethodPost, s.plan.path("transactions"), nil, body{"transactions": specs})
+	if err != nil {
+		return nil, err
+	}
+	return &data, nil
 }
 
 // encode renders the filter's query parameters, nil when unfiltered.
