@@ -71,6 +71,12 @@ linters:
       - path: _test\.go
         linters:
           - goconst
+      # The contract spec scanner reads the repo-local vendored spec at a
+      # path supplied by tests — not user input (G304 file inclusion).
+      - path: internal/contract/specscan\.go
+        text: "G304"
+        linters:
+          - gosec
 
   settings:
     dupl:
