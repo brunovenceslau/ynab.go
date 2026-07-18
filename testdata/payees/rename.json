@@ -1,0 +1,11 @@
+{
+  "data": {
+    "payee": {
+      "id": "pa111111-1111-1111-1111-111111111111",
+      "name": "Grocery Palace",
+      "transfer_account_id": null,
+      "deleted": false
+    },
+    "server_knowledge": 4300
+  }
+}

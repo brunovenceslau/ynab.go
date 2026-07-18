@@ -296,7 +296,7 @@ func (s *CategoriesService) saveGroup(
 		return nil, 0, &ArgumentError{Op: op, Field: "name", Reason: "must be at most 50 characters"}
 	}
 	data, err := do[categoryGroupResult](ctx, s.plan.client, method, path, nil,
-		body{"category_group": map[string]any{"name": name}})
+		nameOnlyBody("category_group", name))
 	if err != nil {
 		return nil, 0, err
 	}

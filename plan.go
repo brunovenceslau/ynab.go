@@ -36,6 +36,8 @@ type Plan struct {
 	Categories *CategoriesService
 	// Months reads the plan's months.
 	Months *MonthsService
+	// Payees reads and writes the plan's payees.
+	Payees *PayeesService
 }
 
 // Plan returns the handle for id. No I/O happens; the id is validated by
@@ -45,6 +47,7 @@ func (c *Client) Plan(id PlanID) *Plan {
 	p.Accounts = &AccountsService{plan: p}
 	p.Categories = &CategoriesService{plan: p}
 	p.Months = &MonthsService{plan: p}
+	p.Payees = &PayeesService{plan: p}
 	return p
 }
 
@@ -158,6 +161,12 @@ func (p *Plan) Settings(ctx context.Context) (*PlanSettings, error) {
 		return nil, err
 	}
 	return data.Settings, nil
+}
+
+// nameOnlyBody builds the {"<wrapper>":{"name":...}} payload the group
+// and payee writes share.
+func nameOnlyBody(wrapper, name string) body {
+	return body{wrapper: map[string]any{"name": name}}
 }
 
 // do funnels every operation through the config-error contract and the

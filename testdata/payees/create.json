@@ -1,0 +1,11 @@
+{
+  "data": {
+    "payee": {
+      "id": "pa444444-4444-4444-4444-444444444444",
+      "name": "New Landlord",
+      "transfer_account_id": null,
+      "deleted": false
+    },
+    "server_knowledge": 4200
+  }
+}
