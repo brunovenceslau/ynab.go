@@ -106,11 +106,12 @@ type Account struct {
 	UnclearedBalanceCurrency  float64 `json:"uncleared_balance_currency"`
 }
 
-// SyncID keys the account for MergeByID.
-func (a Account) SyncID() string { return a.ID }
+// SyncID keys the account for MergeByID. Account inherits the adapters
+// by embedding.
+func (a AccountBase) SyncID() string { return a.ID }
 
 // IsDeleted reports a delta tombstone.
-func (a Account) IsDeleted() bool { return a.Deleted }
+func (a AccountBase) IsDeleted() bool { return a.Deleted }
 
 // AccountSpec is the payload for AccountsService.Create. All three fields
 // are required by the API.

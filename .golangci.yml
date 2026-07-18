@@ -124,6 +124,11 @@ linters:
     nolintlint:
       require-explanation: true
       require-specific: true
+    thelper:
+      tb:
+        # ynabtest's helpers accept a nil testing.TB for Example funcs,
+        # so tb.Helper() cannot be the unconditional first statement.
+        begin: false
     revive:
       rules:
         # Defaults revive would run without an explicit list, kept active.

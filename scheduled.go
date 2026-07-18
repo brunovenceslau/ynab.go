@@ -70,10 +70,11 @@ type ScheduledTransaction struct {
 }
 
 // SyncID keys the scheduled transaction for MergeByID.
-func (s ScheduledTransaction) SyncID() string { return s.ID }
+// ScheduledTransaction inherits the adapters by embedding.
+func (s ScheduledTransactionSummaryBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s ScheduledTransaction) IsDeleted() bool { return s.Deleted }
+func (s ScheduledTransactionSummaryBase) IsDeleted() bool { return s.Deleted }
 
 // ScheduledSubTransactionBase is the scheduled split-leg shape shared by
 // the scheduled endpoints and the full-plan export collections.
@@ -98,10 +99,11 @@ type ScheduledSubtransaction struct {
 }
 
 // SyncID keys the scheduled subtransaction for MergeByID.
-func (s ScheduledSubtransaction) SyncID() string { return s.ID }
+// ScheduledSubtransaction inherits the adapters by embedding.
+func (s ScheduledSubTransactionBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s ScheduledSubtransaction) IsDeleted() bool { return s.Deleted }
+func (s ScheduledSubTransactionBase) IsDeleted() bool { return s.Deleted }
 
 // ScheduledTransactionSpec is the payload for Create and Update.
 // AccountID and Date are required; the date must not be in the past and

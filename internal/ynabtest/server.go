@@ -98,7 +98,8 @@ type Server struct {
 	// URL is the base URL to hand to ynab.WithBaseURL.
 	URL string
 
-	tb testing.TB
+	tb  testing.TB
+	srv *httptest.Server
 
 	mu         sync.Mutex
 	failStatus int
@@ -106,15 +107,23 @@ type Server struct {
 	failName   string
 }
 
-// NewServer starts a fake API and closes it with the test.
+// NewServer starts a fake API. With a non-nil tb the server closes with
+// the test and fixture failures fail it; a nil tb (Example functions)
+// panics on fixture failures and the caller must Close the server.
 func NewServer(tb testing.TB) *Server {
-	tb.Helper()
-
 	s := &Server{tb: tb}
-	srv := httptest.NewServer(http.HandlerFunc(s.handle))
-	tb.Cleanup(srv.Close)
-	s.URL = srv.URL
+	s.srv = httptest.NewServer(http.HandlerFunc(s.handle))
+	s.URL = s.srv.URL
+	if tb != nil {
+		tb.Helper()
+		tb.Cleanup(s.srv.Close)
+	}
 	return s
+}
+
+// Close shuts the fake down — needed only for the nil-tb form.
+func (s *Server) Close() {
+	s.srv.Close()
 }
 
 // FailWith makes the next request answer a taxonomy-correct error
@@ -180,12 +189,15 @@ func (s *Server) resolve(r *http.Request) (route, bool) {
 }
 
 // Fixture reads a golden fixture from the module's testdata directory —
-// the same files the endpoint tests assert against.
+// the same files the endpoint tests assert against. A nil tb panics on
+// read failure.
 func Fixture(tb testing.TB, name string) []byte {
-	tb.Helper()
-
 	raw, err := os.ReadFile(filepath.Join(testdataDir(), name))
 	if err != nil {
+		if tb == nil {
+			panic(fmt.Sprintf("ynabtest: fixture %s: %v", name, err))
+		}
+		tb.Helper()
 		tb.Fatalf("ynabtest: fixture %s: %v", name, err)
 	}
 	return raw

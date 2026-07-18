@@ -149,11 +149,12 @@ type Transaction struct {
 	Subtransactions []Subtransaction `json:"subtransactions"`
 }
 
-// SyncID keys the transaction for MergeByID.
-func (t Transaction) SyncID() string { return t.ID }
+// SyncID keys the transaction for MergeByID. Transaction and
+// HybridTransaction inherit the adapters by embedding.
+func (t TransactionSummaryBase) SyncID() string { return t.ID }
 
 // IsDeleted reports a delta tombstone.
-func (t Transaction) IsDeleted() bool { return t.Deleted }
+func (t TransactionSummaryBase) IsDeleted() bool { return t.Deleted }
 
 // SubTransactionBase is the split-leg shape shared by the transaction
 // endpoints and the full-plan export collections.
@@ -178,11 +179,12 @@ type Subtransaction struct {
 	AmountCurrency  float64 `json:"amount_currency"`
 }
 
-// SyncID keys the subtransaction for MergeByID.
-func (s Subtransaction) SyncID() string { return s.ID }
+// SyncID keys the subtransaction for MergeByID. Subtransaction inherits
+// the adapters by embedding.
+func (s SubTransactionBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s Subtransaction) IsDeleted() bool { return s.Deleted }
+func (s SubTransactionBase) IsDeleted() bool { return s.Deleted }
 
 // HybridTransaction is a row of the category/payee transaction lists:
 // either a regular transaction or one leg of a split, per Type.
@@ -196,12 +198,6 @@ type HybridTransaction struct {
 	PayeeName           *string    `json:"payee_name"`
 	CategoryName        string     `json:"category_name"`
 }
-
-// SyncID keys the hybrid row for MergeByID.
-func (t HybridTransaction) SyncID() string { return t.ID }
-
-// IsDeleted reports a delta tombstone.
-func (t HybridTransaction) IsDeleted() bool { return t.Deleted }
 
 // TransactionFilter tunes the transaction list endpoints. The zero value
 // means unfiltered; each set field encodes its exact query parameter.

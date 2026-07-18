@@ -102,11 +102,12 @@ type Category struct {
 	GoalOverallLeftCurrency    *float64 `json:"goal_overall_left_currency"`
 }
 
-// SyncID keys the category for MergeByID.
-func (c Category) SyncID() string { return c.ID }
+// SyncID keys the category for MergeByID. Category inherits the
+// adapters by embedding.
+func (c CategoryBase) SyncID() string { return c.ID }
 
 // IsDeleted reports a delta tombstone.
-func (c Category) IsDeleted() bool { return c.Deleted }
+func (c CategoryBase) IsDeleted() bool { return c.Deleted }
 
 // CategoryGroup is a category group with its nested categories, as
 // getCategories returns them.

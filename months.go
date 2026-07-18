@@ -32,11 +32,12 @@ type MonthSummary struct {
 	ToBeBudgetedCurrency  float64 `json:"to_be_budgeted_currency"`
 }
 
-// SyncID keys the month for MergeByID.
-func (m MonthSummary) SyncID() string { return m.Month.String() }
+// SyncID keys the month for MergeByID. MonthSummary and MonthDetailBase
+// inherit the adapters by embedding.
+func (m MonthSummaryBase) SyncID() string { return m.Month.String() }
 
 // IsDeleted reports a delta tombstone.
-func (m MonthSummary) IsDeleted() bool { return m.Deleted }
+func (m MonthSummaryBase) IsDeleted() bool { return m.Deleted }
 
 // MonthDetailBase is the export shape for months in PlanDetail: the base
 // summary plus CategoryBase collections.
