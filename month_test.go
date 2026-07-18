@@ -38,7 +38,11 @@ func TestMonthParseAndString(t *testing.T) {
 	t.Run("rejects non-first-of-month and malformed input", func(t *testing.T) {
 		t.Parallel()
 
-		for _, s := range []string{"", "2016-12-05", "2016-12", "2016-12-1", "2016-13-01", "garbage", "2016-12-01T00:00:00Z"} {
+		malformed := []string{
+			"", "2016-12-05", "2016-12", "2016-12-1", "2016-13-01",
+			"garbage", "2016-12-01T00:00:00Z",
+		}
+		for _, s := range malformed {
 			_, err := ynab.ParseMonth(s)
 			require.Error(t, err, s)
 		}
@@ -70,7 +74,8 @@ func TestMonthAccessorsAndArithmetic(t *testing.T) {
 	require.Equal(t, ynab.NewMonth(2017, time.January), ynab.NewMonth(2016, time.Month(13)))
 
 	require.Equal(t, ynab.NewDate(2016, time.December, 1), m.FirstDay())
-	require.Equal(t, ynab.NewMonth(2016, time.December), ynab.MonthOf(time.Date(2016, time.December, 25, 10, 0, 0, 0, time.UTC)))
+	december := time.Date(2016, time.December, 25, 10, 0, 0, 0, time.UTC)
+	require.Equal(t, ynab.NewMonth(2016, time.December), ynab.MonthOf(december))
 
 	a, b := ynab.NewMonth(2016, time.May), ynab.NewMonth(2016, time.June)
 	require.Equal(t, -1, a.Compare(b))

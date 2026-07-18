@@ -54,7 +54,8 @@ func DiffWriteCoverage(table []Operation, implemented []string, cases []WriteCas
 		switch {
 		case id == "createTransaction":
 			if bodies[id] != 2 {
-				problems = append(problems, fmt.Sprintf("createTransaction needs exactly 2 body cases (single+batch), has %d", bodies[id]))
+				problems = append(problems, fmt.Sprintf(
+					"createTransaction needs exactly 2 body cases (single+batch), has %d", bodies[id]))
 			}
 		case bodilessOps[id]:
 			if bodies[id] != 0 {

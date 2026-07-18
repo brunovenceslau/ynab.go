@@ -107,8 +107,16 @@ func TestDoErrorEnvelopeRoutesThroughDecoder(t *testing.T) {
 		status int
 		body   string
 	}{
-		{name: "401 envelope", status: http.StatusUnauthorized, body: `{"error":{"id":"401","name":"not_authorized","detail":"d"}}`},
-		{name: "404.2 envelope", status: http.StatusNotFound, body: `{"error":{"id":"404.2","name":"resource_not_found","detail":"d"}}`},
+		{
+			name:   "401 envelope",
+			status: http.StatusUnauthorized,
+			body:   `{"error":{"id":"401","name":"not_authorized","detail":"d"}}`,
+		},
+		{
+			name:   "404.2 envelope",
+			status: http.StatusNotFound,
+			body:   `{"error":{"id":"404.2","name":"resource_not_found","detail":"d"}}`,
+		},
 		{name: "garbage body", status: http.StatusInternalServerError, body: `<html>boom`},
 	}
 	for _, tt := range tests {

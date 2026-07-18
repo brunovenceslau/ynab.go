@@ -23,7 +23,9 @@ func TestNewDefaults(t *testing.T) {
 	require.Equal(t, "https://api.ynab.com/v1", c.baseURL.String())
 	require.Equal(t, "pkg.venceslau.dev/ynab/"+Version, c.userAgent)
 	require.Equal(t, 30*time.Second, c.timeout)
-	require.Equal(t, RetryPolicy{MaxAttempts: 3, MinBackoff: time.Second, MaxBackoff: 30 * time.Second, RetryWrites: false}, c.retry)
+	require.Equal(t,
+		RetryPolicy{MaxAttempts: 3, MinBackoff: time.Second, MaxBackoff: 30 * time.Second, RetryWrites: false},
+		c.retry)
 	require.False(t, c.retryOff)
 	require.Same(t, http.DefaultClient, c.httpClient)
 	require.Nil(t, c.limiter)
@@ -86,8 +88,16 @@ func TestConfigErrorContract(t *testing.T) {
 		{name: "nil http client", opt: WithHTTPClient(nil), field: "WithHTTPClient"},
 		{name: "non-positive timeout", opt: WithTimeout(0), field: "WithTimeout"},
 		{name: "zero max attempts", opt: WithRetryPolicy(RetryPolicy{}), field: "WithRetryPolicy"},
-		{name: "zero min backoff", opt: WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MaxBackoff: time.Second}), field: "WithRetryPolicy"},
-		{name: "inverted backoff", opt: WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MinBackoff: 2 * time.Second, MaxBackoff: time.Second}), field: "WithRetryPolicy"},
+		{
+			name:  "zero min backoff",
+			opt:   WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MaxBackoff: time.Second}),
+			field: "WithRetryPolicy",
+		},
+		{
+			name:  "inverted backoff",
+			opt:   WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MinBackoff: 2 * time.Second, MaxBackoff: time.Second}),
+			field: "WithRetryPolicy",
+		},
 		{name: "nil limiter", opt: WithLimiter(nil), field: "WithLimiter"},
 		{name: "nil logger", opt: WithLogger(nil), field: "WithLogger"},
 	}

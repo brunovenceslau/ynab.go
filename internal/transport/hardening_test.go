@@ -82,7 +82,8 @@ func TestRetryAfterBeyondCapStopsPipeline(t *testing.T) {
 	hdr.Set("Retry-After", "3600")
 	srv, attempts := flakyServer(t, 99, http.StatusTooManyRequests, hdr)
 
-	c := retryCore(t, srv.URL, transport.RetryConfig{MaxAttempts: 3, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond})
+	cfg := transport.RetryConfig{MaxAttempts: 3, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond}
+	c := retryCore(t, srv.URL, cfg)
 	var decodedStatus int
 	c.DecodeError = func(status int, _ []byte, _ http.Header) error {
 		decodedStatus = status
@@ -133,7 +134,8 @@ func TestDoEncodeBodyFailure(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := transport.Do[okPayload](t.Context(), newCore(t, srv.URL), http.MethodPost, "p", nil, map[string]any{"bad": make(chan int)})
+	body := map[string]any{"bad": make(chan int)}
+	_, err := transport.Do[okPayload](t.Context(), newCore(t, srv.URL), http.MethodPost, "p", nil, body)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "encode request body")
 }
@@ -193,7 +195,11 @@ func TestJoinPath(t *testing.T) {
 	}{
 		{name: "plain segments", in: []string{"plans", "p-1", "accounts"}, want: "plans/p-1/accounts"},
 		{name: "space escaped", in: []string{"plans", "p 1"}, want: "plans/p%201"},
-		{name: "slash in segment cannot reroute", in: []string{"plans", "p-1/transactions"}, want: "plans/p-1%2Ftransactions"},
+		{
+			name: "slash in segment cannot reroute",
+			in:   []string{"plans", "p-1/transactions"},
+			want: "plans/p-1%2Ftransactions",
+		},
 		{name: "dot-dot segment neutralized", in: []string{"plans", "..", "user"}, want: "plans/%2E%2E/user"},
 		{name: "dot segment neutralized", in: []string{"plans", "."}, want: "plans/%2E"},
 		{name: "question mark escaped", in: []string{"p?x=1"}, want: "p%3Fx=1"},
@@ -217,7 +223,8 @@ func TestDoNeverLogsTokenOnErrorPaths(t *testing.T) {
 		t.Parallel()
 
 		srv, _ := flakyServer(t, 1, http.StatusTooManyRequests, nil)
-		c := retryCore(t, srv.URL, transport.RetryConfig{MaxAttempts: 2, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond})
+		cfg := transport.RetryConfig{MaxAttempts: 2, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond}
+		c := retryCore(t, srv.URL, cfg)
 		c.Logger = slog.New(h)
 		_, err := transport.Do[okPayload](t.Context(), c, http.MethodGet, "p", nil, nil)
 		require.NoError(t, err)

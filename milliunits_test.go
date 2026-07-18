@@ -85,7 +85,11 @@ func TestMilliunitsParse(t *testing.T) {
 	t.Run("rejects malformed input", func(t *testing.T) {
 		t.Parallel()
 
-		for _, s := range []string{"", ".", "1.", ".5", "abc", "1.2345", "1,5", "1.5e3", "--1", "9223372036854775.808", "-9223372036854775.809"} {
+		malformed := []string{
+			"", ".", "1.", ".5", "abc", "1.2345", "1,5", "1.5e3", "--1",
+			"9223372036854775.808", "-9223372036854775.809",
+		}
+		for _, s := range malformed {
 			_, err := ynab.ParseMilliunits(s)
 			require.Error(t, err, s)
 		}
@@ -197,8 +201,18 @@ func TestCurrencyFormatFormat(t *testing.T) {
 		{name: "negative rounds half away from zero", m: -5, f: usd(), want: "-$0.01"},
 		{name: "zero decimal digits", m: 1500, f: ynab.CurrencyFormat{DecimalDigits: 0, GroupSeparator: ","}, want: "2"},
 		{name: "large grouping", m: 1234567890, f: usd(), want: "$1,234,567.89"},
-		{name: "more decimals than the wire carries", m: 1500, f: ynab.CurrencyFormat{DecimalDigits: 4, DecimalSeparator: "."}, want: "1.5000"},
-		{name: "hostile decimal digits clamp at 10", m: 1500, f: ynab.CurrencyFormat{DecimalDigits: 5000, DecimalSeparator: "."}, want: "1.5000000000"},
+		{
+			name: "more decimals than the wire carries",
+			m:    1500,
+			f:    ynab.CurrencyFormat{DecimalDigits: 4, DecimalSeparator: "."},
+			want: "1.5000",
+		},
+		{
+			name: "hostile decimal digits clamp at 10",
+			m:    1500,
+			f:    ynab.CurrencyFormat{DecimalDigits: 5000, DecimalSeparator: "."},
+			want: "1.5000000000",
+		},
 		{name: "negative decimal digits clamp at 0", m: 1500, f: ynab.CurrencyFormat{DecimalDigits: -3}, want: "2"},
 		{name: "rounded-to-zero keeps its sign", m: -1, f: usd(), want: "-$0.00"},
 	}

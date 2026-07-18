@@ -64,7 +64,8 @@ func TestRetry429AnyVerb(t *testing.T) {
 	srv, attempts := flakyServer(t, 2, http.StatusTooManyRequests, nil)
 
 	cfg := transport.RetryConfig{MaxAttempts: 3, MinBackoff: time.Millisecond, MaxBackoff: 4 * time.Millisecond}
-	v, err := transport.Do[okPayload](t.Context(), retryCore(t, srv.URL, cfg), http.MethodPost, "p", nil, map[string]int{"a": 1})
+	c := retryCore(t, srv.URL, cfg)
+	v, err := transport.Do[okPayload](t.Context(), c, http.MethodPost, "p", nil, map[string]int{"a": 1})
 	require.NoError(t, err)
 	require.True(t, v.OK)
 	require.Equal(t, int32(3), attempts.Load())
@@ -117,7 +118,8 @@ func TestRetry500VerbRules(t *testing.T) {
 		rw := cfg
 		rw.RetryWrites = true
 
-		v, err := transport.Do[okPayload](t.Context(), retryCore(t, srv.URL, rw), http.MethodPost, "p", nil, map[string]int{"a": 1})
+		c := retryCore(t, srv.URL, rw)
+		v, err := transport.Do[okPayload](t.Context(), c, http.MethodPost, "p", nil, map[string]int{"a": 1})
 		require.NoError(t, err)
 		require.True(t, v.OK)
 		require.Equal(t, int32(2), attempts.Load())
@@ -150,7 +152,9 @@ func TestRetryDisabled(t *testing.T) {
 	t.Parallel()
 
 	srv, attempts := flakyServer(t, 1, http.StatusTooManyRequests, nil)
-	cfg := transport.RetryConfig{MaxAttempts: 3, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond, Disabled: true}
+	cfg := transport.RetryConfig{
+		MaxAttempts: 3, MinBackoff: time.Millisecond, MaxBackoff: 2 * time.Millisecond, Disabled: true,
+	}
 	c := retryCore(t, srv.URL, cfg)
 	c.DecodeError = func(int, []byte, http.Header) error { return errors.New("mapped") }
 

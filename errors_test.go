@@ -155,7 +155,11 @@ func TestIsRetryable(t *testing.T) {
 		{name: "context canceled wrapped in net error", err: wrap(&wrappingNetError{err: context.Canceled}), want: false},
 		{name: "bare caller deadline", err: context.DeadlineExceeded, want: false},
 		{name: "wrapped bare caller deadline", err: wrap(context.DeadlineExceeded), want: false},
-		{name: "transport timeout (net.Error, Timeout true, wraps deadline)", err: wrap(&wrappingNetError{err: context.DeadlineExceeded, timeout: true}), want: true},
+		{
+			name: "transport timeout (net.Error, Timeout true, wraps deadline)",
+			err:  wrap(&wrappingNetError{err: context.DeadlineExceeded, timeout: true}),
+			want: true,
+		},
 		{name: "connection failure (net.Error, Timeout false)", err: wrap(&fakeNetError{timeout: false}), want: true},
 		{name: "plain error", err: errors.New("boom"), want: false},
 	}

@@ -29,7 +29,9 @@ func TestContractScanSpec(t *testing.T) {
 	require.Equal(t, contract.SpecOp{ID: "getUser", Method: "GET", Path: "/user"}, byID["getUser"])
 	require.Equal(t, "DELETE", byID["deleteScheduledTransaction"].Method)
 	require.Equal(t, "/plans/{plan_id}/months/{month}/categories/{category_id}", byID["updateMonthCategory"].Path)
-	require.Equal(t, []string{"since_date", "until_date", "type", "last_knowledge_of_server"}, byID["getTransactions"].QueryParams)
+	require.Equal(t,
+		[]string{"since_date", "until_date", "type", "last_knowledge_of_server"},
+		byID["getTransactions"].QueryParams)
 	require.Equal(t, []string{"include_accounts"}, byID["getPlans"].QueryParams)
 	require.Empty(t, byID["createAccount"].QueryParams, "path params are not query params")
 

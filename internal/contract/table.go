@@ -26,50 +26,75 @@ const SpecVersion = "1.86.0"
 // frozen public surface. Query parameters mirror the vendored spec.
 func Table() []Operation {
 	return []Operation{
-		{ID: "getUser", Method: http.MethodGet, Path: "/user", GoMethods: []string{"Client.User"}},
-		{ID: "getPlans", Method: http.MethodGet, Path: "/plans", QueryParams: []string{"include_accounts"}, GoMethods: []string{"Client.Plans"}},
-		{ID: "getPlanById", Method: http.MethodGet, Path: "/plans/{plan_id}", QueryParams: deltaParams(), GoMethods: []string{"Plan.Export"}},
-		{ID: "getPlanSettingsById", Method: http.MethodGet, Path: "/plans/{plan_id}/settings", GoMethods: []string{"Plan.Settings"}},
-		{ID: "getPlanMonths", Method: http.MethodGet, Path: "/plans/{plan_id}/months", QueryParams: deltaParams(), GoMethods: []string{"MonthsService.List"}},
-		{ID: "getPlanMonth", Method: http.MethodGet, Path: "/plans/{plan_id}/months/{month}", GoMethods: []string{"MonthsService.Get"}},
-		{ID: "getAccounts", Method: http.MethodGet, Path: "/plans/{plan_id}/accounts", QueryParams: deltaParams(), GoMethods: []string{"AccountsService.List"}},
-		{ID: "createAccount", Method: http.MethodPost, Path: "/plans/{plan_id}/accounts", GoMethods: []string{"AccountsService.Create"}},
-		{ID: "getAccountById", Method: http.MethodGet, Path: "/plans/{plan_id}/accounts/{account_id}", GoMethods: []string{"AccountsService.Get"}},
-		{ID: "getCategories", Method: http.MethodGet, Path: "/plans/{plan_id}/categories", QueryParams: deltaParams(), GoMethods: []string{"CategoriesService.List"}},
-		{ID: "createCategory", Method: http.MethodPost, Path: "/plans/{plan_id}/categories", GoMethods: []string{"CategoriesService.Create"}},
-		{ID: "getCategoryById", Method: http.MethodGet, Path: "/plans/{plan_id}/categories/{category_id}", GoMethods: []string{"CategoriesService.Get"}},
-		{ID: "updateCategory", Method: http.MethodPatch, Path: "/plans/{plan_id}/categories/{category_id}", GoMethods: []string{"CategoriesService.Update"}},
-		{ID: "getMonthCategoryById", Method: http.MethodGet, Path: "/plans/{plan_id}/months/{month}/categories/{category_id}", GoMethods: []string{"CategoriesService.GetForMonth"}},
-		{ID: "updateMonthCategory", Method: http.MethodPatch, Path: "/plans/{plan_id}/months/{month}/categories/{category_id}", GoMethods: []string{"CategoriesService.Assign"}},
-		{ID: "createCategoryGroup", Method: http.MethodPost, Path: "/plans/{plan_id}/category_groups", GoMethods: []string{"CategoriesService.CreateGroup"}},
-		{ID: "updateCategoryGroup", Method: http.MethodPatch, Path: "/plans/{plan_id}/category_groups/{category_group_id}", GoMethods: []string{"CategoriesService.RenameGroup"}},
-		{ID: "getPayees", Method: http.MethodGet, Path: "/plans/{plan_id}/payees", QueryParams: deltaParams(), GoMethods: []string{"PayeesService.List"}},
-		{ID: "createPayee", Method: http.MethodPost, Path: "/plans/{plan_id}/payees", GoMethods: []string{"PayeesService.Create"}},
-		{ID: "getPayeeById", Method: http.MethodGet, Path: "/plans/{plan_id}/payees/{payee_id}", GoMethods: []string{"PayeesService.Get"}},
-		{ID: "updatePayee", Method: http.MethodPatch, Path: "/plans/{plan_id}/payees/{payee_id}", GoMethods: []string{"PayeesService.Rename"}},
-		{ID: "getPayeeLocations", Method: http.MethodGet, Path: "/plans/{plan_id}/payee_locations", GoMethods: []string{"PayeeLocationsService.List"}},
-		{ID: "getPayeeLocationById", Method: http.MethodGet, Path: "/plans/{plan_id}/payee_locations/{payee_location_id}", GoMethods: []string{"PayeeLocationsService.Get"}},
-		{ID: "getPayeeLocationsByPayee", Method: http.MethodGet, Path: "/plans/{plan_id}/payees/{payee_id}/payee_locations", GoMethods: []string{"PayeeLocationsService.ListByPayee"}},
-		{ID: "getMoneyMovements", Method: http.MethodGet, Path: "/plans/{plan_id}/money_movements", GoMethods: []string{"MoneyMovementsService.List"}},
-		{ID: "getMoneyMovementsByMonth", Method: http.MethodGet, Path: "/plans/{plan_id}/months/{month}/money_movements", GoMethods: []string{"MoneyMovementsService.ListByMonth"}},
-		{ID: "getMoneyMovementGroups", Method: http.MethodGet, Path: "/plans/{plan_id}/money_movement_groups", GoMethods: []string{"MoneyMovementsService.ListGroups"}},
-		{ID: "getMoneyMovementGroupsByMonth", Method: http.MethodGet, Path: "/plans/{plan_id}/months/{month}/money_movement_groups", GoMethods: []string{"MoneyMovementsService.ListGroupsByMonth"}},
-		{ID: "getTransactions", Method: http.MethodGet, Path: "/plans/{plan_id}/transactions", QueryParams: transactionFilterParams(), GoMethods: []string{"TransactionsService.List"}},
-		{ID: "createTransaction", Method: http.MethodPost, Path: "/plans/{plan_id}/transactions", GoMethods: []string{"TransactionsService.Create", "TransactionsService.CreateBatch"}},
-		{ID: "updateTransactions", Method: http.MethodPatch, Path: "/plans/{plan_id}/transactions", GoMethods: []string{"TransactionsService.UpdateBatch"}},
-		{ID: "importTransactions", Method: http.MethodPost, Path: "/plans/{plan_id}/transactions/import", GoMethods: []string{"TransactionsService.Import"}},
-		{ID: "getTransactionById", Method: http.MethodGet, Path: "/plans/{plan_id}/transactions/{transaction_id}", GoMethods: []string{"TransactionsService.Get"}},
-		{ID: "updateTransaction", Method: http.MethodPut, Path: "/plans/{plan_id}/transactions/{transaction_id}", GoMethods: []string{"TransactionsService.Update"}},
-		{ID: "deleteTransaction", Method: http.MethodDelete, Path: "/plans/{plan_id}/transactions/{transaction_id}", GoMethods: []string{"TransactionsService.Delete"}},
-		{ID: "getTransactionsByAccount", Method: http.MethodGet, Path: "/plans/{plan_id}/accounts/{account_id}/transactions", QueryParams: transactionFilterParams(), GoMethods: []string{"TransactionsService.ListByAccount"}},
-		{ID: "getTransactionsByCategory", Method: http.MethodGet, Path: "/plans/{plan_id}/categories/{category_id}/transactions", QueryParams: transactionFilterParams(), GoMethods: []string{"TransactionsService.ListByCategory"}},
-		{ID: "getTransactionsByPayee", Method: http.MethodGet, Path: "/plans/{plan_id}/payees/{payee_id}/transactions", QueryParams: transactionFilterParams(), GoMethods: []string{"TransactionsService.ListByPayee"}},
-		{ID: "getTransactionsByMonth", Method: http.MethodGet, Path: "/plans/{plan_id}/months/{month}/transactions", QueryParams: transactionFilterParams(), GoMethods: []string{"TransactionsService.ListByMonth"}},
-		{ID: "getScheduledTransactions", Method: http.MethodGet, Path: "/plans/{plan_id}/scheduled_transactions", QueryParams: deltaParams(), GoMethods: []string{"ScheduledTransactionsService.List"}},
-		{ID: "createScheduledTransaction", Method: http.MethodPost, Path: "/plans/{plan_id}/scheduled_transactions", GoMethods: []string{"ScheduledTransactionsService.Create"}},
-		{ID: "getScheduledTransactionById", Method: http.MethodGet, Path: "/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", GoMethods: []string{"ScheduledTransactionsService.Get"}},
-		{ID: "updateScheduledTransaction", Method: http.MethodPut, Path: "/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", GoMethods: []string{"ScheduledTransactionsService.Update"}},
-		{ID: "deleteScheduledTransaction", Method: http.MethodDelete, Path: "/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", GoMethods: []string{"ScheduledTransactionsService.Delete"}},
+		op("getUser", get, "/user", "Client.User"),
+		opQ("getPlans", get, "/plans", []string{"include_accounts"}, "Client.Plans"),
+		opQ("getPlanById", get, "/plans/{plan_id}", deltaParams(), "Plan.Export"),
+		op("getPlanSettingsById", get, "/plans/{plan_id}/settings", "Plan.Settings"),
+		opQ("getPlanMonths", get, "/plans/{plan_id}/months", deltaParams(), "MonthsService.List"),
+		op("getPlanMonth", get, "/plans/{plan_id}/months/{month}", "MonthsService.Get"),
+		opQ("getAccounts", get, "/plans/{plan_id}/accounts", deltaParams(), "AccountsService.List"),
+		op("createAccount", post, "/plans/{plan_id}/accounts", "AccountsService.Create"),
+		op("getAccountById", get, "/plans/{plan_id}/accounts/{account_id}", "AccountsService.Get"),
+		opQ("getCategories", get, "/plans/{plan_id}/categories", deltaParams(), "CategoriesService.List"),
+		op("createCategory", post, "/plans/{plan_id}/categories", "CategoriesService.Create"),
+		op("getCategoryById", get, "/plans/{plan_id}/categories/{category_id}", "CategoriesService.Get"),
+		op("updateCategory", patch, "/plans/{plan_id}/categories/{category_id}", "CategoriesService.Update"),
+		op("getMonthCategoryById", get,
+			"/plans/{plan_id}/months/{month}/categories/{category_id}", "CategoriesService.GetForMonth"),
+		op("updateMonthCategory", patch,
+			"/plans/{plan_id}/months/{month}/categories/{category_id}", "CategoriesService.Assign"),
+		op("createCategoryGroup", post, "/plans/{plan_id}/category_groups", "CategoriesService.CreateGroup"),
+		op("updateCategoryGroup", patch,
+			"/plans/{plan_id}/category_groups/{category_group_id}", "CategoriesService.RenameGroup"),
+		opQ("getPayees", get, "/plans/{plan_id}/payees", deltaParams(), "PayeesService.List"),
+		op("createPayee", post, "/plans/{plan_id}/payees", "PayeesService.Create"),
+		op("getPayeeById", get, "/plans/{plan_id}/payees/{payee_id}", "PayeesService.Get"),
+		op("updatePayee", patch, "/plans/{plan_id}/payees/{payee_id}", "PayeesService.Rename"),
+		op("getPayeeLocations", get, "/plans/{plan_id}/payee_locations", "PayeeLocationsService.List"),
+		op("getPayeeLocationById", get,
+			"/plans/{plan_id}/payee_locations/{payee_location_id}", "PayeeLocationsService.Get"),
+		op("getPayeeLocationsByPayee", get,
+			"/plans/{plan_id}/payees/{payee_id}/payee_locations", "PayeeLocationsService.ListByPayee"),
+		op("getMoneyMovements", get, "/plans/{plan_id}/money_movements", "MoneyMovementsService.List"),
+		op("getMoneyMovementsByMonth", get,
+			"/plans/{plan_id}/months/{month}/money_movements", "MoneyMovementsService.ListByMonth"),
+		op("getMoneyMovementGroups", get,
+			"/plans/{plan_id}/money_movement_groups", "MoneyMovementsService.ListGroups"),
+		op("getMoneyMovementGroupsByMonth", get,
+			"/plans/{plan_id}/months/{month}/money_movement_groups", "MoneyMovementsService.ListGroupsByMonth"),
+		opQ("getTransactions", get,
+			"/plans/{plan_id}/transactions",
+			transactionFilterParams(), "TransactionsService.List"),
+		op("createTransaction", post,
+			"/plans/{plan_id}/transactions", "TransactionsService.Create", "TransactionsService.CreateBatch"),
+		op("updateTransactions", patch, "/plans/{plan_id}/transactions", "TransactionsService.UpdateBatch"),
+		op("importTransactions", post, "/plans/{plan_id}/transactions/import", "TransactionsService.Import"),
+		op("getTransactionById", get, "/plans/{plan_id}/transactions/{transaction_id}", "TransactionsService.Get"),
+		op("updateTransaction", put, "/plans/{plan_id}/transactions/{transaction_id}", "TransactionsService.Update"),
+		op("deleteTransaction", del, "/plans/{plan_id}/transactions/{transaction_id}", "TransactionsService.Delete"),
+		opQ("getTransactionsByAccount", get,
+			"/plans/{plan_id}/accounts/{account_id}/transactions",
+			transactionFilterParams(), "TransactionsService.ListByAccount"),
+		opQ("getTransactionsByCategory", get,
+			"/plans/{plan_id}/categories/{category_id}/transactions",
+			transactionFilterParams(), "TransactionsService.ListByCategory"),
+		opQ("getTransactionsByPayee", get,
+			"/plans/{plan_id}/payees/{payee_id}/transactions",
+			transactionFilterParams(), "TransactionsService.ListByPayee"),
+		opQ("getTransactionsByMonth", get,
+			"/plans/{plan_id}/months/{month}/transactions",
+			transactionFilterParams(), "TransactionsService.ListByMonth"),
+		opQ("getScheduledTransactions", get,
+			"/plans/{plan_id}/scheduled_transactions",
+			deltaParams(), "ScheduledTransactionsService.List"),
+		op("createScheduledTransaction", post,
+			"/plans/{plan_id}/scheduled_transactions", "ScheduledTransactionsService.Create"),
+		op("getScheduledTransactionById", get,
+			"/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", "ScheduledTransactionsService.Get"),
+		op("updateScheduledTransaction", put,
+			"/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", "ScheduledTransactionsService.Update"),
+		op("deleteScheduledTransaction", del,
+			"/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", "ScheduledTransactionsService.Delete"),
 	}
 }
 
@@ -83,4 +108,23 @@ func deltaParams() []string {
 // filterable transaction list operations.
 func transactionFilterParams() []string {
 	return []string{"since_date", "until_date", "type", "last_knowledge_of_server"}
+}
+
+// Short verb aliases keep the table rows readable under the line limit.
+const (
+	get   = http.MethodGet
+	post  = http.MethodPost
+	put   = http.MethodPut
+	patch = http.MethodPatch
+	del   = http.MethodDelete
+)
+
+// op builds a query-less table row.
+func op(id, method, path string, goMethods ...string) Operation {
+	return Operation{ID: id, Method: method, Path: path, GoMethods: goMethods}
+}
+
+// opQ builds a table row carrying allowed query parameters.
+func opQ(id, method, path string, queryParams []string, goMethods ...string) Operation {
+	return Operation{ID: id, Method: method, Path: path, QueryParams: queryParams, GoMethods: goMethods}
 }

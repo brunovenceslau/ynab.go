@@ -27,7 +27,11 @@ func TestDateParseAndString(t *testing.T) {
 	t.Run("rejects non-wire forms", func(t *testing.T) {
 		t.Parallel()
 
-		for _, s := range []string{"", "current", "2015-1-02", "2015-01-2", "2015-13-01", "2015-02-30", "2015-12-30T00:00:00Z", "30-12-2015"} {
+		malformed := []string{
+			"", "current", "2015-1-02", "2015-01-2", "2015-13-01",
+			"2015-02-30", "2015-12-30T00:00:00Z", "30-12-2015",
+		}
+		for _, s := range malformed {
 			_, err := ynab.ParseDate(s)
 			require.Error(t, err, s)
 		}

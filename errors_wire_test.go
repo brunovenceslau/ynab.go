@@ -16,7 +16,8 @@ func TestDecodeWireError(t *testing.T) {
 	t.Run("full envelope", func(t *testing.T) {
 		t.Parallel()
 
-		err := ynab.DecodeWireError(401, []byte(`{"error":{"id":"401","name":"not_authorized","detail":"Unauthorized"}}`), http.Header{})
+		body := []byte(`{"error":{"id":"401","name":"not_authorized","detail":"Unauthorized"}}`)
+		err := ynab.DecodeWireError(401, body, http.Header{})
 
 		var apiErr *ynab.Error
 		require.ErrorAs(t, err, &apiErr)
@@ -30,7 +31,8 @@ func TestDecodeWireError(t *testing.T) {
 	t.Run("sub-coded id keeps class matching", func(t *testing.T) {
 		t.Parallel()
 
-		err := ynab.DecodeWireError(404, []byte(`{"error":{"id":"404.2","name":"resource_not_found","detail":"d"}}`), http.Header{})
+		body := []byte(`{"error":{"id":"404.2","name":"resource_not_found","detail":"d"}}`)
+		err := ynab.DecodeWireError(404, body, http.Header{})
 		require.ErrorIs(t, err, ynab.ErrResourceNotFound)
 		require.ErrorIs(t, err, ynab.ErrNotFound)
 	})
@@ -76,7 +78,8 @@ func TestDecodeWireError(t *testing.T) {
 		t.Parallel()
 
 		// The issue#38 seed: a 429 without Retry-After must still decode.
-		err := ynab.DecodeWireError(429, []byte(`{"error":{"id":"429","name":"too_many_requests","detail":"d"}}`), http.Header{})
+		body := []byte(`{"error":{"id":"429","name":"too_many_requests","detail":"d"}}`)
+		err := ynab.DecodeWireError(429, body, http.Header{})
 
 		var apiErr *ynab.Error
 		require.ErrorAs(t, err, &apiErr)

@@ -23,6 +23,7 @@ linters:
     - reassign
     # style
     - gocritic
+    - lll
     - revive
     - whitespace
     - godot
@@ -105,6 +106,8 @@ linters:
         # The machine-greppable operationId marker (frozen format, no
         # trailing period — the contract doc-line scanner parses it).
         - '^ YNAB operationId: '
+    lll:
+      line-length: 120
     gosec:
       excludes:
         # G404 (math/rand): the only randomness in this library is retry
