@@ -75,9 +75,14 @@ linters:
           - goconst
           - dupl
           - funlen
-      # The contract spec scanner reads the repo-local vendored spec at a
-      # path supplied by tests — not user input (G304 file inclusion).
+      # The contract spec scanner and the ynabtest fake server read
+      # repo-local files (vendored spec, golden fixtures) at paths their
+      # own tables supply — not user input (G304 file inclusion).
       - path: internal/contract/specscan\.go
+        text: "G304"
+        linters:
+          - gosec
+      - path: internal/ynabtest/server\.go
         text: "G304"
         linters:
           - gosec

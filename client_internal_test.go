@@ -154,14 +154,12 @@ func TestClientConcurrentUse(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 8 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_ = c.configError()
 			_ = c.userAgent
 			_ = c.retry
 			_, _ = c.tokenSource.Token(context.Background())
-		}()
+		})
 	}
 	wg.Wait()
 }

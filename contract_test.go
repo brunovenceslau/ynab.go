@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"os"
 	"strings"
 	"testing"
 
@@ -47,18 +47,19 @@ func TestContractDocLines(t *testing.T) {
 func scanDocLines(t *testing.T) map[string][]string {
 	t.Helper()
 
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi fs.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, parser.ParseComments)
+	entries, err := os.ReadDir(".")
 	require.NoError(t, err)
 
-	pkg, ok := pkgs["ynab"]
-	require.True(t, ok, "root package parses")
-
+	fset := token.NewFileSet()
 	const marker = "// YNAB operationId: "
 	found := map[string][]string{}
-	for _, file := range pkg.Files {
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, name, nil, parser.ParseComments)
+		require.NoError(t, err)
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
 			if ok && fn.Doc != nil {
