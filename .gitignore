@@ -1,7 +1,6 @@
 # Build and test artifacts
 *.test
 *.out
-cover.out
 /vendor/
 
 # The vendored OpenAPI spec is a tracked repo artifact (G1/G6 source of truth);
