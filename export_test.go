@@ -19,3 +19,9 @@ func ApplyListOptions(q url.Values, opts ...ListOption) url.Values {
 func BaseURLOf(c *Client) string {
 	return c.baseURL.String()
 }
+
+// EncodeTransactionFilter exposes the filter's query encoding for the
+// query-parameter table tests.
+func EncodeTransactionFilter(f TransactionFilter) url.Values {
+	return f.encode()
+}
