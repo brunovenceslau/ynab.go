@@ -29,7 +29,7 @@ Entry template:
   undocumented aliases of `/plans/...`.
 - **Impact:** this library emits only the documented `/plans/...` paths; the
   alias is never generated and never accepted in helpers.
-- **Status:** worked-around
+- **Status:** open
 
 ## delta endpoints — docs say 9, spec shows 11
 
@@ -39,5 +39,5 @@ Entry template:
 - **Reality shows:** OpenAPI 1.86.0 declares the `last_knowledge_of_server`
   query parameter on 11 operations (verified by grep over the vendored spec).
 - **Impact:** the spec is authoritative — the library exposes `Since` on all
-  11 spec-declared delta operations; the G1 table encodes the same 11.
-- **Status:** worked-around
+  11 spec-declared delta operations, and its contract tests encode the same 11.
+- **Status:** open
