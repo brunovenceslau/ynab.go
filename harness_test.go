@@ -83,10 +83,7 @@ func runWriteCase(t *testing.T, wc writeCase) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.NotNil(t, rec, "the call must reach the wire")
-	require.Empty(t, diffRecorded(wc, *rec))
-	if wc.body != "" {
-		require.JSONEq(t, wc.body, string(rec.body))
-	}
+	require.Empty(t, diffRecorded(wc, *rec), "recorded %s %s body %s", rec.method, rec.path, rec.body)
 }
 
 // diffRecorded compares a recorded request against its case: verb, path,
@@ -174,14 +171,20 @@ func TestContractWritesHarnessSelfCheck(t *testing.T) {
 		t.Parallel()
 
 		// The issue#24 class: approved:false silently dropped.
-		problems := diffRecorded(base, recordedRequest{method: "POST", path: base.path, body: []byte(`{"thing":{"name":"n"}}`)})
+		rec := recordedRequest{method: "POST", path: base.path, body: []byte(`{"thing":{"name":"n"}}`)}
+		problems := diffRecorded(base, rec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "missing key $.thing.approved")
 	})
 
 	t.Run("extra key detected", func(t *testing.T) {
 		t.Parallel()
-		problems := diffRecorded(base, recordedRequest{method: "POST", path: base.path, body: []byte(`{"thing":{"name":"n","approved":false,"id":"x"}}`)})
+		rec := recordedRequest{
+			method: "POST",
+			path:   base.path,
+			body:   []byte(`{"thing":{"name":"n","approved":false,"id":"x"}}`),
+		}
+		problems := diffRecorded(base, rec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "unexpected key $.thing.id")
 	})

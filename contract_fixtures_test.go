@@ -2,11 +2,14 @@ package ynab_test
 
 // Gate G5: null fixtures. Nullable is mechanically defined — an exported
 // pointer field of a registered response model — and every such field
-// must appear with a literal null in at least one registered null-variant
-// fixture (*_null.json). An out-of-range-numeric helper covers the uint8
-// overflow class: extreme int64 magnitudes must decode cleanly.
+// must appear with a literal null, at its exact (array-collapsed) path,
+// in at least one registered null-variant fixture (*_null.json). Fixtures
+// decode strictly (unknown keys are errors), so a fixture that drifts
+// from its model shape fails loudly instead of passing vacuously. An
+// out-of-range-numeric helper covers the uint8 overflow class.
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -19,9 +22,12 @@ import (
 )
 
 // nullFixtureEntry ties a response model to a null-variant fixture.
+// wrapper is the resource key under the envelope's data holding the model
+// ("" when the model is the data object itself).
 type nullFixtureEntry struct {
 	model   any
 	fixture string // path under testdata/, by convention *_null.json
+	wrapper string
 }
 
 var (
@@ -31,10 +37,10 @@ var (
 
 // registerNullFixture is called from slice test files' init functions for
 // every response model carrying nullable (pointer) fields.
-func registerNullFixture(model any, fixture string) {
+func registerNullFixture(model any, fixture, wrapper string) {
 	nullFixturesMu.Lock()
 	defer nullFixturesMu.Unlock()
-	nullFixtures = append(nullFixtures, nullFixtureEntry{model: model, fixture: fixture})
+	nullFixtures = append(nullFixtures, nullFixtureEntry{model: model, fixture: fixture, wrapper: wrapper})
 }
 
 // TestContractNullFixtures is gate G5 over the registry.
@@ -47,32 +53,77 @@ func TestContractNullFixtures(t *testing.T) {
 	nullFixturesMu.Unlock()
 
 	loaded := make([]loadedNullFixture, 0, len(entries))
+	registered := map[reflect.Type]bool{}
 	for _, e := range entries {
-		loaded = append(loaded, loadedNullFixture{model: e.model, raw: loadFixture(t, e.fixture), name: e.fixture})
+		raw := modelDocument(t, loadFixture(t, e.fixture), e.wrapper)
+		loaded = append(loaded, loadedNullFixture{model: e.model, raw: raw, name: e.fixture})
+		registered[reflect.TypeOf(e.model)] = true
 	}
 	require.Empty(t, nullCoverageProblems(loaded))
 
-	// Every null fixture must also decode cleanly into its model.
+	// Every null fixture must decode strictly into its model: unknown
+	// keys are errors, so shape drift cannot pass vacuously.
 	for _, l := range loaded {
-		target := reflect.New(reflect.TypeOf(l.model)).Interface()
-		require.NoError(t, json.Unmarshal(extractData(t, l.raw), target), "fixture %s", l.name)
+		require.NoError(t, strictDecode(l.raw, l.model), "fixture %s", l.name)
+	}
+
+	// Forcing rule: a registered read model carrying nullable (pointer)
+	// fields cannot skip G5 — registration here is not voluntary.
+	wireModelsMu.Lock()
+	reads := append([]any{}, readModels...)
+	wireModelsMu.Unlock()
+	for _, m := range reads {
+		mt := reflect.TypeOf(m)
+		if mt.Kind() == reflect.Struct && len(pointerFieldPaths(mt)) > 0 {
+			require.True(t, registered[mt],
+				"%s has nullable fields but no registered null fixture", mt)
+		}
 	}
 }
 
-// loadedNullFixture is a registry entry with its fixture bytes read.
+// loadedNullFixture is a registry entry with its model document extracted.
 type loadedNullFixture struct {
 	model any
 	raw   []byte
 	name  string
 }
 
+// modelDocument unwraps {"data": ...} and then the resource wrapper key.
+func modelDocument(t *testing.T, raw []byte, wrapper string) []byte {
+	t.Helper()
+
+	var env struct {
+		Data json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &env))
+	require.NotEmpty(t, env.Data, "fixture must carry the {\"data\": ...} envelope")
+	if wrapper == "" {
+		return env.Data
+	}
+
+	var inner map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(env.Data, &inner))
+	doc, ok := inner[wrapper]
+	require.True(t, ok, "envelope data has no %q key", wrapper)
+	return doc
+}
+
+// strictDecode unmarshals raw into a new instance of model's type with
+// unknown fields disallowed.
+func strictDecode(raw []byte, model any) error {
+	target := reflect.New(reflect.TypeOf(model)).Interface()
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	return dec.Decode(target)
+}
+
 // nullCoverageProblems checks, per model type, that every pointer field's
-// JSON key appears with a literal null in at least one of its fixtures.
+// tag path carries a literal null in at least one of its fixtures.
 func nullCoverageProblems(entries []loadedNullFixture) []string {
 	var problems []string
 
 	type modelGroup struct {
-		tags  []string
+		paths []string
 		nulls map[string]bool
 	}
 	groups := map[reflect.Type]*modelGroup{}
@@ -80,7 +131,7 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 		mt := reflect.TypeOf(e.model)
 		g, ok := groups[mt]
 		if !ok {
-			g = &modelGroup{tags: pointerFieldTags(mt), nulls: map[string]bool{}}
+			g = &modelGroup{paths: pointerFieldPaths(mt), nulls: map[string]bool{}}
 			groups[mt] = g
 		}
 		var doc any
@@ -88,29 +139,32 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 			problems = append(problems, e.name+": fixture is not valid JSON: "+err.Error())
 			continue
 		}
-		collectNullKeys(doc, g.nulls)
+		collectNullPaths(doc, "$", g.nulls)
 	}
 
 	for mt, g := range groups {
-		for _, tag := range g.tags {
-			if !g.nulls[tag] {
-				problems = append(problems, mt.String()+": nullable field "+tag+" is never null in any registered fixture")
+		for _, p := range g.paths {
+			if !g.nulls[p] {
+				problems = append(problems, mt.String()+": nullable field "+p+" is never null in any registered fixture")
 			}
 		}
 	}
 	return problems
 }
 
-// pointerFieldTags walks a model type and returns the JSON tag names of
-// every exported pointer field — the mechanical definition of nullable.
-func pointerFieldTags(t reflect.Type) []string {
-	var tags []string
+// pointerFieldPaths walks a model type and returns the array-collapsed
+// JSON tag paths of every exported pointer field — the mechanical
+// definition of nullable. Paths distinguish nesting ($.payee_id vs
+// $.subtransactions.payee_id), so a null at one level can never satisfy
+// another.
+func pointerFieldPaths(t reflect.Type) []string {
+	var paths []string
 	seen := map[reflect.Type]bool{}
-	var walk func(t reflect.Type)
-	walk = func(t reflect.Type) {
+	var walk func(t reflect.Type, prefix string)
+	walk = func(t reflect.Type, prefix string) {
 		switch t.Kind() {
 		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
-			walk(t.Elem())
+			walk(t.Elem(), prefix)
 			return
 		case reflect.Struct:
 		default:
@@ -123,58 +177,55 @@ func pointerFieldTags(t reflect.Type) []string {
 		for i := range t.NumField() {
 			f := t.Field(i)
 			if !f.IsExported() {
+				if f.Anonymous {
+					walk(f.Type, prefix)
+				}
 				continue
 			}
-			if f.Type.Kind() == reflect.Pointer {
-				if name, _, _ := strings.Cut(f.Tag.Get("json"), ","); name != "" && name != "-" {
-					tags = append(tags, name)
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			p := prefix
+			if !f.Anonymous {
+				if name == "" || name == "-" {
+					continue
 				}
+				p = prefix + "." + name
 			}
-			walk(f.Type)
+			if f.Type.Kind() == reflect.Pointer {
+				paths = append(paths, p)
+			}
+			walk(f.Type, p)
 		}
 	}
-	walk(t)
-	return tags
+	walk(t, "$")
+	return paths
 }
 
-// collectNullKeys records every JSON key whose value is a literal null.
-func collectNullKeys(doc any, out map[string]bool) {
+// collectNullPaths records every JSON path whose value is a literal null,
+// collapsing array indices so fixtures and models align.
+func collectNullPaths(doc any, prefix string, out map[string]bool) {
 	switch v := doc.(type) {
 	case map[string]any:
 		for k, child := range v {
+			p := prefix + "." + k
 			if child == nil {
-				out[k] = true
+				out[p] = true
 			}
-			collectNullKeys(child, out)
+			collectNullPaths(child, p, out)
 		}
 	case []any:
 		for _, child := range v {
-			collectNullKeys(child, out)
+			collectNullPaths(child, prefix, out)
 		}
 	}
-}
-
-// extractData unwraps a fixture's {"data": ...} envelope for direct model
-// decodes; fixtures without the envelope are returned whole.
-func extractData(t *testing.T, raw []byte) []byte {
-	t.Helper()
-
-	var env struct {
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(raw, &env); err == nil && len(env.Data) > 0 {
-		return env.Data
-	}
-	return raw
 }
 
 // runOutOfRangeCase asserts extreme numeric magnitudes decode cleanly
 // into a model — the uint8-overflow class of the pr-era regressions.
-func runOutOfRangeCase(t *testing.T, model any, fixture string) {
+func runOutOfRangeCase(t *testing.T, model any, fixture, wrapper string) {
 	t.Helper()
 
-	target := reflect.New(reflect.TypeOf(model)).Interface()
-	require.NoError(t, json.Unmarshal(extractData(t, loadFixture(t, fixture)), target),
+	raw := modelDocument(t, loadFixture(t, fixture), wrapper)
+	require.NoError(t, strictDecode(raw, model),
 		"extreme numeric fixture %s must decode", fixture)
 }
 
@@ -201,7 +252,7 @@ func TestContractNullFixturesSelfCheck(t *testing.T) {
 
 		entries := []loadedNullFixture{{
 			model: syntheticThing{},
-			raw:   loadFixture(t, "selftest/thing_null.json"),
+			raw:   modelDocument(t, loadFixture(t, "selftest/thing_null.json"), "thing"),
 			name:  "selftest/thing_null.json",
 		}}
 		require.Empty(t, nullCoverageProblems(entries))
@@ -212,21 +263,38 @@ func TestContractNullFixturesSelfCheck(t *testing.T) {
 
 		entries := []loadedNullFixture{{
 			model: syntheticThing{},
-			raw:   []byte(`{"data":{"thing":{"name":"n","payee_id":null,"note":null,"details":{"transfer_id":"x"}}}}`),
+			raw:   []byte(`{"name":"n","payee_id":null,"note":null,"details":{"transfer_id":"x"}}`),
 			name:  "inline",
 		}}
 		problems := nullCoverageProblems(entries)
 		require.NotEmpty(t, problems)
-		require.Contains(t, problems[0], "transfer_id is never null")
+		require.Contains(t, problems[0], "$.details.transfer_id is never null")
+	})
+
+	t.Run("null at the wrong nesting level does not satisfy", func(t *testing.T) {
+		t.Parallel()
+
+		// transfer_id is null at the TOP level only — the nested pointer
+		// stays uncovered. Flat key matching would false-pass here.
+		entries := []loadedNullFixture{{
+			model: syntheticThing{},
+			raw:   []byte(`{"name":"n","payee_id":null,"note":null,"transfer_id":null,"details":{"transfer_id":"x"}}`),
+			name:  "inline",
+		}}
+		problems := nullCoverageProblems(entries)
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "$.details.transfer_id is never null")
+	})
+
+	t.Run("strict decode rejects shape drift", func(t *testing.T) {
+		t.Parallel()
+
+		err := strictDecode([]byte(`{"name":"n","unexpected_key":1}`), syntheticThing{})
+		require.Error(t, err)
 	})
 
 	t.Run("out of range numerics decode", func(t *testing.T) {
 		t.Parallel()
-		runOutOfRangeCase(t, syntheticThing{}, "selftest/thing_extreme.json")
+		runOutOfRangeCase(t, syntheticThing{}, "selftest/thing_extreme.json", "thing")
 	})
-}
-
-func init() {
-	// Synthetic G5 registration, removed when the first slice lands.
-	registerNullFixture(syntheticThing{}, "selftest/thing_null.json")
 }

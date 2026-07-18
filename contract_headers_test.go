@@ -16,7 +16,6 @@ package ynab_test
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -30,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
+	"pkg.venceslau.dev/ynab/internal/contract"
 	"pkg.venceslau.dev/ynab/internal/transport"
 )
 
@@ -40,6 +40,7 @@ type endpointCase struct {
 	variant string // optional: distinguishes fixtures per op
 	fixture string // path under testdata/, e.g. "payees/list.json"
 	status  int    // response status; 0 means 200
+	model   any    // the decode-target model, statically feeding the G3 walk
 	call    func(t *testing.T, c *ynab.Client) (any, error)
 }
 
@@ -49,10 +50,16 @@ var (
 )
 
 // registerEndpointCase is called from slice test files' init functions.
+// The case's model feeds the G3 struct lint at registration time —
+// statically, so gate coverage can never depend on test scheduling.
 func registerEndpointCase(ec endpointCase) {
 	endpointRegistryMu.Lock()
-	defer endpointRegistryMu.Unlock()
 	endpointRegistry = append(endpointRegistry, ec)
+	endpointRegistryMu.Unlock()
+
+	if ec.model != nil {
+		registerReadModel(ec.model)
+	}
 }
 
 // loadFixture reads a golden fixture from testdata/.
@@ -107,11 +114,49 @@ func runEndpointTest(t *testing.T, ec endpointCase) {
 	verbatim := decode(false)
 	strippedResult := decode(true)
 	require.Equal(t, verbatim, strippedResult, "optional response headers must never change a decode")
-
-	registerReadModel(verbatim)
 }
 
-// TestContractHeaders is gate G4 over the registry.
+// TestContractHeadersStrippedServer proves the stripped fixtureServer
+// really omits the optional headers — if the suppression trick ever
+// stopped working, the G4 second run would silently duplicate the first.
+func TestContractHeadersStrippedServer(t *testing.T) {
+	t.Parallel()
+
+	srv := fixtureServer(t, 0, []byte(`{}`), true)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL, nil)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	require.Empty(t, resp.Header.Values("Content-Type"))
+	require.Empty(t, resp.Header.Values("Date"))
+	require.Empty(t, resp.Header.Values("X-Rate-Limit"))
+}
+
+// TestContractHeadersDetectsDependence proves G4's teeth: a decode that
+// depends on a response header yields different results between the
+// verbatim and stripped runs — exactly what runEndpointTest's equality
+// assertion turns into a failure.
+func TestContractHeadersDetectsDependence(t *testing.T) {
+	t.Parallel()
+
+	headerRead := func(stripped bool) string {
+		srv := fixtureServer(t, 0, []byte(`{}`), stripped)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL, nil)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		return resp.Header.Get("X-Rate-Limit")
+	}
+
+	require.NotEqual(t, headerRead(false), headerRead(true),
+		"a header-dependent decode must diverge between the two runs")
+}
+
+// TestContractHeaders is gate G4 over the registry: read-side
+// completeness against the G1 implemented registry, then every case run
+// twice.
 func TestContractHeaders(t *testing.T) {
 	t.Parallel()
 
@@ -119,6 +164,12 @@ func TestContractHeaders(t *testing.T) {
 	cases := make([]endpointCase, len(endpointRegistry))
 	copy(cases, endpointRegistry)
 	endpointRegistryMu.Unlock()
+
+	infos := make([]contract.ReadCaseInfo, 0, len(cases))
+	for _, ec := range cases {
+		infos = append(infos, contract.ReadCaseInfo{OpID: ec.op})
+	}
+	require.Empty(t, contract.DiffReadCoverage(contract.Table(), contract.ImplementedIDs(), infos))
 
 	for _, ec := range cases {
 		name := ec.op
@@ -176,39 +227,7 @@ func TestContractHeaders429SansRetryAfter(t *testing.T) {
 	require.True(t, v.OK)
 }
 
-// The synthetic case keeps the registry loop and both harness runs
-// exercised until the first slice lands (Task 16+), then is removed. Its
-// op is never marked implemented, so no completeness check counts it.
-func init() {
-	registerEndpointCase(endpointCase{
-		op:      "syntheticEndpointProof",
-		fixture: "selftest/thing.json",
-		call: func(t *testing.T, c *ynab.Client) (any, error) {
-			t.Helper()
-			return rawGetJSON(t, ynab.BaseURLOf(c)+"/plans/p-1/things")
-		},
-	})
-}
-
 // discardLogger returns a logger that drops everything.
 func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
-}
-
-// rawGetJSON fetches u and decodes the success envelope into a generic
-// map — the stand-in decode until real service methods exist.
-func rawGetJSON(t *testing.T, u string) (any, error) {
-	t.Helper()
-
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, u, nil)
-	require.NoError(t, err)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	var env struct {
-		Data map[string]any `json:"data"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&env)
-	return env.Data, err
 }

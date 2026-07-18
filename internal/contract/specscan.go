@@ -33,6 +33,7 @@ var (
 	reParamName   = regexp.MustCompile(`^\s+- name:\s*(\S+)`)
 	reParamIn     = regexp.MustCompile(`^\s+in:\s*(\S+)`)
 	reVersion     = regexp.MustCompile(`^  version:\s*(\S+)`)
+	reResponses   = regexp.MustCompile(`^      responses:\s*$`)
 )
 
 // ScanSpec extracts {operationId, verb, path, query-param names} tuples and
@@ -62,6 +63,11 @@ func ScanSpec(path string) (*Spec, error) {
 			curOp = &spec.Ops[len(spec.Ops)-1]
 		case spec.Version == "" && reVersion.MatchString(line):
 			spec.Version = reVersion.FindStringSubmatch(line)[1]
+		case reResponses.MatchString(line):
+			// Parameters precede responses in every operation; closing the
+			// op here keeps name/in-shaped lines inside response schemas
+			// from being misattributed to it.
+			curOp = nil
 		case curOp != nil && reParamName.MatchString(line):
 			name := reParamName.FindStringSubmatch(line)[1]
 			if paramIsQuery(lines, i+1) {

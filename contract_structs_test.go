@@ -98,12 +98,21 @@ func structLintProblems(roots []reflect.Type) []string {
 		}
 		seen[t] = true
 		if isOptionalType(t) {
-			return // Optional's own internals are not a wire struct
+			// Optional's own internals are not a wire struct, but the
+			// wrapped type is: walk what the value field carries.
+			walk(t.Field(0).Type)
+			return
 		}
 
 		for i := range t.NumField() {
 			f := t.Field(i)
 			if !f.IsExported() {
+				// encoding/json still promotes and serializes the exported
+				// fields of an unexported embedded struct — those must not
+				// escape the lint.
+				if f.Anonymous {
+					walk(f.Type)
+				}
 				continue
 			}
 			problems = append(problems, fieldProblems(t, f)...)
@@ -174,6 +183,9 @@ func writeModelProblems(v any) []string {
 	var problems []string
 	setZeroFields := 0
 	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer {
+		rv = rv.Elem()
+	}
 	rt := rv.Type()
 	for i := range rt.NumField() {
 		f := rt.Field(i)
@@ -201,7 +213,8 @@ func writeModelProblems(v any) []string {
 		}
 	}
 	if setZeroFields == 0 {
-		problems = append(problems, rt.String()+": register the instance with at least one Set(zero-of-T) field — the issue#24 net")
+		problems = append(problems,
+			rt.String()+": register the instance with at least one Set(zero-of-T) field — the issue#24 net")
 	}
 	return problems
 }
@@ -227,6 +240,21 @@ func badOmitemptyType() reflect.Type {
 
 type badMissingOmitzero struct {
 	Note ynab.Optional[string] `json:"note"`
+}
+
+// badBase is an unexported embedded struct whose exported field json still
+// promotes and serializes.
+type badBase struct {
+	Budgeted int64
+}
+
+type badEmbedding struct {
+	badBase
+	ID string `json:"id"`
+}
+
+type badOptionalWrapped struct {
+	Sub ynab.Optional[badBase] `json:"sub,omitzero"`
 }
 
 type goodWireModel struct {
@@ -265,6 +293,24 @@ func TestContractStructsSelfCheck(t *testing.T) {
 	t.Run("clean wire model passes", func(t *testing.T) {
 		t.Parallel()
 		require.Empty(t, structLintProblems([]reflect.Type{reflect.TypeFor[goodWireModel]()}))
+	})
+
+	t.Run("unexported embedded struct cannot hide untagged fields", func(t *testing.T) {
+		t.Parallel()
+
+		// json promotes badBase's exported field: {"Budgeted":...} — the
+		// walk must descend into unexported embedded types.
+		problems := structLintProblems([]reflect.Type{reflect.TypeFor[badEmbedding]()})
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "explicit JSON tag")
+	})
+
+	t.Run("struct wrapped in Optional is still walked", func(t *testing.T) {
+		t.Parallel()
+
+		problems := structLintProblems([]reflect.Type{reflect.TypeFor[badOptionalWrapped]()})
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "explicit JSON tag")
 	})
 
 	t.Run("config structs are structurally out of scope", func(t *testing.T) {

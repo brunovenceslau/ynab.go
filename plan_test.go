@@ -18,6 +18,7 @@ func init() {
 	registerEndpointCase(endpointCase{
 		op:      "getUser",
 		fixture: "user/get.json",
+		model:   ynab.User{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			return c.User(t.Context())
@@ -26,6 +27,7 @@ func init() {
 	registerEndpointCase(endpointCase{
 		op:      "getPlans",
 		fixture: "plans/list.json",
+		model:   ynab.PlanList{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			return c.Plans(t.Context())
@@ -35,6 +37,7 @@ func init() {
 		op:      "getPlans",
 		variant: "null",
 		fixture: "plans/list_null.json",
+		model:   ynab.PlanList{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			return c.Plans(t.Context())
@@ -43,6 +46,7 @@ func init() {
 	registerEndpointCase(endpointCase{
 		op:      "getPlanSettingsById",
 		fixture: "plans/settings.json",
+		model:   ynab.PlanSettings{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			return c.Plan("aa111111-1111-1111-1111-111111111111").Settings(t.Context())
@@ -52,14 +56,15 @@ func init() {
 		op:      "getPlanSettingsById",
 		variant: "null",
 		fixture: "plans/settings_null.json",
+		model:   ynab.PlanSettings{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			return c.Plan("aa111111-1111-1111-1111-111111111111").Settings(t.Context())
 		},
 	})
 
-	registerNullFixture(ynab.PlanList{}, "plans/list_null.json")
-	registerNullFixture(ynab.PlanSettings{}, "plans/settings_null.json")
+	registerNullFixture(ynab.PlanList{}, "plans/list_null.json", "")
+	registerNullFixture(ynab.PlanSettings{}, "plans/settings_null.json", "settings")
 }
 
 // serveFixture builds a client whose base URL serves the fixture and

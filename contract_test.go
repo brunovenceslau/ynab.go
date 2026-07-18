@@ -41,7 +41,9 @@ func TestContractDocLines(t *testing.T) {
 
 // scanDocLines parses the root package (non-test files) and returns
 // operationId → methods bearing its doc line, methods named as
-// "ReceiverType.Method".
+// "ReceiverType.Method". Note: parser.ParseDir ignores build constraints,
+// so keep operation methods out of build-tagged files — a doc line in an
+// excluded file would satisfy the check without being compiled.
 func scanDocLines(t *testing.T) map[string][]string {
 	t.Helper()
 
