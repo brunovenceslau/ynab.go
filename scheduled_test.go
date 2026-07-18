@@ -122,8 +122,9 @@ func init() {
 			t.Helper()
 
 			plan := env.Client.Plan(env.PlanID)
-			_, _, err := plan.Scheduled.List(t.Context())
+			initial, _, err := plan.Scheduled.List(t.Context())
 			require.NoError(t, err, "empty-plan 404 must fold into an empty list")
+			require.NotNil(t, initial, "the fold must answer an empty slice, never nil")
 
 			accounts, _, err := plan.Accounts.List(t.Context())
 			require.NoError(t, err)
@@ -137,11 +138,36 @@ func init() {
 				Frequency: ynab.FrequencyMonthly,
 				PayeeName: ynab.Set("itest payee"),
 				Memo:      ynab.Set(memo),
+				FlagColor: ynab.Set(ynab.FlagColorRed),
 			})
 			require.NoError(t, err)
 			cleanupCtx := context.WithoutCancel(t.Context())
 			t.Cleanup(func() {
-				gone, err := plan.Scheduled.Delete(cleanupCtx, created.ID)
+				if _, err := plan.Scheduled.Delete(cleanupCtx, created.ID); err != nil {
+					require.ErrorIs(t, err, ynab.ErrResourceNotFound,
+						"cleanup tolerates only the body's own delete")
+				}
+			})
+			require.Equal(t, ynab.FrequencyMonthly, created.Frequency)
+			require.True(t, created.Frequency.Valid(), "unknown frequency %q", created.Frequency)
+			require.NotNil(t, created.FlagColor)
+			require.Equal(t, ynab.FlagColorRed, *created.FlagColor, "Set(flag) must round-trip the live wire")
+			require.NotNil(t, created.Memo)
+			require.Equal(t, memo, *created.Memo)
+
+			// A sentinel row keeps the plan non-empty during the post-delete
+			// delta read below: without it the empty-plan 404 fold could
+			// swallow the tombstone. LIFO cleanup deletes it first.
+			sentinel, err := plan.Scheduled.Create(t.Context(), ynab.ScheduledTransactionSpec{
+				AccountID: accounts[0].ID,
+				Date:      ynab.Today().AddDays(30),
+				Amount:    -1000,
+				Frequency: ynab.FrequencyMonthly,
+				Memo:      ynab.Set(memo + "-sentinel"),
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				gone, err := plan.Scheduled.Delete(cleanupCtx, sentinel.ID)
 				require.NoError(t, err, "cleanup must restore the test plan")
 				require.True(t, gone.IsDeleted())
 			})
@@ -156,9 +182,38 @@ func init() {
 				Amount:    -2000,
 				Frequency: ynab.FrequencyMonthly,
 				Memo:      ynab.Set(memo + "-upd"),
+				FlagColor: ynab.SetNull[ynab.FlagColor](),
 			})
 			require.NoError(t, err)
 			require.Equal(t, ynab.Milliunits(-2000), updated.Amount)
+			require.Nil(t, updated.FlagColor, "SetNull must clear the flag on the real server")
+
+			// The success branch must carry a positive delta cursor and the
+			// row; a real delta read then observes the tombstone.
+			listed, sk, err := plan.Scheduled.List(t.Context())
+			require.NoError(t, err)
+			require.Positive(t, int64(sk))
+			store := ynab.MergeByID(nil, listed)
+			require.Contains(t, store, created.ID)
+
+			// Delete in the body so the tombstone is observable through a
+			// delta read; the tolerant cleanup above stays as the safety net.
+			gone, err := plan.Scheduled.Delete(t.Context(), created.ID)
+			require.NoError(t, err)
+			require.True(t, gone.IsDeleted())
+
+			changes, _, err := plan.Scheduled.List(t.Context(), ynab.Since(sk))
+			require.NoError(t, err)
+			tombstoned := false
+			for _, c := range changes {
+				if c.SyncID() == created.ID {
+					tombstoned = true
+					require.True(t, c.IsDeleted(), "post-delete delta must carry a tombstone")
+				}
+			}
+			require.True(t, tombstoned, "delta read since %d must include the deleted row", sk)
+			store = ynab.MergeByID(store, changes)
+			require.NotContains(t, store, created.ID, "MergeByID must fold the live tombstone")
 		},
 	})
 }

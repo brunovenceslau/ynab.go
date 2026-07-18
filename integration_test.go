@@ -8,6 +8,7 @@ package ynab_test
 // create→verify→cleanup on a dedicated test plan only.
 
 import (
+	"net/http"
 	"sync"
 	"testing"
 
@@ -24,10 +25,14 @@ type integrationEnv struct {
 }
 
 // integrationCase declares one live case and the operationIds it covers.
+// order sequences the live run explicitly (stable-sorted, default 0):
+// registration order is init-order, i.e. file-name alphabetical — an
+// invariant a rename would silently break.
 type integrationCase struct {
-	name string
-	ops  []string
-	run  func(t *testing.T, env integrationEnv)
+	name  string
+	ops   []string
+	order int
+	run   func(t *testing.T, env integrationEnv)
 }
 
 var (
@@ -92,17 +97,31 @@ func init() {
 			require.NoError(t, err)
 			require.NotEmpty(t, u.ID)
 
-			plans, err := env.Client.Plans(t.Context())
+			plans, err := env.Client.Plans(t.Context(), ynab.IncludeAccounts())
 			require.NoError(t, err)
 			require.NotEmpty(t, plans.Plans, "the test token must reach at least the test plan")
 			for _, p := range plans.Plans {
 				require.NotEmpty(t, p.ID)
 				require.NotEmpty(t, p.Name)
+				require.NotNil(t, p.Accounts, "IncludeAccounts must embed each plan's accounts")
 			}
 
 			settings, err := env.Client.Plan(env.PlanID).Settings(t.Context())
 			require.NoError(t, err)
-			require.NotNil(t, settings)
+			require.NotNil(t, settings.CurrencyFormat, "a real plan always carries a currency format")
+			require.NotEmpty(t, settings.CurrencyFormat.ISOCode)
+			require.NotNil(t, settings.DateFormat)
+
+			// The last-used alias, pinned read-only: the dedicated-plan rule
+			// only forbids writes through it.
+			_, err = env.Client.Plan(ynab.PlanIDLastUsed).Settings(t.Context())
+			require.NoError(t, err, "the real server must accept the last-used alias")
+
+			// RawDo, the escape hatch, against the real envelope: raw bytes,
+			// no unwrapping.
+			raw, err := env.Client.RawDo(t.Context(), http.MethodGet, "user", nil, nil)
+			require.NoError(t, err)
+			require.Contains(t, string(raw), `"data"`, "RawDo must hand back the untouched envelope")
 		},
 	})
 }

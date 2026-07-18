@@ -121,7 +121,12 @@ func init() {
 				Approved:  ynab.Set(false),
 			})
 			require.NoError(t, err)
-			deleteOnCleanup(created.ID)
+			t.Cleanup(func() {
+				if _, _, err := plan.Transactions.Delete(cleanupCtx, created.ID); err != nil {
+					require.ErrorIs(t, err, ynab.ErrResourceNotFound,
+						"cleanup tolerates only the body's own delete")
+				}
+			})
 			require.False(t, created.Approved, "Set(false) survives the live wire")
 
 			batch, err := plan.Transactions.CreateBatch(t.Context(), []ynab.TransactionSpec{{
@@ -134,7 +139,7 @@ func init() {
 			require.Len(t, batch.TransactionIDs, 1)
 			deleteOnCleanup(batch.TransactionIDs[0])
 
-			updated, _, err := plan.Transactions.Update(t.Context(), created.ID,
+			updated, skAfterUpdate, err := plan.Transactions.Update(t.Context(), created.ID,
 				ynab.TransactionUpdate{Memo: ynab.Set(memo + "-upd")})
 			require.NoError(t, err)
 			require.Equal(t, memo+"-upd", *updated.Memo)
@@ -145,6 +150,25 @@ func init() {
 			})
 			require.NoError(t, err)
 			require.Len(t, patched.TransactionIDs, 1)
+
+			// Delete in the body so a real delta read observes the tombstone
+			// (transactions have no empty-plan fold to dodge); the tolerant
+			// cleanup above stays as the safety net.
+			gone, _, err := plan.Transactions.Delete(t.Context(), created.ID)
+			require.NoError(t, err)
+			require.True(t, gone.IsDeleted())
+
+			changes, _, err := plan.Transactions.List(t.Context(),
+				ynab.TransactionFilter{Since: skAfterUpdate})
+			require.NoError(t, err)
+			tombstoned := false
+			for _, c := range changes {
+				if c.SyncID() == created.ID {
+					tombstoned = true
+					require.True(t, c.IsDeleted(), "post-delete delta must carry a tombstone")
+				}
+			}
+			require.True(t, tombstoned, "delta read since %d must include the deleted row", skAfterUpdate)
 
 			imported, err := plan.Transactions.Import(t.Context())
 			require.NoError(t, err, "an empty import result is a nil-error answer")

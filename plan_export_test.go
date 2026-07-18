@@ -50,10 +50,12 @@ func init() {
 			require.NotEmpty(t, detail.Categories)
 			require.NotEmpty(t, detail.Months)
 
-			// A delta from the cursor just returned must be small/empty.
-			delta, sk2, err := plan.Export(t.Context(), ynab.Since(sk))
+			// The flagship incremental-sync path, live: Delta must accept the
+			// cursor, answer a small/empty diff, and advance st.Plan in place.
+			st := &ynab.SyncState{PlanID: env.PlanID, Plan: sk}
+			delta, err := plan.Delta(t.Context(), st)
 			require.NoError(t, err)
-			require.GreaterOrEqual(t, int64(sk2), int64(sk))
+			require.GreaterOrEqual(t, int64(st.Plan), int64(sk), "Delta must advance the cursor in place")
 			require.Empty(t, delta.Accounts, "nothing changed since the cursor")
 		},
 	})

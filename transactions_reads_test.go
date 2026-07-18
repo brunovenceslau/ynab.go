@@ -118,10 +118,14 @@ func init() {
 			t.Helper()
 
 			plan := env.Client.Plan(env.PlanID)
-			since := ynab.TransactionFilter{SinceDate: ynab.Today().AddDays(-30)}
+			today := ynab.Today()
+			since := ynab.TransactionFilter{SinceDate: today.AddDays(-30), UntilDate: today}
 			txns, sk, err := plan.Transactions.List(t.Context(), since)
 			require.NoError(t, err)
 			require.Positive(t, int64(sk))
+			for _, tx := range txns {
+				require.LessOrEqual(t, tx.Date.Compare(today), 0, "until_date must be honored server-side")
+			}
 
 			accounts, _, err := plan.Accounts.List(t.Context())
 			require.NoError(t, err)

@@ -120,6 +120,9 @@ func init() {
 func init() {
 	registerIntegrationCase(integrationCase{
 		name: "categories writes",
+		// Runs before the money-movements reads, which need a movement this
+		// case's Assign creates to assert non-vacuously.
+		order: -1,
 		ops: []string{
 			"createCategory", "updateCategory", "updateMonthCategory",
 			"createCategoryGroup", "updateCategoryGroup",
