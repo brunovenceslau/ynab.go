@@ -121,6 +121,41 @@ func (g CategoryGroup) SyncID() string { return g.ID }
 // IsDeleted reports a delta tombstone.
 func (g CategoryGroup) IsDeleted() bool { return g.Deleted }
 
+// CategorySpec is the payload for CategoriesService.Create. Name and
+// GroupID are required; an internal category group may not be specified.
+type CategorySpec struct {
+	Name    string           `json:"name"`
+	GroupID string           `json:"category_group_id"`
+	Note    Optional[string] `json:"note,omitzero"`
+
+	// GoalTarget creates a monthly goal when the category has none
+	// (defaulting to NEED, or MF for Credit Card Payment categories).
+	GoalTarget           Optional[Milliunits] `json:"goal_target,omitzero"`
+	GoalTargetDate       Optional[Date]       `json:"goal_target_date,omitzero"`
+	GoalNeedsWholeAmount Optional[bool]       `json:"goal_needs_whole_amount,omitzero"`
+
+	// GoalFrequency configures a recurring NEED target; requires
+	// GoalTarget and cannot be combined with GoalTargetDate. The zero
+	// value is omitted.
+	GoalFrequency GoalFrequency `json:"goal_frequency,omitzero"`
+}
+
+// CategoryUpdate is the partial payload for CategoriesService.Update.
+// Unset fields stay unchanged on the server; SetNull clears — for
+// GoalTarget, SetNull removes an existing target (omit ≠ clear!).
+type CategoryUpdate struct {
+	Name                 Optional[string]     `json:"name,omitzero"`
+	GroupID              Optional[string]     `json:"category_group_id,omitzero"`
+	Note                 Optional[string]     `json:"note,omitzero"`
+	GoalTarget           Optional[Milliunits] `json:"goal_target,omitzero"`
+	GoalTargetDate       Optional[Date]       `json:"goal_target_date,omitzero"`
+	GoalNeedsWholeAmount Optional[bool]       `json:"goal_needs_whole_amount,omitzero"`
+	GoalFrequency        GoalFrequency        `json:"goal_frequency,omitzero"`
+}
+
+// categoryGroupNameMax is the spec-stated bound on group names.
+const categoryGroupNameMax = 50
+
 // CategoriesService reads and writes the plan's categories.
 type CategoriesService struct {
 	plan *Plan
@@ -172,4 +207,98 @@ func (s *CategoriesService) GetForMonth(ctx context.Context, m Month, categoryID
 		return nil, err
 	}
 	return data.Category, nil
+}
+
+// categoryResult is the shared save-category response payload.
+type categoryResult struct {
+	Category        *Category       `json:"category"`
+	ServerKnowledge ServerKnowledge `json:"server_knowledge"`
+}
+
+// Create adds a category (HTTP 201) and returns it with the new server
+// knowledge — unlike createAccount, this create does return a cursor.
+//
+// YNAB operationId: createCategory
+func (s *CategoriesService) Create(ctx context.Context, spec CategorySpec) (*Category, ServerKnowledge, error) {
+	data, err := do[categoryResult](ctx, s.plan.client,
+		http.MethodPost, s.plan.path("categories"), nil, body{"category": spec})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Category, data.ServerKnowledge, nil
+}
+
+// Update patches a category. Unset fields stay unchanged; SetNull on
+// GoalTarget clears an existing target.
+//
+// YNAB operationId: updateCategory
+func (s *CategoriesService) Update(
+	ctx context.Context, categoryID string, update CategoryUpdate,
+) (*Category, ServerKnowledge, error) {
+	data, err := do[categoryResult](ctx, s.plan.client,
+		http.MethodPatch, s.plan.path("categories", categoryID), nil, body{"category": update})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Category, data.ServerKnowledge, nil
+}
+
+// Assign sets the budgeted amount for a category in the given month.
+//
+// Only the assigned amount can change through this operation; YNAB
+// computes activity and available from it. Month accepts CurrentMonth.
+//
+// YNAB operationId: updateMonthCategory
+func (s *CategoriesService) Assign(
+	ctx context.Context, m Month, categoryID string, budgeted Milliunits,
+) (*Category, ServerKnowledge, error) {
+	if m.IsZero() {
+		return nil, 0, &ArgumentError{Op: "Categories.Assign", Field: "month", Reason: "month must not be zero"}
+	}
+	data, err := do[categoryResult](ctx, s.plan.client,
+		http.MethodPatch, s.plan.path("months", m.String(), "categories", categoryID), nil,
+		body{"category": map[string]any{"budgeted": budgeted}})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Category, data.ServerKnowledge, nil
+}
+
+// categoryGroupResult is the shared save-category-group response payload.
+type categoryGroupResult struct {
+	CategoryGroup   *CategoryGroup  `json:"category_group"`
+	ServerKnowledge ServerKnowledge `json:"server_knowledge"`
+}
+
+// CreateGroup adds a category group (HTTP 201). The name is bounded at 50
+// characters by the API; longer names fail pre-flight as *ArgumentError.
+//
+// YNAB operationId: createCategoryGroup
+func (s *CategoriesService) CreateGroup(ctx context.Context, name string) (*CategoryGroup, ServerKnowledge, error) {
+	return s.saveGroup(ctx, "Categories.CreateGroup", http.MethodPost, s.plan.path("category_groups"), name)
+}
+
+// RenameGroup renames a category group. The same 50-character bound as
+// CreateGroup applies pre-flight.
+//
+// YNAB operationId: updateCategoryGroup
+func (s *CategoriesService) RenameGroup(
+	ctx context.Context, groupID, name string,
+) (*CategoryGroup, ServerKnowledge, error) {
+	return s.saveGroup(ctx, "Categories.RenameGroup", http.MethodPatch, s.plan.path("category_groups", groupID), name)
+}
+
+// saveGroup validates the shared name bound and performs a group write.
+func (s *CategoriesService) saveGroup(
+	ctx context.Context, op, method, path, name string,
+) (*CategoryGroup, ServerKnowledge, error) {
+	if len(name) > categoryGroupNameMax {
+		return nil, 0, &ArgumentError{Op: op, Field: "name", Reason: "must be at most 50 characters"}
+	}
+	data, err := do[categoryGroupResult](ctx, s.plan.client, method, path, nil,
+		body{"category_group": map[string]any{"name": name}})
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.CategoryGroup, data.ServerKnowledge, nil
 }
