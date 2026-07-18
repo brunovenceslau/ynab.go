@@ -91,6 +91,9 @@ linters:
       min-occurrences: 4
     gocyclo:
       min-complexity: 13
+    exhaustive:
+      # A default case is a deliberate "everything else" decision.
+      default-signifies-exhaustive: true
     gosec:
       excludes:
         # G404 (math/rand): the only randomness in this library is retry
