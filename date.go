@@ -9,11 +9,8 @@ import (
 // are UTC. The zero value means "no date": IsZero reports true, String
 // renders the empty string, and JSON encodes null.
 //
-// Receiver rule (frozen): every method uses a value receiver except
-// UnmarshalJSON, which must mutate its receiver. A pointer-receiver
-// MarshalJSON would silently vanish from the method set encoding/json sees
-// for non-addressable values — the historic silent-encoding bug this rule
-// exists to prevent. Do not "clean this up" to pointer receivers.
+// All methods use value receivers except UnmarshalJSON, so the type is
+// safe to copy and compare.
 type Date struct {
 	year  int
 	month time.Month

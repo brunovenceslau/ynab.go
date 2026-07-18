@@ -18,7 +18,8 @@ type ListOption struct {
 // Since requests only entities changed after cursor k — the
 // last_knowledge_of_server delta mechanism. A zero k sends the parameter
 // with value 0, which the server treats as a full read; omit the option
-// for a plain full read.
+// for a plain full read. Transaction listings take their cursor through
+// [TransactionFilter] instead.
 func Since(k ServerKnowledge) ListOption {
 	return ListOption{apply: func(q url.Values) {
 		q.Set("last_knowledge_of_server", strconv.FormatInt(int64(k), 10))

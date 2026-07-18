@@ -85,11 +85,12 @@ type DateFormat struct {
 	Format string `json:"format"`
 }
 
-// planCore holds the scalar plan fields PlanSummary and PlanDetail
-// share. The two types deliberately do not embed one another: their
-// collection element types differ (full models vs export *Base shapes),
-// so each declares its own correctly-typed collections around this core.
-type planCore struct {
+// PlanSummary is one plan in a plan list. DateFormat and CurrencyFormat
+// are null when unavailable. PlanSummary and PlanDetail deliberately do
+// not embed one another: their collection element types differ (full
+// models vs export *Base shapes), so each declares its own
+// correctly-typed collections around the same scalar core.
+type PlanSummary struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	LastModifiedOn time.Time       `json:"last_modified_on"`
@@ -97,12 +98,6 @@ type planCore struct {
 	LastMonth      Month           `json:"last_month"`
 	DateFormat     *DateFormat     `json:"date_format"`
 	CurrencyFormat *CurrencyFormat `json:"currency_format"`
-}
-
-// PlanSummary is one plan in a plan list. DateFormat and CurrencyFormat
-// are null when unavailable.
-type PlanSummary struct {
-	planCore
 
 	// Accounts is populated only when Plans is called with
 	// IncludeAccounts; otherwise the key is absent and the slice nil.
@@ -114,18 +109,24 @@ type PlanSummary struct {
 // groups arrive flat here — their Categories slices stay nil because the
 // categories collection carries every category directly.
 type PlanDetail struct {
-	planCore
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	LastModifiedOn time.Time       `json:"last_modified_on"`
+	FirstMonth     Month           `json:"first_month"`
+	LastMonth      Month           `json:"last_month"`
+	DateFormat     *DateFormat     `json:"date_format"`
+	CurrencyFormat *CurrencyFormat `json:"currency_format"`
 
-	Accounts                 []AccountBase                     `json:"accounts"`
-	Payees                   []Payee                           `json:"payees"`
-	PayeeLocations           []PayeeLocation                   `json:"payee_locations"`
-	CategoryGroups           []CategoryGroup                   `json:"category_groups"`
-	Categories               []CategoryBase                    `json:"categories"`
-	Months                   []MonthDetailBase                 `json:"months"`
-	Transactions             []TransactionSummaryBase          `json:"transactions"`
-	Subtransactions          []SubTransactionBase              `json:"subtransactions"`
-	ScheduledTransactions    []ScheduledTransactionSummaryBase `json:"scheduled_transactions"`
-	ScheduledSubtransactions []ScheduledSubTransactionBase     `json:"scheduled_subtransactions"`
+	Accounts                 []AccountBase                 `json:"accounts"`
+	Payees                   []Payee                       `json:"payees"`
+	PayeeLocations           []PayeeLocation               `json:"payee_locations"`
+	CategoryGroups           []CategoryGroup               `json:"category_groups"`
+	Categories               []CategoryBase                `json:"categories"`
+	Months                   []MonthDetailBase             `json:"months"`
+	Transactions             []TransactionBase             `json:"transactions"`
+	Subtransactions          []SubtransactionBase          `json:"subtransactions"`
+	ScheduledTransactions    []ScheduledTransactionBase    `json:"scheduled_transactions"`
+	ScheduledSubtransactions []ScheduledSubtransactionBase `json:"scheduled_subtransactions"`
 }
 
 // PlanList is the result of Client.Plans. DefaultPlan is null unless the

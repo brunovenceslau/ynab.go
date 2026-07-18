@@ -73,20 +73,21 @@ type LoanAccountPeriodicValue map[string]Milliunits
 // AccountBase is the account shape shared by the accounts endpoints and
 // the full-plan export collections.
 type AccountBase struct {
-	ID                  string                   `json:"id"`
-	Name                string                   `json:"name"`
-	Type                AccountType              `json:"type"`
-	OnBudget            bool                     `json:"on_budget"`
-	Closed              bool                     `json:"closed"`
-	Note                *string                  `json:"note"`
-	Balance             Milliunits               `json:"balance"`
-	ClearedBalance      Milliunits               `json:"cleared_balance"`
-	UnclearedBalance    Milliunits               `json:"uncleared_balance"`
-	TransferPayeeID     *string                  `json:"transfer_payee_id"`
-	DirectImportLinked  bool                     `json:"direct_import_linked"`
-	DirectImportInError bool                     `json:"direct_import_in_error"`
-	LastReconciledAt    *time.Time               `json:"last_reconciled_at"`
-	DebtOriginalBalance *Milliunits              `json:"debt_original_balance"` // deprecated: always null
+	ID                  string      `json:"id"`
+	Name                string      `json:"name"`
+	Type                AccountType `json:"type"`
+	OnBudget            bool        `json:"on_budget"`
+	Closed              bool        `json:"closed"`
+	Note                *string     `json:"note"`
+	Balance             Milliunits  `json:"balance"`
+	ClearedBalance      Milliunits  `json:"cleared_balance"`
+	UnclearedBalance    Milliunits  `json:"uncleared_balance"`
+	TransferPayeeID     *string     `json:"transfer_payee_id"`
+	DirectImportLinked  bool        `json:"direct_import_linked"`
+	DirectImportInError bool        `json:"direct_import_in_error"`
+	LastReconciledAt    *time.Time  `json:"last_reconciled_at"`
+	// Deprecated: the server always answers null; kept for wire fidelity.
+	DebtOriginalBalance *Milliunits              `json:"debt_original_balance"`
 	DebtInterestRates   LoanAccountPeriodicValue `json:"debt_interest_rates"`
 	DebtMinimumPayments LoanAccountPeriodicValue `json:"debt_minimum_payments"`
 	DebtEscrowAmounts   LoanAccountPeriodicValue `json:"debt_escrow_amounts"`

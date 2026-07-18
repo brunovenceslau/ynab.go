@@ -87,10 +87,14 @@ func TestConfigErrorContract(t *testing.T) {
 		{name: "fragment in base URL", opt: WithBaseURL("https://host/v1#frag"), field: "WithBaseURL"},
 		{name: "nil http client", opt: WithHTTPClient(nil), field: "WithHTTPClient"},
 		{name: "non-positive timeout", opt: WithTimeout(0), field: "WithTimeout"},
-		{name: "zero max attempts", opt: WithRetryPolicy(RetryPolicy{}), field: "WithRetryPolicy"},
 		{
-			name:  "zero min backoff",
-			opt:   WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MaxBackoff: time.Second}),
+			name:  "negative max attempts",
+			opt:   WithRetryPolicy(RetryPolicy{MaxAttempts: -1}),
+			field: "WithRetryPolicy",
+		},
+		{
+			name:  "negative min backoff",
+			opt:   WithRetryPolicy(RetryPolicy{MinBackoff: -time.Second}),
 			field: "WithRetryPolicy",
 		},
 		{
@@ -162,4 +166,17 @@ func TestClientConcurrentUse(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+func TestWithRetryPolicyPartialFill(t *testing.T) {
+	t.Parallel()
+
+	// Zero fields inherit the defaults field by field, so setting a
+	// single knob is safe.
+	c := New("t", WithRetryPolicy(RetryPolicy{MaxAttempts: 5}))
+	require.NoError(t, c.configError())
+	require.Equal(t, 5, c.retry.MaxAttempts)
+	require.Equal(t, defaultRetry.MinBackoff, c.retry.MinBackoff)
+	require.Equal(t, defaultRetry.MaxBackoff, c.retry.MaxBackoff)
+	require.False(t, c.retry.RetryWrites)
 }

@@ -63,7 +63,7 @@ func TestMonthAccessorsAndArithmetic(t *testing.T) {
 
 	m := ynab.NewMonth(2016, time.December)
 	require.Equal(t, 2016, m.Year())
-	require.Equal(t, time.December, m.Mon())
+	require.Equal(t, time.December, m.Month())
 
 	require.Equal(t, ynab.NewMonth(2017, time.January), m.Next())
 	require.Equal(t, ynab.NewMonth(2016, time.November), m.Prev())

@@ -10,8 +10,8 @@ import (
 	"pkg.venceslau.dev/ynab/internal/transport"
 )
 
-// Version is this library's release version. The release gate asserts it
-// equals the git tag being published.
+// Version is this library's release version, as sent in the
+// User-Agent header.
 const Version = "1.0.0"
 
 // defaultBaseURL is the documented YNAB API root.
@@ -20,6 +20,15 @@ const defaultBaseURL = "https://api.ynab.com/v1"
 // defaultTimeout is the per-attempt timeout: YNAB cuts requests off
 // server-side at 30 seconds, so waiting longer only delays the 503.
 const defaultTimeout = 30 * time.Second
+
+// defaultRetry is the retry policy every client starts with; zero
+// fields passed to WithRetryPolicy fall back to it field by field.
+var defaultRetry = RetryPolicy{
+	MaxAttempts: 3,
+	MinBackoff:  time.Second,
+	MaxBackoff:  30 * time.Second,
+	RetryWrites: false,
+}
 
 // TokenSource supplies the bearer token for each attempt. Implement it for
 // OAuth flows whose access tokens expire (YNAB's expire after two hours);
@@ -96,17 +105,14 @@ func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
 		httpClient:  http.DefaultClient,
 		userAgent:   "pkg.venceslau.dev/ynab/" + Version,
 		timeout:     defaultTimeout,
-		retry: RetryPolicy{
-			MaxAttempts: 3,
-			MinBackoff:  time.Second,
-			MaxBackoff:  30 * time.Second,
-			RetryWrites: false,
-		},
-		logger: slog.New(slog.DiscardHandler),
+		retry:       defaultRetry,
+		logger:      slog.New(slog.DiscardHandler),
 	}
 	c.baseURL, _ = url.Parse(defaultBaseURL) // a constant; cannot fail
 	for _, opt := range opts {
-		opt(c)
+		if opt.apply != nil {
+			opt.apply(c)
+		}
 	}
 
 	c.core = &transport.Core{
@@ -132,19 +138,22 @@ func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
 }
 
 // Option configures a Client at construction. Options run in order; the
-// first failing option wins the config-error contract.
-type Option func(*Client)
+// first failing option wins the config-error contract. The zero Option
+// is inert.
+type Option struct {
+	apply func(*Client)
+}
 
 // WithHTTPClient replaces the underlying *http.Client (default
 // http.DefaultClient). Use it to install transports, proxies, or fakes.
 func WithHTTPClient(hc *http.Client) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
 		if hc == nil {
 			c.storeConfigErr("WithHTTPClient", "client must not be nil")
 			return
 		}
 		c.httpClient = hc
-	}
+	}}
 }
 
 // WithBaseURL points the client at a different API root (default
@@ -155,7 +164,7 @@ func WithHTTPClient(hc *http.Client) Option {
 // local test servers only — over a real network it would send the bearer
 // token in cleartext.
 func WithBaseURL(rawURL string) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
 		u, err := url.Parse(rawURL)
 		switch {
 		case err != nil || !u.IsAbs() || u.Host == "":
@@ -169,14 +178,14 @@ func WithBaseURL(rawURL string) Option {
 		default:
 			c.baseURL = u
 		}
-	}
+	}}
 }
 
 // WithUserAgent replaces the default User-Agent
 // "pkg.venceslau.dev/ynab/<Version>" — the module path is the library's
 // canonical identity in the Go ecosystem.
 func WithUserAgent(ua string) Option {
-	return func(c *Client) { c.userAgent = ua }
+	return Option{apply: func(c *Client) { c.userAgent = ua }}
 }
 
 // WithTimeout sets the per-attempt timeout (default 30s, YNAB's own
@@ -184,19 +193,29 @@ func WithUserAgent(ua string) Option {
 // context.WithTimeout(callerCtx, d); the caller's context still bounds the
 // whole call.
 func WithTimeout(d time.Duration) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
 		if d <= 0 {
 			c.storeConfigErr("WithTimeout", "timeout must be positive")
 			return
 		}
 		c.timeout = d
-	}
+	}}
 }
 
-// WithRetryPolicy replaces the default retry policy
-// {MaxAttempts: 3, MinBackoff: 1s, MaxBackoff: 30s, RetryWrites: false}.
+// WithRetryPolicy replaces the retry policy. Zero fields keep their
+// defaults (MaxAttempts 3, MinBackoff 1s, MaxBackoff 30s, RetryWrites
+// false), so setting a single field is safe.
 func WithRetryPolicy(p RetryPolicy) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
+		if p.MaxAttempts == 0 {
+			p.MaxAttempts = defaultRetry.MaxAttempts
+		}
+		if p.MinBackoff == 0 {
+			p.MinBackoff = defaultRetry.MinBackoff
+		}
+		if p.MaxBackoff == 0 {
+			p.MaxBackoff = defaultRetry.MaxBackoff
+		}
 		if p.MaxAttempts < 1 {
 			c.storeConfigErr("WithRetryPolicy", "MaxAttempts must be at least 1")
 			return
@@ -206,38 +225,38 @@ func WithRetryPolicy(p RetryPolicy) Option {
 			return
 		}
 		c.retry = p
-	}
+	}}
 }
 
 // WithRetryDisabled short-circuits the retry pipeline: every call makes
 // exactly one attempt. Pair with IsRetryable to orchestrate custom loops.
 func WithRetryDisabled() Option {
-	return func(c *Client) { c.retryOff = true }
+	return Option{apply: func(c *Client) { c.retryOff = true }}
 }
 
 // WithLimiter installs a proactive rate limiter: Wait runs before every
 // attempt, including retries.
 func WithLimiter(l Limiter) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
 		if l == nil {
 			c.storeConfigErr("WithLimiter", "limiter must not be nil")
 			return
 		}
 		c.limiter = l
-	}
+	}}
 }
 
 // WithLogger enables slog.DebugContext tracing of requests and responses.
 // The Authorization header is always redacted; errors are logged or
 // returned, never both.
 func WithLogger(l *slog.Logger) Option {
-	return func(c *Client) {
+	return Option{apply: func(c *Client) {
 		if l == nil {
 			c.storeConfigErr("WithLogger", "logger must not be nil")
 			return
 		}
 		c.logger = l
-	}
+	}}
 }
 
 // RawDo executes an arbitrary API operation and returns the raw response

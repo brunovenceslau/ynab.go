@@ -112,9 +112,9 @@ func (t DebtTransactionType) Valid() bool {
 	return false
 }
 
-// TransactionSummaryBase is the transaction shape shared by the
+// TransactionBase is the transaction shape shared by the
 // transaction endpoints and the full-plan export collections.
-type TransactionSummaryBase struct {
+type TransactionBase struct {
 	ID                      string               `json:"id"`
 	Date                    Date                 `json:"date"`
 	Amount                  Milliunits           `json:"amount"`
@@ -140,7 +140,7 @@ type TransactionSummaryBase struct {
 // *_formatted/*_currency companions are computed, read-only display
 // fields — do money math on the milliunit integers.
 type Transaction struct {
-	TransactionSummaryBase
+	TransactionBase
 	AmountFormatted string           `json:"amount_formatted"`
 	AmountCurrency  float64          `json:"amount_currency"`
 	AccountName     string           `json:"account_name"`
@@ -151,14 +151,14 @@ type Transaction struct {
 
 // SyncID keys the transaction for MergeByID. Transaction and
 // HybridTransaction inherit the adapters by embedding.
-func (t TransactionSummaryBase) SyncID() string { return t.ID }
+func (t TransactionBase) SyncID() string { return t.ID }
 
 // IsDeleted reports a delta tombstone.
-func (t TransactionSummaryBase) IsDeleted() bool { return t.Deleted }
+func (t TransactionBase) IsDeleted() bool { return t.Deleted }
 
-// SubTransactionBase is the split-leg shape shared by the transaction
+// SubtransactionBase is the split-leg shape shared by the transaction
 // endpoints and the full-plan export collections.
-type SubTransactionBase struct {
+type SubtransactionBase struct {
 	ID                    string     `json:"id"`
 	TransactionID         string     `json:"transaction_id"`
 	Amount                Milliunits `json:"amount"`
@@ -174,22 +174,22 @@ type SubTransactionBase struct {
 
 // Subtransaction is one leg of a split transaction.
 type Subtransaction struct {
-	SubTransactionBase
+	SubtransactionBase
 	AmountFormatted string  `json:"amount_formatted"`
 	AmountCurrency  float64 `json:"amount_currency"`
 }
 
 // SyncID keys the subtransaction for MergeByID. Subtransaction inherits
 // the adapters by embedding.
-func (s SubTransactionBase) SyncID() string { return s.ID }
+func (s SubtransactionBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s SubTransactionBase) IsDeleted() bool { return s.Deleted }
+func (s SubtransactionBase) IsDeleted() bool { return s.Deleted }
 
 // HybridTransaction is a row of the category/payee transaction lists:
 // either a regular transaction or one leg of a split, per Type.
 type HybridTransaction struct {
-	TransactionSummaryBase
+	TransactionBase
 	AmountFormatted     string     `json:"amount_formatted"`
 	AmountCurrency      float64    `json:"amount_currency"`
 	Type                HybridType `json:"type"`
@@ -422,7 +422,8 @@ func (u TransactionUpdate) validate(op string) error {
 	)
 }
 
-// BatchResult is what CreateBatch returns. DuplicateImportIDs lists the
+// BatchResult is what CreateBatch and UpdateBatch return.
+// DuplicateImportIDs lists the
 // import_ids skipped because the same (account, import_id) already
 // existed — a batch-level answer where the single Create returns 409.
 type BatchResult struct {

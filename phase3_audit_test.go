@@ -43,33 +43,33 @@ func TestSyncableAdapters(t *testing.T) {
 		},
 		{
 			name: "Transaction",
-			s:    ynab.Transaction{TransactionSummaryBase: ynab.TransactionSummaryBase{ID: "t", Deleted: true}},
+			s:    ynab.Transaction{TransactionBase: ynab.TransactionBase{ID: "t", Deleted: true}},
 			id:   "t",
 		},
 		{
 			name: "Subtransaction",
-			s:    ynab.Subtransaction{SubTransactionBase: ynab.SubTransactionBase{ID: "s", Deleted: true}},
+			s:    ynab.Subtransaction{SubtransactionBase: ynab.SubtransactionBase{ID: "s", Deleted: true}},
 			id:   "s",
 		},
 		{
 			name: "HybridTransaction",
 			s: ynab.HybridTransaction{
-				TransactionSummaryBase: ynab.TransactionSummaryBase{ID: "h", Deleted: true},
-				ParentTransactionID:    ptr("NOT-the-key"),
+				TransactionBase:     ynab.TransactionBase{ID: "h", Deleted: true},
+				ParentTransactionID: ptr("NOT-the-key"),
 			},
 			id: "h",
 		},
 		{
 			name: "ScheduledTransaction",
 			s: ynab.ScheduledTransaction{
-				ScheduledTransactionSummaryBase: ynab.ScheduledTransactionSummaryBase{ID: "sc", Deleted: true},
+				ScheduledTransactionBase: ynab.ScheduledTransactionBase{ID: "sc", Deleted: true},
 			},
 			id: "sc",
 		},
 		{
 			name: "ScheduledSubtransaction",
 			s: ynab.ScheduledSubtransaction{
-				ScheduledSubTransactionBase: ynab.ScheduledSubTransactionBase{ID: "ss", Deleted: true},
+				ScheduledSubtransactionBase: ynab.ScheduledSubtransactionBase{ID: "ss", Deleted: true},
 			},
 			id: "ss",
 		},

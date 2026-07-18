@@ -14,7 +14,7 @@ const (
 // Optional models the tri-state every YNAB write needs:
 // unset (field omitted) | null (field cleared) | value.
 //
-// Requires Go 1.24+: write models tag Optional fields with omitzero, and the
+// Write models tag Optional fields with omitzero (Go 1.24+), and the
 // unset state — and only the unset state — is what json omits. The zero value
 // of Optional is unset.
 //

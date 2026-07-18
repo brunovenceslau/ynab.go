@@ -72,18 +72,16 @@ func init() {
 		op:     "updateScheduledTransaction",
 		method: http.MethodPut,
 		path:   "/plans/p-1/scheduled_transactions/sc1",
-		body: fmt.Sprintf(`{"scheduled_transaction":{
-			"account_id":"ac1","date":%q,"amount":-1600000,"frequency":"monthly"
-		}}`, schedDate),
+		// Partial on purpose: unset fields must stay OFF the wire — the
+		// server treats them as unchanged (probed live, 2026-07-18).
+		body: `{"scheduled_transaction":{"amount":-1600000,"memo":"rent"}}`,
 		call: func(t *testing.T, c *ynab.Client) {
 			t.Helper()
-			spec := ynab.ScheduledTransactionSpec{
-				AccountID: "ac1",
-				Date:      schedDate,
-				Amount:    -1600000,
-				Frequency: ynab.FrequencyMonthly,
+			update := ynab.ScheduledTransactionUpdate{
+				Amount: ynab.Set(ynab.Milliunits(-1600000)),
+				Memo:   ynab.Set("rent"),
 			}
-			_, err := c.Plan("p-1").Scheduled.Update(t.Context(), "sc1", spec)
+			_, err := c.Plan("p-1").Scheduled.Update(t.Context(), "sc1", update)
 			require.NoError(t, err)
 		},
 	})
@@ -102,6 +100,16 @@ func init() {
 		AccountID: "ac1",
 		Date:      ynab.Today().AddDays(30),
 		Amount:    -1,
+		Frequency: ynab.FrequencyMonthly,
+		PayeeID:   ynab.Set("p"),
+		PayeeName: ynab.SetNull[string](),
+		Memo:      ynab.Set(""),
+		FlagColor: ynab.Set(ynab.FlagColorNone),
+	})
+	registerWriteModel(ynab.ScheduledTransactionUpdate{
+		AccountID: ynab.Set("ac1"),
+		Date:      ynab.Set(ynab.Today().AddDays(30)),
+		Amount:    ynab.Set(ynab.Milliunits(-1)),
 		Frequency: ynab.FrequencyMonthly,
 		PayeeID:   ynab.Set("p"),
 		PayeeName: ynab.SetNull[string](),
@@ -176,17 +184,18 @@ func init() {
 			require.NoError(t, err)
 			require.Equal(t, created.ID, got.ID)
 
-			updated, err := plan.Scheduled.Update(t.Context(), created.ID, ynab.ScheduledTransactionSpec{
-				AccountID: accounts[0].ID,
-				Date:      ynab.Today().AddDays(45),
-				Amount:    -2000,
-				Frequency: ynab.FrequencyMonthly,
+			// Partial update: only set fields travel; the server must keep
+			// the rest (the PUT's PATCH semantics, probed live).
+			updated, err := plan.Scheduled.Update(t.Context(), created.ID, ynab.ScheduledTransactionUpdate{
+				Amount:    ynab.Set(ynab.Milliunits(-2000)),
 				Memo:      ynab.Set(memo + "-upd"),
 				FlagColor: ynab.SetNull[ynab.FlagColor](),
 			})
 			require.NoError(t, err)
 			require.Equal(t, ynab.Milliunits(-2000), updated.Amount)
 			require.Nil(t, updated.FlagColor, "SetNull must clear the flag on the real server")
+			require.Equal(t, ynab.FrequencyMonthly, updated.Frequency,
+				"unset fields must stay unchanged server-side")
 
 			// The success branch must carry a positive delta cursor and the
 			// row; a real delta read then observes the tombstone.
@@ -310,7 +319,8 @@ func TestScheduledDateWindow(t *testing.T) {
 			require.ErrorAs(t, err, &argErr)
 			require.Equal(t, "date", argErr.Field)
 
-			_, err = client.Plan("p-1").Scheduled.Update(t.Context(), "sc1", spec)
+			_, err = client.Plan("p-1").Scheduled.Update(t.Context(), "sc1",
+				ynab.ScheduledTransactionUpdate{Date: ynab.Set(tt.date)})
 			require.ErrorAs(t, err, &argErr)
 		})
 	}
@@ -321,11 +331,9 @@ func TestScheduledUpdateDelete(t *testing.T) {
 
 	client, rec := serveFixture(t, "scheduled/update.json", 0)
 	updated, err := client.Plan("p-1").Scheduled.Update(t.Context(), "sc111111-1111-1111-1111-111111111111",
-		ynab.ScheduledTransactionSpec{
-			AccountID: "ac1", Date: ynab.Today().AddDays(5), Amount: -1600000,
-		})
+		ynab.ScheduledTransactionUpdate{Amount: ynab.Set(ynab.Milliunits(-1600000))})
 	require.NoError(t, err)
-	require.Equal(t, http.MethodPut, rec.Method, "scheduled update is a full-spec PUT")
+	require.Equal(t, http.MethodPut, rec.Method, "scheduled update rides a PUT with PATCH semantics")
 	require.Equal(t, ynab.Milliunits(-1600000), updated.Amount)
 
 	client2, rec2 := serveFixture(t, "scheduled/delete.json", 0)

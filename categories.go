@@ -52,13 +52,14 @@ func (f GoalFrequency) Valid() bool {
 // and the full-plan export collections. Amounts are specific to the
 // current plan month unless read through GetForMonth.
 type CategoryBase struct {
-	ID                      string     `json:"id"`
-	CategoryGroupID         string     `json:"category_group_id"`
-	CategoryGroupName       string     `json:"category_group_name"`
-	Name                    string     `json:"name"`
-	Hidden                  bool       `json:"hidden"`
-	Internal                bool       `json:"internal"`
-	OriginalCategoryGroupID *string    `json:"original_category_group_id"` // deprecated: always null
+	ID                string `json:"id"`
+	CategoryGroupID   string `json:"category_group_id"`
+	CategoryGroupName string `json:"category_group_name"`
+	Name              string `json:"name"`
+	Hidden            bool   `json:"hidden"`
+	Internal          bool   `json:"internal"`
+	// Deprecated: the server always answers null; kept for wire fidelity.
+	OriginalCategoryGroupID *string    `json:"original_category_group_id"`
 	Note                    *string    `json:"note"`
 	Budgeted                Milliunits `json:"budgeted"`
 	Activity                Milliunits `json:"activity"`
@@ -72,9 +73,10 @@ type CategoryBase struct {
 	// date) — the live API returns real day components (e.g. a
 	// goal_target_month of 2027-08-19), so Month's day-01 invariant
 	// must not apply here.
-	GoalCreationMonth      *Date       `json:"goal_creation_month"`
-	GoalTarget             *Milliunits `json:"goal_target"`
-	GoalTargetMonth        *Date       `json:"goal_target_month"` // deprecated: use GoalTargetDate
+	GoalCreationMonth *Date       `json:"goal_creation_month"`
+	GoalTarget        *Milliunits `json:"goal_target"`
+	// Deprecated: use GoalTargetDate — the server mirrors it here.
+	GoalTargetMonth        *Date       `json:"goal_target_month"`
 	GoalTargetDate         *Date       `json:"goal_target_date"`
 	GoalPercentageComplete *int        `json:"goal_percentage_complete"`
 	GoalMonthsToBudget     *int        `json:"goal_months_to_budget"`

@@ -156,8 +156,8 @@ func writeEndpointCases() []endpointCase {
 			op: "updateScheduledTransaction", fixture: "scheduled/update.json", model: ynab.ScheduledTransaction{},
 			call: func(t *testing.T, c *ynab.Client) (any, error) {
 				t.Helper()
-				return c.Plan("p-1").Scheduled.Update(t.Context(), "sc1", ynab.ScheduledTransactionSpec{
-					AccountID: "ac1", Date: sched, Amount: -1600000,
+				return c.Plan("p-1").Scheduled.Update(t.Context(), "sc1", ynab.ScheduledTransactionUpdate{
+					Amount: ynab.Set(ynab.Milliunits(-1600000)),
 				})
 			},
 		},

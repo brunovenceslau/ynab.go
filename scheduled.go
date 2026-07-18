@@ -39,9 +39,9 @@ func (f Frequency) Valid() bool {
 	return false
 }
 
-// ScheduledTransactionSummaryBase is the scheduled-transaction shape
+// ScheduledTransactionBase is the scheduled-transaction shape
 // shared by the scheduled endpoints and the full-plan export collections.
-type ScheduledTransactionSummaryBase struct {
+type ScheduledTransactionBase struct {
 	ID                string     `json:"id"`
 	DateFirst         Date       `json:"date_first"`
 	DateNext          Date       `json:"date_next"`
@@ -60,7 +60,7 @@ type ScheduledTransactionSummaryBase struct {
 // ScheduledTransaction is a full scheduled transaction with its split
 // legs.
 type ScheduledTransaction struct {
-	ScheduledTransactionSummaryBase
+	ScheduledTransactionBase
 	AmountFormatted string                    `json:"amount_formatted"`
 	AmountCurrency  float64                   `json:"amount_currency"`
 	AccountName     string                    `json:"account_name"`
@@ -71,14 +71,14 @@ type ScheduledTransaction struct {
 
 // SyncID keys the scheduled transaction for MergeByID.
 // ScheduledTransaction inherits the adapters by embedding.
-func (s ScheduledTransactionSummaryBase) SyncID() string { return s.ID }
+func (s ScheduledTransactionBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s ScheduledTransactionSummaryBase) IsDeleted() bool { return s.Deleted }
+func (s ScheduledTransactionBase) IsDeleted() bool { return s.Deleted }
 
-// ScheduledSubTransactionBase is the scheduled split-leg shape shared by
+// ScheduledSubtransactionBase is the scheduled split-leg shape shared by
 // the scheduled endpoints and the full-plan export collections.
-type ScheduledSubTransactionBase struct {
+type ScheduledSubtransactionBase struct {
 	ID                     string     `json:"id"`
 	ScheduledTransactionID string     `json:"scheduled_transaction_id"`
 	Amount                 Milliunits `json:"amount"`
@@ -93,22 +93,22 @@ type ScheduledSubTransactionBase struct {
 
 // ScheduledSubtransaction is one leg of a split scheduled transaction.
 type ScheduledSubtransaction struct {
-	ScheduledSubTransactionBase
+	ScheduledSubtransactionBase
 	AmountFormatted string  `json:"amount_formatted"`
 	AmountCurrency  float64 `json:"amount_currency"`
 }
 
 // SyncID keys the scheduled subtransaction for MergeByID.
 // ScheduledSubtransaction inherits the adapters by embedding.
-func (s ScheduledSubTransactionBase) SyncID() string { return s.ID }
+func (s ScheduledSubtransactionBase) SyncID() string { return s.ID }
 
 // IsDeleted reports a delta tombstone.
-func (s ScheduledSubTransactionBase) IsDeleted() bool { return s.Deleted }
+func (s ScheduledSubtransactionBase) IsDeleted() bool { return s.Deleted }
 
-// ScheduledTransactionSpec is the payload for Create and Update.
-// AccountID and Date are required; the date must not be in the past and
-// at most five years out. Split scheduled transactions cannot be created
-// through the API.
+// ScheduledTransactionSpec is the payload for Create. AccountID and
+// Date are required; the date must not be in the past and at most five
+// years out. Split scheduled transactions cannot be created through
+// the API.
 type ScheduledTransactionSpec struct {
 	AccountID string     `json:"account_id"`
 	Date      Date       `json:"date"`
@@ -125,18 +125,24 @@ type ScheduledTransactionSpec struct {
 	FlagColor Optional[FlagColor] `json:"flag_color,omitzero"`
 }
 
-// validate applies the spec-stated invariants before any I/O. The date
-// window is checked against the local calendar day; near midnight the
-// server's notion of "today" may differ by one day.
-func (s ScheduledTransactionSpec) validate(op string) error {
+// checkScheduledDate applies the shared date window: not in the past
+// and at most five years out, checked against the local calendar day;
+// near midnight the server's notion of "today" may differ by one day.
+func checkScheduledDate(op string, d Date) error {
 	today := Today()
 	switch {
-	case s.Date.Before(today):
+	case d.Before(today):
 		return &ArgumentError{Op: op, Field: "date", Reason: "must not be in the past"}
-	case s.Date.After(today.AddMonths(60)):
+	case d.After(today.AddMonths(60)):
 		return &ArgumentError{Op: op, Field: "date", Reason: "must be at most 5 years out"}
 	}
+	return nil
+}
+
+// validate applies the spec-stated invariants before any I/O.
+func (s ScheduledTransactionSpec) validate(op string) error {
 	return errFirst(
+		checkScheduledDate(op, s.Date),
 		checkOptRuneMax(op, "payee_name", s.PayeeName, txnPayeeNameMax),
 		checkOptRuneMax(op, "memo", s.Memo, memoMax),
 	)
@@ -211,18 +217,53 @@ func (s *ScheduledTransactionsService) Get(
 	return data.ScheduledTransaction, nil
 }
 
-// Update replaces a scheduled transaction with the full spec (HTTP PUT).
+// ScheduledTransactionUpdate is the partial payload for Update. Despite
+// the PUT verb on the wire, the server treats omitted fields as
+// unchanged (probed live, 2026-07-18) — so unset Optionals really mean
+// "keep", exactly like TransactionUpdate.
+type ScheduledTransactionUpdate struct {
+	AccountID Optional[string]     `json:"account_id,omitzero"`
+	Date      Optional[Date]       `json:"date,omitzero"`
+	Amount    Optional[Milliunits] `json:"amount,omitzero"`
+	Frequency Frequency            `json:"frequency,omitzero"`
+
+	PayeeID Optional[string] `json:"payee_id,omitzero"`
+	// PayeeName resolves or creates a payee by name when PayeeID is not
+	// set; bounded at 200 characters.
+	PayeeName  Optional[string] `json:"payee_name,omitzero"`
+	CategoryID Optional[string] `json:"category_id,omitzero"`
+	// Memo is bounded at 500 characters.
+	Memo      Optional[string]    `json:"memo,omitzero"`
+	FlagColor Optional[FlagColor] `json:"flag_color,omitzero"`
+}
+
+// validate applies the spec-stated invariants before any I/O; the date
+// window applies only when Date is set to a value.
+func (u ScheduledTransactionUpdate) validate(op string) error {
+	if d, ok := u.Date.Get(); ok {
+		if err := checkScheduledDate(op, d); err != nil {
+			return err
+		}
+	}
+	return errFirst(
+		checkOptRuneMax(op, "payee_name", u.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "memo", u.Memo, memoMax),
+	)
+}
+
+// Update changes a scheduled transaction. Unset fields stay unchanged
+// on the server; SetNull clears.
 //
 // YNAB operationId: updateScheduledTransaction
 func (s *ScheduledTransactionsService) Update(
-	ctx context.Context, scheduledTransactionID string, spec ScheduledTransactionSpec,
+	ctx context.Context, scheduledTransactionID string, update ScheduledTransactionUpdate,
 ) (*ScheduledTransaction, error) {
-	if err := spec.validate("Scheduled.Update"); err != nil {
+	if err := update.validate("Scheduled.Update"); err != nil {
 		return nil, err
 	}
 	data, err := do[scheduledResult](ctx, s.plan.client,
 		http.MethodPut, s.plan.path("scheduled_transactions", scheduledTransactionID), nil,
-		body{"scheduled_transaction": spec})
+		body{"scheduled_transaction": update})
 	if err != nil {
 		return nil, err
 	}

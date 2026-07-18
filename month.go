@@ -11,11 +11,8 @@ import (
 // month"; IsZero, renders empty, JSON null) and CurrentMonth (the
 // server-resolved "current" literal; IsCurrent, renders "current").
 //
-// Receiver rule (frozen): every method uses a value receiver except
-// UnmarshalJSON, which must mutate its receiver. A pointer-receiver
-// MarshalJSON would silently vanish from the method set encoding/json sees
-// for non-addressable values — the historic silent-encoding bug this rule
-// exists to prevent. Do not "clean this up" to pointer receivers.
+// All methods use value receivers except UnmarshalJSON, so the type is
+// safe to copy and compare.
 type Month struct {
 	year    int
 	month   time.Month
@@ -68,8 +65,8 @@ func zeroMonthError(op string) *ArgumentError {
 // Year returns the calendar year, or 0 for the sentinels.
 func (m Month) Year() int { return m.year }
 
-// Mon returns the calendar month, or 0 for the sentinels.
-func (m Month) Mon() time.Month { return m.month }
+// Month returns the calendar month, or 0 for the sentinels.
+func (m Month) Month() time.Month { return m.month }
 
 // Next returns the month after m. Sentinels pass through unchanged —
 // only a concrete month supports arithmetic.
