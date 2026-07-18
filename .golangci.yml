@@ -100,6 +100,11 @@ linters:
     exhaustive:
       # A default case is a deliberate "everything else" decision.
       default-signifies-exhaustive: true
+    godot:
+      exclude:
+        # The machine-greppable operationId marker (frozen format, no
+        # trailing period — the contract doc-line scanner parses it).
+        - '^ YNAB operationId: '
     gosec:
       excludes:
         # G404 (math/rand): the only randomness in this library is retry

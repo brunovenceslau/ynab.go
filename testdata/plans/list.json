@@ -1,0 +1,60 @@
+{
+  "data": {
+    "plans": [
+      {
+        "id": "aa111111-1111-1111-1111-111111111111",
+        "name": "Family Plan",
+        "last_modified_on": "2026-07-01T12:34:56.789Z",
+        "first_month": "2024-01-01",
+        "last_month": "2026-08-01",
+        "date_format": { "format": "MM/DD/YYYY" },
+        "currency_format": {
+          "iso_code": "USD",
+          "example_format": "123,456.78",
+          "decimal_digits": 2,
+          "decimal_separator": ".",
+          "symbol_first": true,
+          "group_separator": ",",
+          "currency_symbol": "$",
+          "display_symbol": true
+        }
+      },
+      {
+        "id": "bb222222-2222-2222-2222-222222222222",
+        "name": "Side Hustle",
+        "last_modified_on": "2026-06-15T08:00:00.000Z",
+        "first_month": "2025-05-01",
+        "last_month": "2026-07-01",
+        "date_format": { "format": "YYYY-MM-DD" },
+        "currency_format": {
+          "iso_code": "JOD",
+          "example_format": "123,456.789",
+          "decimal_digits": 3,
+          "decimal_separator": ".",
+          "symbol_first": false,
+          "group_separator": ",",
+          "currency_symbol": "JD",
+          "display_symbol": false
+        }
+      }
+    ],
+    "default_plan": {
+      "id": "aa111111-1111-1111-1111-111111111111",
+      "name": "Family Plan",
+      "last_modified_on": "2026-07-01T12:34:56.789Z",
+      "first_month": "2024-01-01",
+      "last_month": "2026-08-01",
+      "date_format": { "format": "MM/DD/YYYY" },
+      "currency_format": {
+        "iso_code": "USD",
+        "example_format": "123,456.78",
+        "decimal_digits": 2,
+        "decimal_separator": ".",
+        "symbol_first": true,
+        "group_separator": ",",
+        "currency_symbol": "$",
+        "display_symbol": true
+      }
+    }
+  }
+}

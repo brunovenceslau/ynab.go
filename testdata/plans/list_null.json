@@ -1,0 +1,16 @@
+{
+  "data": {
+    "plans": [
+      {
+        "id": "cc333333-3333-3333-3333-333333333333",
+        "name": "Bare Plan",
+        "last_modified_on": "2026-01-01T00:00:00.000Z",
+        "first_month": "2026-01-01",
+        "last_month": "2026-01-01",
+        "date_format": null,
+        "currency_format": null
+      }
+    ],
+    "default_plan": null
+  }
+}

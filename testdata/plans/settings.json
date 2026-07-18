@@ -1,0 +1,17 @@
+{
+  "data": {
+    "settings": {
+      "date_format": { "format": "DD/MM/YYYY" },
+      "currency_format": {
+        "iso_code": "EUR",
+        "example_format": "123.456,78",
+        "decimal_digits": 2,
+        "decimal_separator": ",",
+        "symbol_first": false,
+        "group_separator": ".",
+        "currency_symbol": "€",
+        "display_symbol": true
+      }
+    }
+  }
+}
