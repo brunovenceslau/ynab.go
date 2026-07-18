@@ -5,15 +5,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"time"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/ynabtest"
 )
 
 // Example is the flagship vignette: construct a client, take the plan
 // handle, and read through it.
 func Example() {
-	srv := ynabtest.NewServer(nil) // stands in for api.ynab.com
+	// The httptest server stands in for api.ynab.com.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"accounts":[
+			{"name":"Checking","balance_formatted":"$123.93"},
+			{"name":"Savings"}],"server_knowledge":1473}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -34,7 +41,10 @@ func Example() {
 
 // ExampleNew constructs a client from a personal access token.
 func ExampleNew() {
-	srv := ynabtest.NewServer(nil) // stands in for api.ynab.com
+	// The httptest server stands in for api.ynab.com.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"user":{"id":"11111111-2222-3333-4444-555555555555"}}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -60,6 +70,29 @@ func ExampleClient_Plan() {
 	// bound to: default
 }
 
+// ExampleClient_Plans lists the plans the token can reach, with each
+// plan's accounts embedded via IncludeAccounts.
+func ExampleClient_Plans() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"plans":[
+			{"name":"Family Plan","accounts":[{"name":"Checking"},{"name":"Mortgage"}]}]}}`))
+	}))
+	defer srv.Close()
+
+	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
+	list, err := client.Plans(context.Background(), ynab.IncludeAccounts())
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for _, p := range list.Plans {
+		fmt.Printf("%s (%d accounts)\n", p.Name, len(p.Accounts))
+	}
+
+	// Output:
+	// Family Plan (2 accounts)
+}
+
 // ExampleOptional teaches the tri-state trap: unset means "leave it",
 // SetNull means "clear it", and Set always sends — zero values included.
 func ExampleOptional() {
@@ -80,16 +113,73 @@ func ExampleOptional() {
 	// zero     {"goal_target":0}
 }
 
+// ExampleMilliunits does money math on exact integers — 1000 milliunits
+// to the currency unit, never floats.
+func ExampleMilliunits() {
+	price := ynab.UnitsToMilliunits(150)
+	tip := ynab.MustParseMilliunits("22.505")
+	total := price.Add(tip)
+	fmt.Println("total:", total)
+
+	legs := total.SplitEven(3) // parts differ by at most 0.001 and sum exactly
+	fmt.Println("split:", legs[0], legs[1], legs[2])
+
+	// Output:
+	// total: 172.505
+	// split: 57.502 57.502 57.501
+}
+
+// ExampleDate is the calendar-day value type: strict YYYY-MM-DD wire
+// form, with the zero value meaning "no date".
+func ExampleDate() {
+	d := ynab.NewDate(2026, time.July, 18)
+	fmt.Println(d, "-> two weeks later:", d.AddDays(14))
+
+	parsed, _ := ynab.ParseDate("2026-01-31")
+	fmt.Println("plus a month:", parsed.AddMonths(1)) // normalizes like time.AddDate
+
+	var none ynab.Date // renders empty, encodes JSON null
+	fmt.Printf("zero: %q IsZero: %v\n", none, none.IsZero())
+
+	// Output:
+	// 2026-07-18 -> two weeks later: 2026-08-01
+	// plus a month: 2026-03-03
+	// zero: "" IsZero: true
+}
+
+// ExampleMonth is the budget-month value type, deliberately distinct
+// from Date. Besides concrete months there are two sentinels: the
+// server-resolved CurrentMonth and the zero "no month" value.
+func ExampleMonth() {
+	m := ynab.NewMonth(2026, time.November)
+	fmt.Println(m, "-> next:", m.Next())
+	fmt.Println("wraps the year:", m.AddMonths(3))
+
+	fmt.Println("sentinel:", ynab.CurrentMonth())
+
+	var none ynab.Month // renders empty, encodes JSON null
+	fmt.Printf("zero: %q IsZero: %v\n", none, none.IsZero())
+
+	// Output:
+	// 2026-11-01 -> next: 2026-12-01
+	// wraps the year: 2027-02-01
+	// sentinel: current
+	// zero: "" IsZero: true
+}
+
 // Example_errorHandling distinguishes retry-worthy failures from
 // terminal ones through the sentinel taxonomy.
 func Example_errorHandling() {
-	srv := ynabtest.NewServer(nil)
+	status, body := http.StatusTooManyRequests, `{"error":{"id":"429","name":"too_many_requests"}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
 	plan := client.Plan(ynab.PlanIDLastUsed)
 
-	srv.FailWith(429, "429", "too_many_requests")
 	_, _, err := plan.Accounts.List(context.Background())
 	switch {
 	case errors.Is(err, ynab.ErrRateLimited):
@@ -98,7 +188,7 @@ func Example_errorHandling() {
 		fmt.Println("gone")
 	}
 
-	srv.FailWith(404, "404.2", "resource_not_found")
+	status, body = http.StatusNotFound, `{"error":{"id":"404.2","name":"resource_not_found"}}`
 	_, _, err = plan.Accounts.List(context.Background())
 	switch {
 	case errors.Is(err, ynab.ErrRateLimited):
@@ -112,9 +202,27 @@ func Example_errorHandling() {
 	// gone — retryable: false
 }
 
+// ExampleIsRetryable classifies failures for custom retry loops — pair
+// it with WithRetryDisabled when orchestrating your own attempts.
+func ExampleIsRetryable() {
+	err := fmt.Errorf("list accounts: %w", ynab.ErrServiceUnavailable)
+	fmt.Println(ynab.IsRetryable(err))              // 503: retrying may succeed
+	fmt.Println(ynab.IsRetryable(ynab.ErrNotFound)) // terminal 4xx answer
+	fmt.Println(ynab.IsRetryable(context.Canceled)) // the caller's own decision
+
+	// Output:
+	// true
+	// false
+	// false
+}
+
 // ExampleAccountsService_List reads the plan's accounts.
 func ExampleAccountsService_List() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"accounts":[
+			{"name":"Checking","balance":123930},
+			{"name":"Mortgage","balance":-395032000}]}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -136,7 +244,9 @@ func ExampleAccountsService_List() {
 
 // ExampleMonthsService_Get reads the server-resolved current month.
 func ExampleMonthsService_Get() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"month":{"month":"2026-07-01","to_be_budgeted":500000}}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -153,9 +263,34 @@ func ExampleMonthsService_Get() {
 	// 2026-07-01: to be budgeted 500.000
 }
 
+// ExampleCategoriesService_Assign budgets money to a category for a
+// month — the write behind "assign 150 to Groceries this month".
+func ExampleCategoriesService_Assign() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"category":{"name":"Groceries","budgeted":150000}}}`))
+	}))
+	defer srv.Close()
+
+	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
+	plan := client.Plan(ynab.PlanIDLastUsed)
+
+	category, _, err := plan.Categories.Assign(context.Background(), ynab.CurrentMonth(),
+		"ca111111-1111-1111-1111-111111111111", ynab.UnitsToMilliunits(150))
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Printf("%s now has %s assigned\n", category.Name, category.Budgeted)
+
+	// Output:
+	// Groceries now has 150.000 assigned
+}
+
 // ExamplePayeesService_Create adds a payee by name.
 func ExamplePayeesService_Create() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"payee":{"name":"New Landlord"},"server_knowledge":4200}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -175,7 +310,9 @@ func ExamplePayeesService_Create() {
 // ExamplePayeeLocationsService_List reads payee locations (no delta on
 // these endpoints).
 func ExamplePayeeLocationsService_List() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"payee_locations":[{},{}]}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -195,7 +332,9 @@ func ExamplePayeeLocationsService_List() {
 // ExampleMoneyMovementsService_List reads money movements — the endpoints
 // that return a cursor but accept none.
 func ExampleMoneyMovementsService_List() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"money_movements":[{},{}],"server_knowledge":5000}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -215,7 +354,10 @@ func ExampleMoneyMovementsService_List() {
 // ExampleTransactionsService_List filters server-side: the list-since-
 // date vignette.
 func ExampleTransactionsService_List() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"transactions":[
+			{"date":"2026-07-10","amount":-294230,"account_name":"Checking"}]}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -241,7 +383,9 @@ func ExampleTransactionsService_List() {
 // ExampleTransactionsService_Create builds a split transaction whose
 // legs always sum exactly, courtesy of SplitEven.
 func ExampleTransactionsService_Create() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"transaction":{"id":"tr555555-5555-5555-5555-555555555555"}}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -276,10 +420,46 @@ func ExampleTransactionsService_Create() {
 	// created tr555555-5555-5555-5555-555555555555
 }
 
+// ExampleTransactionsService_UpdateBatch patches many transactions in
+// one request. Every update field is tri-state: Set sends a value,
+// SetNull clears, and unset leaves the server's value alone.
+func ExampleTransactionsService_UpdateBatch() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"transaction_ids":["t-1","t-2"],"server_knowledge":6100}}`))
+	}))
+	defer srv.Close()
+
+	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
+	plan := client.Plan(ynab.PlanIDLastUsed)
+
+	patches := []ynab.TransactionPatch{
+		ynab.PatchByID("t-1", ynab.TransactionUpdate{
+			Memo:      ynab.Set("reviewed"),           // send a value
+			FlagColor: ynab.SetNull[ynab.FlagColor](), // clear the flag
+		}), // every other field stays untouched
+		ynab.PatchByID("t-2", ynab.TransactionUpdate{Approved: ynab.Set(true)}),
+	}
+	result, err := plan.Transactions.UpdateBatch(context.Background(), patches)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Printf("updated %d transactions at knowledge %d\n",
+		len(result.TransactionIDs), result.ServerKnowledge)
+
+	// Output:
+	// updated 2 transactions at knowledge 6100
+}
+
 // ExampleScheduledTransactionsService_List reads scheduled transactions;
 // an empty plan yields an empty slice, not an error.
 func ExampleScheduledTransactionsService_List() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"scheduled_transactions":[
+			{"frequency":"monthly","date_next":"2026-08-01"},
+			{"frequency":"monthly","date_next":"2026-08-01"},
+			{"frequency":"never","date_next":"2026-08-01"}]}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -302,7 +482,10 @@ func ExampleScheduledTransactionsService_List() {
 
 // ExamplePlan_Export pulls the whole plan in one request.
 func ExamplePlan_Export() {
-	srv := ynabtest.NewServer(nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"plan":
+			{"name":"Family Plan","accounts":[{}],"categories":[{}]},"server_knowledge":8000}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))

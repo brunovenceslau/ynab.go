@@ -3,17 +3,29 @@ package ynab_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/ynabtest"
 )
 
 // ExamplePlan_Delta is the delta-sync loop: one full read, then
 // incremental reads driven by a persisted SyncState, with MergeByID
 // folding changes and tombstones into a local store.
 func ExamplePlan_Delta() {
-	srv := ynabtest.NewServer(nil) // stands in for api.ynab.com
+	// Stands in for api.ynab.com: a full export on the first read, then —
+	// once a cursor is presented — only what changed after it, deletions
+	// arriving as tombstones.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("last_knowledge_of_server") == "" {
+			_, _ = w.Write([]byte(`{"data":{"plan":
+				{"transactions":[{"id":"t-1"}]},"server_knowledge":8000}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"plan":
+			{"transactions":[{"id":"t-1","deleted":true}]},"server_knowledge":8100}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))
@@ -53,7 +65,18 @@ func ExamplePlan_Delta() {
 // their groups, so flatten every group's Categories before merging by id
 // — merging groups wholesale would drop unchanged categories.
 func ExampleCategoriesService_List_delta() {
-	srv := ynabtest.NewServer(nil) // stands in for api.ynab.com
+	// Stands in for api.ynab.com: the full read carries the category at
+	// 500.000; the delta read answers only what changed — the same
+	// category, reassigned to 600.000.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("last_knowledge_of_server") == "" {
+			_, _ = w.Write([]byte(`{"data":{"category_groups":[{"categories":[
+				{"id":"c-1","name":"Groceries","budgeted":500000}]}],"server_knowledge":2000}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"category_groups":[{"categories":[
+			{"id":"c-1","name":"Groceries","budgeted":600000}]}],"server_knowledge":2001}}`))
+	}))
 	defer srv.Close()
 
 	client := ynab.New("token", ynab.WithBaseURL(srv.URL))

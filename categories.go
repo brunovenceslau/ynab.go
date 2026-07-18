@@ -75,7 +75,7 @@ type CategoryBase struct {
 	// must not apply here.
 	GoalCreationMonth *Date       `json:"goal_creation_month"`
 	GoalTarget        *Milliunits `json:"goal_target"`
-	// Deprecated: use GoalTargetDate — the server mirrors it here.
+	// Deprecated: use [CategoryBase.GoalTargetDate] — the server mirrors it here.
 	GoalTargetMonth        *Date       `json:"goal_target_month"`
 	GoalTargetDate         *Date       `json:"goal_target_date"`
 	GoalPercentageComplete *int        `json:"goal_percentage_complete"`
@@ -108,7 +108,7 @@ type Category struct {
 	GoalOverallLeftCurrency    *float64 `json:"goal_overall_left_currency"`
 }
 
-// SyncID keys the category for MergeByID. Category inherits the
+// SyncID keys the category for [MergeByID]. Category inherits the
 // adapters by embedding.
 func (c CategoryBase) SyncID() string { return c.ID }
 
@@ -126,7 +126,7 @@ type CategoryGroup struct {
 	Categories []Category `json:"categories"`
 }
 
-// SyncID keys the group for MergeByID.
+// SyncID keys the group for [MergeByID].
 func (g CategoryGroup) SyncID() string { return g.ID }
 
 // IsDeleted reports a delta tombstone.

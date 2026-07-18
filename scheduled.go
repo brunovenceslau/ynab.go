@@ -69,7 +69,7 @@ type ScheduledTransaction struct {
 	Subtransactions []ScheduledSubtransaction `json:"subtransactions"`
 }
 
-// SyncID keys the scheduled transaction for MergeByID.
+// SyncID keys the scheduled transaction for [MergeByID].
 // ScheduledTransaction inherits the adapters by embedding.
 func (s ScheduledTransactionBase) SyncID() string { return s.ID }
 
@@ -98,7 +98,7 @@ type ScheduledSubtransaction struct {
 	AmountCurrency  float64 `json:"amount_currency"`
 }
 
-// SyncID keys the scheduled subtransaction for MergeByID.
+// SyncID keys the scheduled subtransaction for [MergeByID].
 // ScheduledSubtransaction inherits the adapters by embedding.
 func (s ScheduledSubtransactionBase) SyncID() string { return s.ID }
 

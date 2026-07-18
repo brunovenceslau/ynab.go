@@ -72,6 +72,9 @@ func (e *Error) Is(target error) bool {
 // request was never sent. Only spec-stated invariants are validated (length
 // bounds, zero Month, split-sum equality, scheduled-date window) — never
 // guessed business rules. Field is empty for cross-field violations.
+// Construction failures report the constructor in Op and the failing
+// option in Field. Op and Reason are for humans and logs — do not parse
+// them.
 type ArgumentError struct {
 	Op     string
 	Field  string

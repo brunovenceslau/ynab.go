@@ -229,7 +229,7 @@ func WithRetryPolicy(p RetryPolicy) Option {
 }
 
 // WithRetryDisabled short-circuits the retry pipeline: every call makes
-// exactly one attempt. Pair with IsRetryable to orchestrate custom loops.
+// exactly one attempt. Pair with [IsRetryable] to orchestrate custom loops.
 func WithRetryDisabled() Option {
 	return Option{apply: func(c *Client) { c.retryOff = true }}
 }

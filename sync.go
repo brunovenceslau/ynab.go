@@ -53,7 +53,7 @@ type Syncable interface {
 // save it between runs and hand it back to keep reads incremental. Each
 // field is its own (plan, stream) cursor space: Plan belongs to
 // Plan.Delta / Plan.Export, the others to their service's list. Zero
-// cursors are omitted from the JSON. Like MergeByID's maps, a SyncState
+// cursors are omitted from the JSON. Like [MergeByID]'s maps, a SyncState
 // is caller-synchronized — guard it yourself if goroutines share it.
 type SyncState struct {
 	PlanID       PlanID          `json:"plan_id"`
