@@ -1,0 +1,47 @@
+name: Bug report
+description: Something decodes wrong, errors wrong, or hits the wire wrong.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      placeholder: go1.25.x
+    validations:
+      required: true
+  - type: dropdown
+    id: divergence
+    attributes:
+      label: Does the live API disagree with the vendored spec?
+      description: >
+        If the real server answers something openapi.yaml does not
+        describe, that is a spec-vs-live divergence — it gets an
+        API_NOTES.md ledger entry alongside the fix.
+      options:
+        - "No / not sure"
+        - "Yes — live behavior differs from the spec"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >
+        The smallest program that shows it. If it needs live data,
+        describe the shape (never paste a token).
+      render: go
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs got
+    validations:
+      required: true

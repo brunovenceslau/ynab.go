@@ -1,4 +1,4 @@
-// Package ynab is the definitive Go client for the YNAB API v1: all 44
+// Package ynab is a complete Go client for the YNAB API v1: all 44
 // operations behind a domain-first surface, exact money arithmetic in
 // Milliunits, first-class delta sync, and zero runtime dependencies.
 //
@@ -20,8 +20,10 @@
 //
 // # The plan handle
 //
-// Everything plan-scoped hangs off the handle Client.Plan returns —
-// without I/O, so it is free to build wherever needed:
+// A plan is what YNAB historically called a budget; the API spec now
+// documents every route under /plans, and this package follows that
+// vocabulary. Everything plan-scoped hangs off the handle Client.Plan
+// returns — without I/O, so it is free to build wherever needed:
 //
 //	plan := client.Plan(ynab.PlanIDLastUsed)
 //	groups, knowledge, err := plan.Categories.List(ctx)
@@ -40,7 +42,9 @@
 //
 // # Delta sync
 //
-// Delta-capable reads return a ServerKnowledge cursor. Hand it back with
+// YNAB's quota is roughly 200 requests per hour — delta sync is how a
+// polling integration lives inside it. Delta-capable reads return a
+// ServerKnowledge cursor. Hand it back with
 // Since (or TransactionFilter.Since) to receive only what changed —
 // deletions arriving as tombstones that MergeByID folds into a local
 // store. SyncState is the JSON-persistable bundle of cursors, and

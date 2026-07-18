@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for helping make this the Go client YNAB deserves. The bar here is
-craftsmanship enforced by machinery — the gates below are not optional, and
-they are the same ones CI runs.
+Thanks for helping make this the Go client YNAB deserves. Correctness is
+enforced by machinery, not vigilance — the gates below are not optional,
+and they are the same ones CI runs.
 
 ## Getting started
 
@@ -51,6 +51,8 @@ are missing.
   the public surface plus a live-integration case (`//go:build integration`)
   registering its operation ids. `-race` and `t.Parallel` discipline apply;
   the integration suite stays sequential.
+- **User-visible changes get a CHANGELOG line** under `[Unreleased]`, in the
+  same PR.
 - **Do not run `make update-spec`** casually — it overwrites the pinned
   vendored spec. If you did: `git checkout -- openapi.yaml`. Re-vendoring is
   ask-first.
@@ -58,4 +60,5 @@ are missing.
 ## Triage promise
 
 Issues are acknowledged within 14 days and receive an accept/decline decision
-within 60. Small, well-gated PRs get the fastest reviews.
+within 60. Small, well-gated PRs get the fastest reviews. This is a
+one-person project; the numbers are deliberately modest so they can be kept.

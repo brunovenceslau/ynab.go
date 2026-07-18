@@ -36,9 +36,13 @@ Entry template:
 - **Date:** 2026-07-18
 - **Docs say:** OpenAPI 1.86.0 declares a 200 `ScheduledTransactionsResponse`
   for the list and a 404 `ErrorResponse` for "not found".
-- **Reality shows:** a plan that has never had scheduled transactions answers
-  404.2 to the *list* itself (research notes; to be re-confirmed live in the
-  integration run).
+- **Reality shows:** research notes report that a plan which has *never*
+  had scheduled transactions answers 404.2 to the *list* itself. Live
+  probe 2026-07-18 (API 1.86.0): a plan that previously had scheduled
+  transactions and currently has none answers 200 with an empty list —
+  so the 404 is specific to the never-had case, which is no longer
+  reproducible on the dedicated test plan (and the API cannot create
+  fresh plans). The fold stays as defense-in-depth.
 - **Impact:** `Scheduled.List` — and only that method — folds the 404 into
   `([], 0, nil)`; every other operation's 404 stays `ErrResourceNotFound`.
   Both sides of the contrast are pinned by tests.

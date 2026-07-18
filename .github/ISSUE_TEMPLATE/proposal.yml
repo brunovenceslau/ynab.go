@@ -1,0 +1,27 @@
+name: Surface proposal
+description: New API surface is spec-before-code — propose it here first.
+labels: [proposal]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should the surface look like?
+      description: Signatures, not prose — write the call you wish existed.
+      render: go
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it belong in this library?
+      description: >
+        This is a wire-faithful client — not an OAuth flow, not a
+        persistence layer, not a budgeting engine. Where does the
+        proposal sit relative to that line?
+    validations:
+      required: true
+  - type: input
+    id: operation
+    attributes:
+      label: YNAB operationId(s) involved, if any
+      placeholder: createTransaction

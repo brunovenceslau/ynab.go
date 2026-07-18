@@ -1,20 +1,17 @@
 # ynab
 
 [![Go Reference](https://pkg.go.dev/badge/pkg.venceslau.dev/ynab.svg)](https://pkg.go.dev/pkg.venceslau.dev/ynab)
-[![Go Version](https://img.shields.io/badge/go-1.25+-00ADD8)](go.mod)
-[![CI](https://img.shields.io/github/actions/workflow/status/brunovenceslau/ynab/ci.yaml?branch=main&label=ci)](.github/workflows/ci.yaml)
+[![CI](https://img.shields.io/github/actions/workflow/status/brunovenceslau/ynab/ci.yaml?branch=main&label=ci)](https://github.com/brunovenceslau/ynab/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue)](LICENSE)
 
-The definitive Go client for the [YNAB API v1](https://api.ynab.com): all 44
+A complete Go client for the [YNAB API v1](https://api.ynab.com): all 44
 operations behind a domain-first surface, exact money arithmetic, first-class
-delta sync, and **zero runtime dependencies**.
+delta sync, and **zero runtime dependencies**. Not an OAuth flow, not a
+persistence layer, not a budgeting engine — a wire-faithful client.
 
-```go
-client := ynab.New(os.Getenv("YNAB_TOKEN"))
-plan := client.Plan(ynab.PlanIDLastUsed)
-
-accounts, knowledge, err := plan.Accounts.List(ctx)
-```
+> YNAB's API says *budget*; this library says **plan**, following YNAB's own
+> product vocabulary. `client.Plan(id)` maps to `/budgets/{budget_id}` on the
+> wire — the mapping is one-to-one.
 
 ## Install
 
@@ -22,7 +19,43 @@ accounts, knowledge, err := plan.Accounts.List(ctx)
 go get pkg.venceslau.dev/ynab
 ```
 
-Requires Go 1.25+.
+Requires Go 1.25+ (the minimum in [go.mod](go.mod)). The public API follows
+[SemVer](https://semver.org): the v1 surface is frozen, and every change is
+recorded in the [CHANGELOG](CHANGELOG.md).
+
+Create a [Personal Access Token](https://api.ynab.com/#personal-access-tokens)
+at app.ynab.com → Settings → Developer Settings and export it as `YNAB_TOKEN`.
+
+## Quick start
+
+A complete program — no IDs to look up, `PlanIDLastUsed` resolves server-side:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"pkg.venceslau.dev/ynab"
+)
+
+func main() {
+	client := ynab.New(os.Getenv("YNAB_TOKEN"))
+	plan := client.Plan(ynab.PlanIDLastUsed)
+
+	accounts, _, err := plan.Accounts.List(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, a := range accounts {
+		fmt.Printf("%s  %s\n", a.Name, a.BalanceFormatted)
+	}
+	// Checking  $1,282.23   (your accounts will differ)
+}
+```
 
 ## The plan handle
 
@@ -44,8 +77,9 @@ and write payloads use the `Optional` tri-state: omitted, `SetNull` (clear), or
 
 ## Delta sync
 
-Delta-capable reads return a `ServerKnowledge` cursor; hand it back to receive
-only what changed, tombstones included:
+YNAB's quota is about 200 requests per hour — delta sync is how a polling
+integration lives inside it. Delta-capable reads return a `ServerKnowledge`
+cursor; hand it back to receive only what changed, tombstones included:
 
 ```go
 st := &ynab.SyncState{} // JSON-persistable; save it between runs
@@ -90,6 +124,13 @@ bodies are asserted byte-exact including their emitted key sets, every decode
 runs twice with all optional response headers stripped, every nullable field
 has a null-variant fixture, and a weekly job diffs the live spec for drift.
 Observed-vs-documented API divergences live in [API_NOTES.md](API_NOTES.md).
+
+## Upgrading from the archived v1.x line
+
+The archived `github.com/brunovenceslau/ynab.go` releases are replaced by this
+module at `pkg.venceslau.dev/ynab`. It is a clean break — budget → plan, one
+package, no source compatibility; the old tags remain available. See the
+[CHANGELOG](CHANGELOG.md) for the migration summary.
 
 ## Support
 
