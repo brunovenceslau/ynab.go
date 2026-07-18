@@ -1,0 +1,11 @@
+{
+  "data": {
+    "thing": {
+      "name": "n",
+      "payee_id": "p-9",
+      "balance": -220,
+      "note": "memo",
+      "details": { "transfer_id": "t-1" }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "data": {
+    "name": "n",
+    "payee_id": "p",
+    "balance": 9223372036854775807,
+    "note": "x",
+    "details": { "transfer_id": "t" }
+  }
+}

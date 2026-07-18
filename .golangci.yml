@@ -77,6 +77,12 @@ linters:
         text: "G304"
         linters:
           - gosec
+      # Tests read repo-local golden fixtures under testdata/ at paths
+      # their own registries supply — not user input.
+      - path: _test\.go
+        text: "G304"
+        linters:
+          - gosec
 
   settings:
     dupl:

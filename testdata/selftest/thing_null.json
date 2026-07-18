@@ -1,0 +1,11 @@
+{
+  "data": {
+    "thing": {
+      "name": "n",
+      "payee_id": null,
+      "balance": 0,
+      "note": null,
+      "details": { "transfer_id": null }
+    }
+  }
+}
