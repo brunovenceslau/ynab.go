@@ -77,7 +77,7 @@ func (s *MonthsService) List(ctx context.Context, opts ...ListOption) ([]MonthSu
 // YNAB operationId: getPlanMonth
 func (s *MonthsService) Get(ctx context.Context, m Month) (*MonthDetail, error) {
 	if m.IsZero() {
-		return nil, &ArgumentError{Op: "Months.Get", Field: "month", Reason: "month must not be zero"}
+		return nil, zeroMonthError("Months.Get")
 	}
 	data, err := do[struct {
 		Month *MonthDetail `json:"month"`

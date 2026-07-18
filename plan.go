@@ -40,6 +40,8 @@ type Plan struct {
 	Payees *PayeesService
 	// PayeeLocations reads the plan's payee locations (no delta support).
 	PayeeLocations *PayeeLocationsService
+	// MoneyMovements reads the plan's money movements.
+	MoneyMovements *MoneyMovementsService
 }
 
 // Plan returns the handle for id. No I/O happens; the id is validated by
@@ -51,6 +53,7 @@ func (c *Client) Plan(id PlanID) *Plan {
 	p.Months = &MonthsService{plan: p}
 	p.Payees = &PayeesService{plan: p}
 	p.PayeeLocations = &PayeeLocationsService{plan: p}
+	p.MoneyMovements = &MoneyMovementsService{plan: p}
 	return p
 }
 

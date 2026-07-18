@@ -198,7 +198,7 @@ func (s *CategoriesService) Get(ctx context.Context, categoryID string) (*Catego
 // YNAB operationId: getMonthCategoryById
 func (s *CategoriesService) GetForMonth(ctx context.Context, m Month, categoryID string) (*Category, error) {
 	if m.IsZero() {
-		return nil, &ArgumentError{Op: "Categories.GetForMonth", Field: "month", Reason: "month must not be zero"}
+		return nil, zeroMonthError("Categories.GetForMonth")
 	}
 	data, err := do[struct {
 		Category *Category `json:"category"`
@@ -253,7 +253,7 @@ func (s *CategoriesService) Assign(
 	ctx context.Context, m Month, categoryID string, budgeted Milliunits,
 ) (*Category, ServerKnowledge, error) {
 	if m.IsZero() {
-		return nil, 0, &ArgumentError{Op: "Categories.Assign", Field: "month", Reason: "month must not be zero"}
+		return nil, 0, zeroMonthError("Categories.Assign")
 	}
 	data, err := do[categoryResult](ctx, s.plan.client,
 		http.MethodPatch, s.plan.path("months", m.String(), "categories", categoryID), nil,

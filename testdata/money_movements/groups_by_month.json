@@ -1,0 +1,14 @@
+{
+  "data": {
+    "money_movement_groups": [
+      {
+        "id": "mg111111-1111-1111-1111-111111111111",
+        "group_created_at": "2026-07-10T09:29:00.000Z",
+        "month": "2026-07-01",
+        "note": "monthly rebalance",
+        "performed_by_user_id": "11111111-2222-3333-4444-555555555555"
+      }
+    ],
+    "server_knowledge": 5003
+  }
+}

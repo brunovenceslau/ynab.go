@@ -59,6 +59,12 @@ func CurrentMonth() Month {
 	return Month{current: true}
 }
 
+// zeroMonthError is the shared pre-flight failure every month-taking
+// operation returns for the zero Month — the request is never sent.
+func zeroMonthError(op string) *ArgumentError {
+	return &ArgumentError{Op: op, Field: "month", Reason: "month must not be zero"}
+}
+
 // Year returns the calendar year, or 0 for the sentinels.
 func (m Month) Year() int { return m.year }
 

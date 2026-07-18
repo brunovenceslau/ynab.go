@@ -1,0 +1,33 @@
+{
+  "data": {
+    "money_movements": [
+      {
+        "id": "mm111111-1111-1111-1111-111111111111",
+        "month": "2026-07-01",
+        "moved_at": "2026-07-10T09:30:00.000Z",
+        "note": "topping up groceries",
+        "money_movement_group_id": "mg111111-1111-1111-1111-111111111111",
+        "performed_by_user_id": "11111111-2222-3333-4444-555555555555",
+        "from_category_id": "ca222222-2222-2222-2222-222222222222",
+        "to_category_id": "ca111111-1111-1111-1111-111111111111",
+        "amount": 250000,
+        "amount_formatted": "$250.00",
+        "amount_currency": 250.0
+      },
+      {
+        "id": "mm333333-3333-3333-3333-333333333333",
+        "month": null,
+        "moved_at": null,
+        "note": null,
+        "money_movement_group_id": null,
+        "performed_by_user_id": null,
+        "from_category_id": null,
+        "to_category_id": null,
+        "amount": 0,
+        "amount_formatted": "$0.00",
+        "amount_currency": 0.0
+      }
+    ],
+    "server_knowledge": 5000
+  }
+}
