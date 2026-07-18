@@ -87,6 +87,20 @@ func TestRawDo(t *testing.T) {
 		require.ErrorIs(t, err, ynab.ErrResourceNotFound)
 	})
 
+	t.Run("transport failures surface as retryable errors", func(t *testing.T) {
+		t.Parallel()
+
+		// A server that is already gone: the dial fails, so the error takes
+		// DoRaw's transport branch rather than the status-mapping one.
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+		srv.Close()
+
+		client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+		_, err := client.RawDo(t.Context(), http.MethodGet, "p", nil, nil)
+		require.Error(t, err)
+		require.True(t, ynab.IsRetryable(err), "a connection failure is retryable")
+	})
+
 	t.Run("config errors surface before any I/O", func(t *testing.T) {
 		t.Parallel()
 
