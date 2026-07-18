@@ -64,6 +64,14 @@ linters:
     - exhaustive
     - nolintlint
 
+  exclusions:
+    rules:
+      # Table-driven tests legitimately repeat wire literals and sentinel
+      # names; extracting them into constants would hurt test readability.
+      - path: _test\.go
+        linters:
+          - goconst
+
   settings:
     dupl:
       threshold: 100
