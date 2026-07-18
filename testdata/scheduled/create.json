@@ -1,0 +1,25 @@
+{
+  "data": {
+    "scheduled_transaction": {
+      "id": "sc444444-4444-4444-4444-444444444444",
+      "date_first": "2026-08-01",
+      "date_next": "2026-08-01",
+      "frequency": "monthly",
+      "amount": -1500000,
+      "memo": "rent",
+      "flag_color": null,
+      "flag_name": null,
+      "account_id": "ac111111-1111-1111-1111-111111111111",
+      "payee_id": "pa555555-5555-5555-5555-555555555555",
+      "category_id": "ca111111-1111-1111-1111-111111111111",
+      "transfer_account_id": null,
+      "deleted": false,
+      "amount_formatted": "-$1,500.00",
+      "amount_currency": -1500.0,
+      "account_name": "Checking",
+      "payee_name": "Landlord",
+      "category_name": "Rent",
+      "subtransactions": []
+    }
+  }
+}

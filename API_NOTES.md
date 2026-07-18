@@ -31,6 +31,19 @@ Entry template:
   alias is never generated and never accepted in helpers.
 - **Status:** open
 
+## getScheduledTransactions — empty plan answers 404, not an empty list
+
+- **Date:** 2026-07-18
+- **Docs say:** OpenAPI 1.86.0 declares a 200 `ScheduledTransactionsResponse`
+  for the list and a 404 `ErrorResponse` for "not found".
+- **Reality shows:** a plan that has never had scheduled transactions answers
+  404.2 to the *list* itself (research notes; to be re-confirmed live in the
+  integration run).
+- **Impact:** `Scheduled.List` — and only that method — folds the 404 into
+  `([], 0, nil)`; every other operation's 404 stays `ErrResourceNotFound`.
+  Both sides of the contrast are pinned by tests.
+- **Status:** worked-around
+
 ## delta endpoints — docs say 9, spec shows 11
 
 - **Date:** 2026-07-18

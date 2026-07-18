@@ -44,6 +44,8 @@ type Plan struct {
 	MoneyMovements *MoneyMovementsService
 	// Transactions reads and writes the plan's transactions.
 	Transactions *TransactionsService
+	// Scheduled reads and writes the plan's scheduled transactions.
+	Scheduled *ScheduledTransactionsService
 }
 
 // Plan returns the handle for id. No I/O happens; the id is validated by
@@ -57,6 +59,7 @@ func (c *Client) Plan(id PlanID) *Plan {
 	p.PayeeLocations = &PayeeLocationsService{plan: p}
 	p.MoneyMovements = &MoneyMovementsService{plan: p}
 	p.Transactions = &TransactionsService{plan: p}
+	p.Scheduled = &ScheduledTransactionsService{plan: p}
 	return p
 }
 
