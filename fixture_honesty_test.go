@@ -106,6 +106,117 @@ func TestFixtureHonesty(t *testing.T) {
 				}{scheduled, sk}
 			},
 		},
+		{
+			name: "plans list", fixture: "plans/list.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				plans, err := c.Plans(t.Context())
+				require.NoError(t, err)
+				return plans
+			},
+		},
+		{
+			name: "plan settings", fixture: "plans/settings.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				settings, err := c.Plan("p-1").Settings(t.Context())
+				require.NoError(t, err)
+				return settings
+			},
+		},
+		{
+			name: "account get", fixture: "accounts/get.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				account, err := c.Plan("p-1").Accounts.Get(t.Context(), "ac1")
+				require.NoError(t, err)
+				return account
+			},
+		},
+		{
+			name: "payee get", fixture: "payees/get.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				payee, err := c.Plan("p-1").Payees.Get(t.Context(), "pa1")
+				require.NoError(t, err)
+				return payee
+			},
+		},
+		{
+			name: "payee locations by payee", fixture: "payee_locations/by_payee.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				locations, err := c.Plan("p-1").PayeeLocations.ListByPayee(t.Context(), "pa1")
+				require.NoError(t, err)
+				return locations
+			},
+		},
+		{
+			name: "months list", fixture: "months/list.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				months, sk, err := c.Plan("p-1").Months.List(t.Context())
+				require.NoError(t, err)
+				return struct {
+					Months []ynab.MonthSummary
+					SK     ynab.ServerKnowledge
+				}{months, sk}
+			},
+		},
+		{
+			name: "month category get", fixture: "categories/month_get.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				category, err := c.Plan("p-1").Categories.GetForMonth(t.Context(), ynab.CurrentMonth(), "ca1")
+				require.NoError(t, err)
+				return category
+			},
+		},
+		{
+			name: "money movements by month", fixture: "money_movements/by_month.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				movements, _, err := c.Plan("p-1").MoneyMovements.ListByMonth(t.Context(), ynab.CurrentMonth())
+				require.NoError(t, err)
+				return movements
+			},
+		},
+		{
+			name: "money movement groups", fixture: "money_movements/groups.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				groups, _, err := c.Plan("p-1").MoneyMovements.ListGroups(t.Context())
+				require.NoError(t, err)
+				return groups
+			},
+		},
+		{
+			name: "hybrid by category", fixture: "transactions/hybrid.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				rows, _, err := c.Plan("p-1").Transactions.ListByCategory(t.Context(), "ca1", ynab.TransactionFilter{})
+				require.NoError(t, err)
+				return rows
+			},
+		},
+		{
+			name: "transaction get", fixture: "transactions/get.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				tx, _, err := c.Plan("p-1").Transactions.Get(t.Context(), "tr1")
+				require.NoError(t, err)
+				return tx
+			},
+		},
+		{
+			name: "scheduled get", fixture: "scheduled/get.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				scheduled, err := c.Plan("p-1").Scheduled.Get(t.Context(), "sc1")
+				require.NoError(t, err)
+				return scheduled
+			},
+		},
 	}
 	for _, probe := range probes {
 		t.Run(probe.name, func(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -92,6 +93,40 @@ func TestServerUnknownRouteIs404(t *testing.T) {
 	status, raw := get(t, srv.URL+"/plans/p-1/unicorns")
 	require.Equal(t, http.StatusNotFound, status)
 	require.Contains(t, string(raw), `"404.1"`)
+}
+
+func TestServerBodyKeyDisambiguation(t *testing.T) {
+	t.Parallel()
+
+	srv := ynabtest.NewServer(t)
+	post := func(body string) []byte {
+		t.Helper()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
+			srv.URL+"/plans/p-1/transactions", strings.NewReader(body))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		raw, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return raw
+	}
+
+	single := post(`{"transaction":{"amount":1}}`)
+	require.Equal(t, ynabtest.Fixture(t, "transactions/create.json"), single)
+
+	batch := post(`{"transactions":[{"amount":1}]}`)
+	require.Equal(t, ynabtest.Fixture(t, "transactions/create_batch.json"), batch)
+
+	// Neither wrapper key: the fake has no route for it — a loud 404
+	// instead of silently picking a shape.
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
+		srv.URL+"/plans/p-1/transactions", strings.NewReader(`{}`))
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
 func TestFixtureNamesAllReadable(t *testing.T) {

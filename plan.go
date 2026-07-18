@@ -225,6 +225,12 @@ func (p *Plan) Delta(ctx context.Context, st *SyncState) (*PlanDetail, error) {
 			Reason: "sync state belongs to plan " + string(st.PlanID) + ", not " + string(p.id),
 		}
 	}
+	if st.PlanID == "" && st.Plan != 0 {
+		return nil, &ArgumentError{
+			Op: "Plan.Delta", Field: "st",
+			Reason: "sync state carries a cursor but no plan id — it cannot be attributed to this plan",
+		}
+	}
 
 	var opts []ListOption
 	if st.Plan != 0 {

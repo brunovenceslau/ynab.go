@@ -75,6 +75,32 @@ func TestPlanDelta(t *testing.T) {
 		require.Empty(t, merged, "the tombstone removed the only transaction")
 	})
 
+	t.Run("the persisted cursor reaches the wire", func(t *testing.T) {
+		t.Parallel()
+
+		// A recording server pins the exact last_knowledge_of_server the
+		// second Delta sends — the fixture switch alone cannot see a
+		// wrong value.
+		client, rec := serveFixture(t, "plans/export.json", 0)
+		st := &ynab.SyncState{PlanID: "p-1", Plan: 8000}
+		_, err := client.Plan("p-1").Delta(t.Context(), st)
+		require.NoError(t, err)
+		require.Equal(t, "8000", rec.URL.Query().Get("last_knowledge_of_server"))
+	})
+
+	t.Run("an unattributed cursor is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// A cursor without a plan id cannot be verified against this
+		// handle — the plan-mismatch guard must not be bypassable by
+		// blanking the id.
+		client := ynab.New("t", ynab.WithBaseURL("http://127.0.0.1:1"), ynab.WithRetryDisabled())
+		st := &ynab.SyncState{Plan: 100}
+		_, err := client.Plan("p-1").Delta(t.Context(), st)
+		var argErr *ynab.ArgumentError
+		require.ErrorAs(t, err, &argErr)
+	})
+
 	t.Run("state does not advance on failure", func(t *testing.T) {
 		t.Parallel()
 

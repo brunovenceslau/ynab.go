@@ -2,7 +2,10 @@
 // endpoint and consumer-seam tests. It serves the same golden fixtures the
 // endpoint tests assert against — the fixture-honesty test keeps the two
 // from ever diverging — and understands delta cursors and error
-// injection. Internal on purpose: the public mocking seams are
+// injection. Delta cursors switch to *_delta fixtures on the four
+// streams that have them (plan export, accounts, categories, payees);
+// the other delta-capable streams serve their full list regardless of
+// cursor. Internal on purpose: the public mocking seams are
 // WithBaseURL+httptest and WithHTTPClient, not a second public surface.
 package ynabtest
 
@@ -15,7 +18,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"sync"
 	"testing"
 )
@@ -241,13 +243,4 @@ func FixtureNames() []string {
 func testdataDir() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata")
-}
-
-// Routes describes the fake surface for diagnostic messages.
-func Routes() string {
-	var out strings.Builder
-	for _, rt := range routes() {
-		fmt.Fprintf(&out, "%-6s %s -> %s\n", rt.method, rt.pattern, rt.fixture)
-	}
-	return out.String()
 }
