@@ -83,6 +83,20 @@ func Do[T any](ctx context.Context, c *Core, method, path string, query url.Valu
 	return v, nil
 }
 
+// DoRaw executes one operation and returns the raw response body bytes —
+// no envelope semantics on either side. Non-2xx responses still map
+// through Core.DecodeError; the full retry/limiter/token pipeline applies.
+func DoRaw(ctx context.Context, c *Core, method, path string, query url.Values, payload []byte) ([]byte, error) {
+	res, err := c.execute(ctx, method, path, query, payload)
+	if err != nil {
+		return nil, err
+	}
+	if res.status < 200 || res.status > 299 {
+		return nil, c.DecodeError(res.status, res.body, res.header)
+	}
+	return res.body, nil
+}
+
 // result is one attempt's raw outcome.
 type result struct {
 	status int

@@ -238,6 +238,23 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
+// RawDo executes an arbitrary API operation and returns the raw response
+// body bytes: method, an already-escaped path relative to the base URL
+// (build dynamic segments with care), optional query values, and an
+// optional raw JSON body. The call flows through the full
+// limiter/token/retry pipeline and non-2xx responses map to *Error, but
+// no envelope semantics apply on either side.
+//
+// EXPERIMENTAL: RawDo exists as the escape hatch for endpoints this
+// library does not cover yet. It is outside the compatibility promise —
+// its signature and behavior may change in any release.
+func (c *Client) RawDo(ctx context.Context, method, path string, q url.Values, body []byte) ([]byte, error) {
+	if err := c.configError(); err != nil {
+		return nil, err
+	}
+	return transport.DoRaw(ctx, c.core, method, path, q, body)
+}
+
 // storeConfigErr records the first option failure; later failures keep the
 // first (it names the option the caller must fix first).
 func (c *Client) storeConfigErr(option, reason string) {
