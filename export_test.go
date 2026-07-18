@@ -13,3 +13,9 @@ var DecodeWireError = decodeWireError
 func ApplyListOptions(q url.Values, opts ...ListOption) url.Values {
 	return applyListOptions(q, opts)
 }
+
+// BaseURLOf exposes the configured base URL so the write-contract harness
+// can drive raw requests through the same server a client points at.
+func BaseURLOf(c *Client) string {
+	return c.baseURL.String()
+}
