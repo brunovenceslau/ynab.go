@@ -1,3 +1,7 @@
+// Copyright 2026 Bruno Venceslau. All rights reserved.
+// Use of this source code is governed by a BSD-2-Clause
+// license that can be found in the LICENSE file.
+
 // Package contract holds the G1 operation table — the library's frozen
 // 1:1 coverage contract with the vendored OpenAPI spec — plus the scanner
 // and diff machinery the contract tests run against it. It is consumed by

@@ -1,3 +1,7 @@
+// Copyright 2026 Bruno Venceslau. All rights reserved.
+// Use of this source code is governed by a BSD-2-Clause
+// license that can be found in the LICENSE file.
+
 // Package ynab is a complete Go client for the YNAB API v1: all 44
 // operations behind a domain-first surface, exact money arithmetic in
 // [Milliunits], first-class delta sync, and zero runtime dependencies.

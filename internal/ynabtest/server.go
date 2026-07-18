@@ -1,3 +1,7 @@
+// Copyright 2026 Bruno Venceslau. All rights reserved.
+// Use of this source code is governed by a BSD-2-Clause
+// license that can be found in the LICENSE file.
+
 // Package ynabtest is the in-repo fake YNAB API used by this module's own
 // endpoint and consumer-seam tests. It serves the same golden fixtures the
 // endpoint tests assert against — the fixture-honesty test keeps the two

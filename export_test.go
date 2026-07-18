@@ -1,3 +1,7 @@
+// Copyright 2026 Bruno Venceslau. All rights reserved.
+// Use of this source code is governed by a BSD-2-Clause
+// license that can be found in the LICENSE file.
+
 package ynab
 
 // Test-only exports: the root test package proves internals that have no
