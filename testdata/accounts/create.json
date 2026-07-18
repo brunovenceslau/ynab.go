@@ -1,0 +1,30 @@
+{
+  "data": {
+    "account": {
+      "id": "ac444444-4444-4444-4444-444444444444",
+      "name": "Vacation Fund",
+      "type": "savings",
+      "on_budget": true,
+      "closed": false,
+      "note": null,
+      "balance": 0,
+      "cleared_balance": 0,
+      "uncleared_balance": 0,
+      "transfer_payee_id": "pa444444-4444-4444-4444-444444444444",
+      "direct_import_linked": false,
+      "direct_import_in_error": false,
+      "last_reconciled_at": null,
+      "debt_original_balance": null,
+      "debt_interest_rates": null,
+      "debt_minimum_payments": null,
+      "debt_escrow_amounts": null,
+      "deleted": false,
+      "balance_formatted": "$0.00",
+      "balance_currency": 0.0,
+      "cleared_balance_formatted": "$0.00",
+      "cleared_balance_currency": 0.0,
+      "uncleared_balance_formatted": "$0.00",
+      "uncleared_balance_currency": 0.0
+    }
+  }
+}

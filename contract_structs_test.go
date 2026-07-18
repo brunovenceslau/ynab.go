@@ -192,31 +192,53 @@ func writeModelProblems(v any) []string {
 		if !f.IsExported() || !isOptionalType(f.Type) {
 			continue
 		}
-		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-
-		field := rv.Field(i)
-		isZero := field.MethodByName("IsZero").Call(nil)[0].Bool()
-		if isZero {
-			if _, present := emitted[name]; present {
-				problems = append(problems, rt.String()+"."+f.Name+": unset Optional was emitted")
-			}
-			continue
+		problem, setZero := optionalEmitProblem(rt, f, rv.Field(i), emitted)
+		if problem != "" {
+			problems = append(problems, problem)
 		}
-		if _, present := emitted[name]; !present {
-			problems = append(problems, rt.String()+"."+f.Name+": set Optional was omitted (issue#24 class)")
-			continue
-		}
-
-		got := field.MethodByName("Get").Call(nil)
-		if got[1].Bool() && got[0].IsZero() {
+		if setZero {
 			setZeroFields++
 		}
 	}
-	if setZeroFields == 0 {
+	if setZeroFields == 0 && hasOptionalField(rt) {
 		problems = append(problems,
 			rt.String()+": register the instance with at least one Set(zero-of-T) field — the issue#24 net")
 	}
 	return problems
+}
+
+// optionalEmitProblem checks one Optional field's emit/omit behavior via
+// the public API and reports whether it is a Set(zero-of-T) field.
+func optionalEmitProblem(
+	rt reflect.Type, f reflect.StructField, field reflect.Value, emitted map[string]any,
+) (problem string, setZero bool) {
+	name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+	_, present := emitted[name]
+
+	if field.MethodByName("IsZero").Call(nil)[0].Bool() {
+		if present {
+			return rt.String() + "." + f.Name + ": unset Optional was emitted", false
+		}
+		return "", false
+	}
+	if !present {
+		return rt.String() + "." + f.Name + ": set Optional was omitted (issue#24 class)", false
+	}
+
+	got := field.MethodByName("Get").Call(nil)
+	return "", got[1].Bool() && got[0].IsZero()
+}
+
+// hasOptionalField reports whether a write model carries any Optional
+// field at all — all-plain payloads (AccountSpec) have nothing for the
+// set-zero net to catch.
+func hasOptionalField(t reflect.Type) bool {
+	for i := range t.NumField() {
+		if isOptionalType(t.Field(i).Type) {
+			return true
+		}
+	}
+	return false
 }
 
 // Self-checks: planted violations in local types prove every rule bites;

@@ -1,0 +1,33 @@
+{
+  "data": {
+    "accounts": [
+      {
+        "id": "ac333333-3333-3333-3333-333333333333",
+        "name": "Bare",
+        "type": "cash",
+        "on_budget": true,
+        "closed": false,
+        "note": null,
+        "balance": 0,
+        "cleared_balance": 0,
+        "uncleared_balance": 0,
+        "transfer_payee_id": null,
+        "direct_import_linked": false,
+        "direct_import_in_error": false,
+        "last_reconciled_at": null,
+        "debt_original_balance": null,
+        "debt_interest_rates": null,
+        "debt_minimum_payments": null,
+        "debt_escrow_amounts": null,
+        "deleted": false,
+        "balance_formatted": "$0.00",
+        "balance_currency": 0.0,
+        "cleared_balance_formatted": "$0.00",
+        "cleared_balance_currency": 0.0,
+        "uncleared_balance_formatted": "$0.00",
+        "uncleared_balance_currency": 0.0
+      }
+    ],
+    "server_knowledge": 1500
+  }
+}

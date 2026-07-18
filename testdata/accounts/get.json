@@ -1,0 +1,30 @@
+{
+  "data": {
+    "account": {
+      "id": "ac111111-1111-1111-1111-111111111111",
+      "name": "Checking",
+      "type": "checking",
+      "on_budget": true,
+      "closed": false,
+      "note": "primary",
+      "balance": 123930,
+      "cleared_balance": 100000,
+      "uncleared_balance": 23930,
+      "transfer_payee_id": "pa111111-1111-1111-1111-111111111111",
+      "direct_import_linked": true,
+      "direct_import_in_error": false,
+      "last_reconciled_at": "2026-06-30T10:00:00.000Z",
+      "debt_original_balance": null,
+      "debt_interest_rates": null,
+      "debt_minimum_payments": null,
+      "debt_escrow_amounts": null,
+      "deleted": false,
+      "balance_formatted": "$123.93",
+      "balance_currency": 123.93,
+      "cleared_balance_formatted": "$123.93",
+      "cleared_balance_currency": 123.93,
+      "uncleared_balance_formatted": "$23.93",
+      "uncleared_balance_currency": 23.93
+    }
+  }
+}

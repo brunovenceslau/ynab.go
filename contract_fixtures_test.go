@@ -57,7 +57,7 @@ func TestContractNullFixtures(t *testing.T) {
 	for _, e := range entries {
 		raw := modelDocument(t, loadFixture(t, e.fixture), e.wrapper)
 		loaded = append(loaded, loadedNullFixture{model: e.model, raw: raw, name: e.fixture})
-		registered[reflect.TypeOf(e.model)] = true
+		registered[normalizeModelType(reflect.TypeOf(e.model))] = true
 	}
 	require.Empty(t, nullCoverageProblems(loaded))
 
@@ -73,10 +73,23 @@ func TestContractNullFixtures(t *testing.T) {
 	reads := append([]any{}, readModels...)
 	wireModelsMu.Unlock()
 	for _, m := range reads {
-		mt := reflect.TypeOf(m)
-		if mt.Kind() == reflect.Struct && len(pointerFieldPaths(mt)) > 0 {
+		mt := normalizeModelType(reflect.TypeOf(m))
+		if len(pointerFieldPaths(mt)) > 0 {
 			require.True(t, registered[mt],
 				"%s has nullable fields but no registered null fixture", mt)
+		}
+	}
+}
+
+// normalizeModelType unwraps slices, arrays, maps, and pointers so a
+// []Account registration and an Account registration land in one group.
+func normalizeModelType(t reflect.Type) reflect.Type {
+	for {
+		switch t.Kind() {
+		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+			t = t.Elem()
+		default:
+			return t
 		}
 	}
 }
@@ -128,7 +141,7 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 	}
 	groups := map[reflect.Type]*modelGroup{}
 	for _, e := range entries {
-		mt := reflect.TypeOf(e.model)
+		mt := normalizeModelType(reflect.TypeOf(e.model))
 		g, ok := groups[mt]
 		if !ok {
 			g = &modelGroup{paths: pointerFieldPaths(mt), nulls: map[string]bool{}}

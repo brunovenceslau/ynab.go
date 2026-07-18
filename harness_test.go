@@ -21,7 +21,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 
@@ -197,29 +196,5 @@ func TestContractWritesHarnessSelfCheck(t *testing.T) {
 		problems := diffRecorded(bodiless, recordedRequest{method: "POST", path: base.path, body: []byte(`{"x":1}`)})
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "unexpected request body")
-	})
-}
-
-// The synthetic end-to-end case keeps the registry loop and runWriteCase
-// exercised until the first real write slice lands (Task 16+), at which
-// point this registration is removed. Its op is not in the G1 table and
-// never marked implemented, so no completeness check counts it.
-func init() {
-	registerWriteCase(writeCase{
-		op:     "syntheticHarnessProof",
-		method: http.MethodPost,
-		path:   "/plans/p-1/things",
-		body:   `{"thing":{"name":"n","approved":false}}`,
-		call: func(t *testing.T, c *ynab.Client) {
-			t.Helper()
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
-				ynab.BaseURLOf(c)+"/plans/p-1/things",
-				strings.NewReader(`{"thing":{"name":"n","approved":false}}`))
-			require.NoError(t, err)
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := http.DefaultClient.Do(req)
-			require.NoError(t, err)
-			require.NoError(t, resp.Body.Close())
-		},
 	})
 }

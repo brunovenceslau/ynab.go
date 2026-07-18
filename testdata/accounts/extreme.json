@@ -1,0 +1,30 @@
+{
+  "data": {
+    "account": {
+      "id": "ac999999-9999-9999-9999-999999999999",
+      "name": "Extreme",
+      "type": "otherAsset",
+      "on_budget": false,
+      "closed": false,
+      "note": null,
+      "balance": 9223372036854775807,
+      "cleared_balance": -9223372036854775808,
+      "uncleared_balance": 0,
+      "transfer_payee_id": null,
+      "direct_import_linked": false,
+      "direct_import_in_error": false,
+      "last_reconciled_at": null,
+      "debt_original_balance": null,
+      "debt_interest_rates": { "2024-01-01": 9223372036854775807 },
+      "debt_minimum_payments": null,
+      "debt_escrow_amounts": null,
+      "deleted": false,
+      "balance_formatted": "lots",
+      "balance_currency": 9.223372036854776e18,
+      "cleared_balance_formatted": "negative lots",
+      "cleared_balance_currency": -9.223372036854776e18,
+      "uncleared_balance_formatted": "$0.00",
+      "uncleared_balance_currency": 0.0
+    }
+  }
+}

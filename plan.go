@@ -22,19 +22,24 @@ const (
 )
 
 // Plan is the handle every plan-scoped operation hangs off:
-// client.Plan(id).Settings(ctx), and the service fields as slices land.
+// client.Plan(id).Accounts.List(ctx), and so on for each service field.
 // Client.Plan performs no I/O. The zero Plan is unusable by design —
 // handles come only from Client.Plan, so the bound id can never drift
 // from its services.
 type Plan struct {
 	id     PlanID
 	client *Client
+
+	// Accounts reads and creates the plan's accounts.
+	Accounts *AccountsService
 }
 
 // Plan returns the handle for id. No I/O happens; the id is validated by
 // the server on first use.
 func (c *Client) Plan(id PlanID) *Plan {
-	return &Plan{id: id, client: c}
+	p := &Plan{id: id, client: c}
+	p.Accounts = &AccountsService{plan: p}
+	return p
 }
 
 // ID returns the plan id this handle is bound to.
@@ -68,8 +73,10 @@ type PlanSummary struct {
 	LastMonth      Month           `json:"last_month"`
 	DateFormat     *DateFormat     `json:"date_format"`
 	CurrencyFormat *CurrencyFormat `json:"currency_format"`
+
 	// Accounts is populated only when Plans is called with
-	// IncludeAccounts. Field added in the accounts slice.
+	// IncludeAccounts; otherwise the key is absent and the slice nil.
+	Accounts []Account `json:"accounts"`
 }
 
 // PlanList is the result of Client.Plans. DefaultPlan is null unless the
