@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -179,12 +178,3 @@ func (e *wrappingNetError) Error() string   { return "net: " + e.err.Error() }
 func (e *wrappingNetError) Unwrap() error   { return e.err }
 func (e *wrappingNetError) Timeout() bool   { return e.timeout }
 func (e *wrappingNetError) Temporary() bool { return false }
-
-func TestErrorRetryAfter(t *testing.T) {
-	t.Parallel()
-
-	// RetryAfter zero means unknown — never "retry immediately".
-	e := &ynab.Error{StatusCode: 429, ID: "429", RetryAfter: 30 * time.Second}
-	require.Equal(t, 30*time.Second, e.RetryAfter)
-	require.Zero(t, (&ynab.Error{StatusCode: 429}).RetryAfter)
-}

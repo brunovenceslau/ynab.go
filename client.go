@@ -82,12 +82,19 @@ func New(token string, opts ...Option) *Client {
 
 // NewWithTokenSource returns a Client that asks ts for a bearer token
 // before every attempt — the constructor for OAuth tokens that expire.
-// The option-failure contract of New applies unchanged.
+// The option-failure contract of New applies unchanged; a nil ts trips it
+// too instead of panicking.
 func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
+	var configErr error
+	if ts == nil {
+		ts = staticToken("")
+		configErr = &ArgumentError{Op: "ynab.NewWithTokenSource", Field: "ts", Reason: "token source must not be nil"}
+	}
 	c := &Client{
 		tokenSource: ts,
+		configErr:   configErr,
 		httpClient:  http.DefaultClient,
-		userAgent:   "ynab.go/" + Version,
+		userAgent:   "pkg.venceslau.dev/ynab/" + Version,
 		timeout:     defaultTimeout,
 		retry: RetryPolicy{
 			MaxAttempts: 3,
@@ -142,20 +149,30 @@ func WithHTTPClient(hc *http.Client) Option {
 
 // WithBaseURL points the client at a different API root (default
 // https://api.ynab.com/v1) — the first-class seam for httptest servers.
-// A rawURL that does not parse as an absolute URL never falls back
-// silently: it trips the config-error contract instead.
+// A rawURL that is not an absolute http(s) URL, or that carries
+// credentials, a query, or a fragment, never falls back silently: it
+// trips the config-error contract instead.
 func WithBaseURL(rawURL string) Option {
 	return func(c *Client) {
 		u, err := url.Parse(rawURL)
-		if err != nil || !u.IsAbs() || u.Host == "" {
+		switch {
+		case err != nil || !u.IsAbs() || u.Host == "":
 			c.storeConfigErr("WithBaseURL", "not an absolute URL: "+rawURL)
-			return
+		case u.Scheme != "http" && u.Scheme != "https":
+			c.storeConfigErr("WithBaseURL", "scheme must be http or https: "+rawURL)
+		case u.User != nil:
+			c.storeConfigErr("WithBaseURL", "URL must not carry credentials")
+		case u.RawQuery != "" || u.Fragment != "":
+			c.storeConfigErr("WithBaseURL", "URL must not carry a query or fragment: "+rawURL)
+		default:
+			c.baseURL = u
 		}
-		c.baseURL = u
 	}
 }
 
-// WithUserAgent replaces the default User-Agent "ynab.go/<Version>".
+// WithUserAgent replaces the default User-Agent
+// "pkg.venceslau.dev/ynab/<Version>" — the module path is the library's
+// canonical identity in the Go ecosystem.
 func WithUserAgent(ua string) Option {
 	return func(c *Client) { c.userAgent = ua }
 }
@@ -182,8 +199,8 @@ func WithRetryPolicy(p RetryPolicy) Option {
 			c.storeConfigErr("WithRetryPolicy", "MaxAttempts must be at least 1")
 			return
 		}
-		if p.MinBackoff < 0 || p.MaxBackoff < p.MinBackoff {
-			c.storeConfigErr("WithRetryPolicy", "want 0 <= MinBackoff <= MaxBackoff")
+		if p.MinBackoff <= 0 || p.MaxBackoff < p.MinBackoff {
+			c.storeConfigErr("WithRetryPolicy", "want 0 < MinBackoff <= MaxBackoff")
 			return
 		}
 		c.retry = p

@@ -46,6 +46,11 @@ type Core struct {
 	// Retry configures the pipeline in retry.go.
 	Retry RetryConfig
 
+	// MaxResponseBytes bounds how much of a response body is read into
+	// memory (hostile-server hardening). Zero means the 128 MiB default —
+	// far above any real YNAB payload, full-plan exports included.
+	MaxResponseBytes int64
+
 	// Rand overrides the backoff jitter source; tests inject a
 	// deterministic one. Nil means math/rand/v2.
 	Rand func() float64
@@ -121,9 +126,16 @@ func (c *Core) attempt(ctx context.Context, method, path string, query url.Value
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	limit := c.MaxResponseBytes
+	if limit <= 0 {
+		limit = defaultMaxResponseBytes
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return result{}, fmt.Errorf("ynab: %s %s: read response: %w", method, path, err)
+	}
+	if int64(len(body)) > limit {
+		return result{}, fmt.Errorf("ynab: %s %s: response body exceeds %d bytes", method, path, limit)
 	}
 
 	c.Logger.DebugContext(ctx, "ynab: response", "method", method, "url", u, "status", resp.StatusCode)
@@ -131,12 +143,37 @@ func (c *Core) attempt(ctx context.Context, method, path string, query url.Value
 	return result{status: resp.StatusCode, body: body, header: resp.Header}, nil
 }
 
-// requestURL joins the base URL, the operation path, and the query string.
+// defaultMaxResponseBytes is the response-size ceiling when the Core does
+// not set one.
+const defaultMaxResponseBytes = 128 << 20
+
+// requestURL joins the base URL, the (already escaped) operation path, and
+// the query string. Dynamic path segments must come through JoinPath.
 func (c *Core) requestURL(path string, query url.Values) string {
-	u := *c.BaseURL
-	u.Path = strings.TrimSuffix(u.Path, "/") + "/" + strings.TrimPrefix(path, "/")
-	u.RawQuery = query.Encode()
-	return u.String()
+	s := strings.TrimSuffix(c.BaseURL.String(), "/") + "/" + strings.TrimPrefix(path, "/")
+	if enc := query.Encode(); enc != "" {
+		s += "?" + enc
+	}
+	return s
+}
+
+// JoinPath builds an operation path from segments, percent-escaping each
+// one so a caller-supplied ID can never traverse into another route. The
+// dot segments "." and ".." are escaped entirely — servers normalize raw
+// dot-segments before decoding, escaped ones they do not.
+func JoinPath(segments ...string) string {
+	escaped := make([]string, len(segments))
+	for i, s := range segments {
+		switch s {
+		case ".":
+			escaped[i] = "%2E"
+		case "..":
+			escaped[i] = "%2E%2E"
+		default:
+			escaped[i] = url.PathEscape(s)
+		}
+	}
+	return strings.Join(escaped, "/")
 }
 
 // marshalBody encodes a non-nil body as JSON.

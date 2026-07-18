@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"pkg.venceslau.dev/ynab/internal/transport"
 )
 
 // Error is a YNAB API error response. ID carries the API's sub-coded string
@@ -156,26 +158,9 @@ func decodeWireError(status int, body []byte, hdr http.Header) error {
 		e.ID, e.Name, e.Detail = env.Error.ID, env.Error.Name, env.Error.Detail
 	}
 	if status == http.StatusTooManyRequests {
-		e.RetryAfter = parseRetryAfter(hdr.Get("Retry-After"))
+		e.RetryAfter = transport.RetryAfterDelay(hdr.Get("Retry-After"))
 	}
 	return e
-}
-
-// parseRetryAfter reads the two documented Retry-After forms — delay
-// seconds and HTTP-date — returning 0 (unknown) for anything else.
-func parseRetryAfter(v string) time.Duration {
-	if v == "" {
-		return 0
-	}
-	if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
-		return time.Duration(secs) * time.Second
-	}
-	if t, err := http.ParseTime(v); err == nil {
-		if d := time.Until(t); d > 0 {
-			return d
-		}
-	}
-	return 0
 }
 
 // IsRetryable reports whether retrying the operation may succeed, per the

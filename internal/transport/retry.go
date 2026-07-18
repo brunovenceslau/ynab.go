@@ -85,11 +85,25 @@ func (c *Core) classify(ctx context.Context, method string, res result, sendErr 
 
 	switch res.status {
 	case http.StatusTooManyRequests:
-		return true, nil // 429 was rejected before processing — safe on any verb
+		// 429 was rejected before processing — safe on any verb. But when
+		// the server asks for a wait beyond what this pipeline will sleep,
+		// surface the decoded 429 instead: Error.RetryAfter carries the
+		// server's number and the caller decides.
+		if d := RetryAfterDelay(res.header.Get("Retry-After")); d > c.retryAfterCap() {
+			return false, nil
+		}
+		return true, nil
 	case http.StatusInternalServerError, http.StatusServiceUnavailable:
 		return c.retryVerb(method), nil
 	}
 	return false, nil // success or a terminal status for the caller to decode
+}
+
+// retryAfterCap bounds how long an honored Retry-After may park the
+// pipeline: the configured MaxBackoff, but never below one minute (YNAB's
+// documented waits are shorter; its rolling window refills continuously).
+func (c *Core) retryAfterCap() time.Duration {
+	return max(c.Retry.MaxBackoff, time.Minute)
 }
 
 // retryVerb reports whether transport failures and 500/503 may be retried
@@ -100,16 +114,22 @@ func (c *Core) retryVerb(method string) bool {
 
 // retryDelay computes the wait before retry i (1-based). A 429's
 // Retry-After is honored best-effort — never required: without it, the
-// i-th retry waits a full-jittered duration in
-// [MinBackoff, min(MaxBackoff, MinBackoff·2^i)].
+// i-th retry waits a full-jittered duration in the half-open interval
+// [MinBackoff, min(MaxBackoff, MinBackoff·2^i)).
 func (c *Core) retryDelay(i int, last result) time.Duration {
 	if last.status == http.StatusTooManyRequests {
-		if d := retryAfterDelay(last.header.Get("Retry-After")); d > 0 {
-			return d
+		if d := RetryAfterDelay(last.header.Get("Retry-After")); d > 0 {
+			return min(d, c.retryAfterCap())
 		}
 	}
 
-	upper := min(c.Retry.MaxBackoff, c.Retry.MinBackoff<<i)
+	// The overflow-free doubling test: MinBackoff·2^i ≤ MaxBackoff iff
+	// MinBackoff ≤ MaxBackoff>>i. Once the doubling passes the cap (or i
+	// is beyond any shiftable range), the upper bound is MaxBackoff.
+	upper := c.Retry.MaxBackoff
+	if i < 63 && c.Retry.MinBackoff <= c.Retry.MaxBackoff>>uint(i) {
+		upper = c.Retry.MinBackoff << uint(i)
+	}
 	if upper <= c.Retry.MinBackoff {
 		return c.Retry.MinBackoff
 	}
@@ -124,9 +144,11 @@ func (c *Core) rand() float64 {
 	return rand.Float64()
 }
 
-// retryAfterDelay parses the two documented Retry-After forms — delay
-// seconds and HTTP-date — returning 0 (unknown) for anything else.
-func retryAfterDelay(v string) time.Duration {
+// RetryAfterDelay parses the two documented Retry-After forms — delay
+// seconds and HTTP-date — returning 0 (unknown) for anything else. The
+// root package reuses it when decoding Error.RetryAfter, so the two
+// readers of the header can never drift.
+func RetryAfterDelay(v string) time.Duration {
 	if v == "" {
 		return 0
 	}

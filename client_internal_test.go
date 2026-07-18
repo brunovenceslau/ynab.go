@@ -21,7 +21,7 @@ func TestNewDefaults(t *testing.T) {
 	c := New("t")
 	require.NoError(t, c.configError())
 	require.Equal(t, "https://api.ynab.com/v1", c.baseURL.String())
-	require.Equal(t, "ynab.go/"+Version, c.userAgent)
+	require.Equal(t, "pkg.venceslau.dev/ynab/"+Version, c.userAgent)
 	require.Equal(t, 30*time.Second, c.timeout)
 	require.Equal(t, RetryPolicy{MaxAttempts: 3, MinBackoff: time.Second, MaxBackoff: 30 * time.Second, RetryWrites: false}, c.retry)
 	require.False(t, c.retryOff)
@@ -79,9 +79,14 @@ func TestConfigErrorContract(t *testing.T) {
 	}{
 		{name: "bad base URL", opt: WithBaseURL("://bad"), field: "WithBaseURL"},
 		{name: "relative base URL", opt: WithBaseURL("/v1"), field: "WithBaseURL"},
+		{name: "non-http scheme", opt: WithBaseURL("ftp://host/v1"), field: "WithBaseURL"},
+		{name: "credentials in base URL", opt: WithBaseURL("https://user:pass@host/v1"), field: "WithBaseURL"},
+		{name: "query in base URL", opt: WithBaseURL("https://host/v1?x=1"), field: "WithBaseURL"},
+		{name: "fragment in base URL", opt: WithBaseURL("https://host/v1#frag"), field: "WithBaseURL"},
 		{name: "nil http client", opt: WithHTTPClient(nil), field: "WithHTTPClient"},
 		{name: "non-positive timeout", opt: WithTimeout(0), field: "WithTimeout"},
 		{name: "zero max attempts", opt: WithRetryPolicy(RetryPolicy{}), field: "WithRetryPolicy"},
+		{name: "zero min backoff", opt: WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MaxBackoff: time.Second}), field: "WithRetryPolicy"},
 		{name: "inverted backoff", opt: WithRetryPolicy(RetryPolicy{MaxAttempts: 1, MinBackoff: 2 * time.Second, MaxBackoff: time.Second}), field: "WithRetryPolicy"},
 		{name: "nil limiter", opt: WithLimiter(nil), field: "WithLimiter"},
 		{name: "nil logger", opt: WithLogger(nil), field: "WithLogger"},
@@ -100,6 +105,18 @@ func TestConfigErrorContract(t *testing.T) {
 			require.Equal(t, tt.field, argErr.Field, "the error names the failing option")
 		})
 	}
+
+	t.Run("nil token source trips the contract instead of panicking", func(t *testing.T) {
+		t.Parallel()
+
+		var c *Client
+		require.NotPanics(t, func() { c = NewWithTokenSource(nil) })
+
+		var argErr *ArgumentError
+		require.ErrorAs(t, c.configError(), &argErr)
+		require.Equal(t, "ynab.NewWithTokenSource", argErr.Op)
+		require.Equal(t, "ts", argErr.Field)
+	})
 
 	t.Run("first failure wins", func(t *testing.T) {
 		t.Parallel()
