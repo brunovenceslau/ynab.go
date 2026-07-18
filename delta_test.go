@@ -75,10 +75,28 @@ func TestPlanDelta(t *testing.T) {
 		require.Empty(t, merged, "the tombstone removed the only transaction")
 	})
 
+	t.Run("state does not advance on failure", func(t *testing.T) {
+		t.Parallel()
+
+		// The corruption class this pins: a failed request must leave the
+		// persisted cursor exactly as it was.
+		srv := ynabtest.NewServer(t)
+		client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+		srv.FailWith(500, "500", "internal_server_error")
+
+		st := &ynab.SyncState{PlanID: "p-1", Plan: 8000, Accounts: 1473}
+		before := *st
+		_, err := client.Plan("p-1").Delta(t.Context(), st)
+		require.ErrorIs(t, err, ynab.ErrServerError)
+		require.Equal(t, before, *st, "st must be untouched after a failed Delta")
+	})
+
 	t.Run("nil state is a pre-flight error", func(t *testing.T) {
 		t.Parallel()
 
-		client := ynab.New("t", ynab.WithRetryDisabled())
+		// Unroutable base URL: if the guard ever regressed this fails
+		// hermetically instead of dialing out.
+		client := ynab.New("t", ynab.WithBaseURL("http://127.0.0.1:1"), ynab.WithRetryDisabled())
 		_, err := client.Plan("p-1").Delta(t.Context(), nil)
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
@@ -89,7 +107,7 @@ func TestPlanDelta(t *testing.T) {
 
 		// Reusing plan A's cursor against plan B would silently corrupt a
 		// local store; the mismatch fails before any I/O.
-		client := ynab.New("t", ynab.WithRetryDisabled())
+		client := ynab.New("t", ynab.WithBaseURL("http://127.0.0.1:1"), ynab.WithRetryDisabled())
 		st := &ynab.SyncState{PlanID: "plan-a", Plan: 100}
 		_, err := client.Plan("plan-b").Delta(t.Context(), st)
 		var argErr *ynab.ArgumentError

@@ -34,8 +34,9 @@ type route struct {
 	bodyKey string
 }
 
-// routes is the fake API's surface, one line per wire shape.
-func routes() []route {
+// routes returns the fake API's surface, one line per wire shape,
+// compiled once.
+var routes = sync.OnceValue(func() []route {
 	r := func(method, pattern, fixture string) route {
 		return route{method: method, pattern: regexp.MustCompile("^" + pattern + "$"), fixture: fixture}
 	}
@@ -91,7 +92,7 @@ func routes() []route {
 		r(http.MethodPut, plan+`/scheduled_transactions/[^/]+`, "scheduled/update.json"),
 		r(http.MethodDelete, plan+`/scheduled_transactions/[^/]+`, "scheduled/delete.json"),
 	}
-}
+})
 
 // Server is a fake YNAB API bound to the module's golden fixtures.
 type Server struct {
@@ -127,7 +128,9 @@ func (s *Server) Close() {
 }
 
 // FailWith makes the next request answer a taxonomy-correct error
-// envelope with the given status and error id, then resets.
+// envelope with the given status and error id, then resets. The
+// injection is consumed by the first attempt — pair retryable statuses
+// with ynab.WithRetryDisabled or the retry pipeline will eat them.
 func (s *Server) FailWith(status int, id, name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -160,16 +163,31 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if rt.deltaFixture != "" && r.URL.Query().Get("last_knowledge_of_server") != "" {
 		fixture = rt.deltaFixture
 	}
+
+	// Read before writing any header, and never t.Fatalf from the serve
+	// goroutine — a broken fixture answers 500 with the reason instead.
+	raw, err := os.ReadFile(filepath.Join(testdataDir(), fixture))
+	if err != nil {
+		if s.tb != nil {
+			s.tb.Errorf("ynabtest: fixture %s: %v", fixture, err)
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w,
+			`{"error":{"id":"500","name":"internal_server_error","detail":"ynabtest: fixture %s unreadable"}}`, fixture)
+		return
+	}
 	status := rt.status
 	if status == 0 {
 		status = http.StatusOK
 	}
 	w.WriteHeader(status)
-	_, _ = w.Write(Fixture(s.tb, fixture))
+	_, _ = w.Write(raw)
 }
 
 // resolve finds the route for a request, disambiguating shared
-// method+path routes by the request body's top-level key.
+// method+path routes by the request body's top-level key. Note: this
+// drains r.Body — if the fake ever grows request recording, buffer and
+// restore the body here first.
 func (s *Server) resolve(r *http.Request) (route, bool) {
 	var bodyKeys map[string]json.RawMessage
 	_ = json.NewDecoder(r.Body).Decode(&bodyKeys)

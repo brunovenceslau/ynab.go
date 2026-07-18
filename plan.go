@@ -211,7 +211,10 @@ func (p *Plan) Export(ctx context.Context, opts ...ListOption) (*PlanDetail, Ser
 // server knowledge; the per-service cursors are separate spaces and stay
 // untouched). A zero st.Plan performs the initial full read. st must
 // carry this plan's id — reusing another plan's cursor would silently
-// corrupt a local store, so it is rejected pre-flight.
+// corrupt a local store, so it is rejected pre-flight. Prefer concrete
+// plan ids for persisted sync state: with the last-used/default aliases
+// the guard records the alias and cannot notice the underlying plan
+// changing server-side.
 func (p *Plan) Delta(ctx context.Context, st *SyncState) (*PlanDetail, error) {
 	if st == nil {
 		return nil, &ArgumentError{Op: "Plan.Delta", Field: "st", Reason: "sync state must not be nil"}
