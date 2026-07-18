@@ -1,0 +1,103 @@
+{
+  "data": {
+    "category_groups": [
+      {
+        "id": "cg111111-1111-1111-1111-111111111111",
+        "name": "Everyday",
+        "hidden": false,
+        "internal": false,
+        "deleted": false,
+        "categories": [
+          {
+            "id": "ca111111-1111-1111-1111-111111111111",
+            "category_group_id": "cg111111-1111-1111-1111-111111111111",
+            "category_group_name": "Everyday",
+            "name": "Groceries",
+            "hidden": false,
+            "internal": false,
+            "original_category_group_id": null,
+            "note": "weekly shop",
+            "budgeted": 500000,
+            "activity": -123930,
+            "balance": 376070,
+            "goal_type": "NEED",
+            "goal_needs_whole_amount": false,
+            "goal_day": null,
+            "goal_cadence": 1,
+            "goal_cadence_frequency": 1,
+            "goal_creation_month": "2025-01-01",
+            "goal_target": 500000,
+            "goal_target_month": null,
+            "goal_target_date": null,
+            "goal_percentage_complete": 75,
+            "goal_months_to_budget": 1,
+            "goal_under_funded": 123930,
+            "goal_overall_funded": 376070,
+            "goal_overall_left": 123930,
+            "goal_snoozed_at": null,
+            "deleted": false,
+            "balance_formatted": "$376.07",
+            "balance_currency": 376.07,
+            "activity_formatted": "-$123.93",
+            "activity_currency": -123.93,
+            "budgeted_formatted": "$500.00",
+            "budgeted_currency": 500.0,
+            "goal_target_formatted": "$500.00",
+            "goal_target_currency": 500.0,
+            "goal_under_funded_formatted": "$123.93",
+            "goal_under_funded_currency": 123.93
+          }
+        ]
+      },
+      {
+        "id": "cg222222-2222-2222-2222-222222222222",
+        "name": "Savings Goals",
+        "hidden": false,
+        "internal": false,
+        "deleted": false,
+        "categories": [
+          {
+            "id": "ca222222-2222-2222-2222-222222222222",
+            "category_group_id": "cg222222-2222-2222-2222-222222222222",
+            "category_group_name": "Savings Goals",
+            "name": "Vacation",
+            "hidden": false,
+            "internal": false,
+            "original_category_group_id": null,
+            "note": null,
+            "budgeted": 0,
+            "activity": 0,
+            "balance": 0,
+            "goal_type": "TBD",
+            "goal_needs_whole_amount": null,
+            "goal_day": null,
+            "goal_cadence": null,
+            "goal_cadence_frequency": null,
+            "goal_creation_month": "2026-01-01",
+            "goal_target": 12000000,
+            "goal_target_month": null,
+            "goal_target_date": "2027-06-15",
+            "goal_percentage_complete": 10,
+            "goal_months_to_budget": null,
+            "goal_under_funded": null,
+            "goal_overall_funded": null,
+            "goal_overall_left": null,
+            "goal_snoozed_at": null,
+            "deleted": false,
+            "balance_formatted": "$0.00",
+            "balance_currency": 0.0,
+            "activity_formatted": "$0.00",
+            "activity_currency": 0.0,
+            "budgeted_formatted": "$0.00",
+            "budgeted_currency": 0.0,
+            "goal_target_formatted": "$12,000.00",
+            "goal_target_currency": 12000.0,
+            "goal_under_funded_formatted": null,
+            "goal_under_funded_currency": null
+          }
+        ]
+      }
+    ],
+    "server_knowledge": 2000
+  }
+}

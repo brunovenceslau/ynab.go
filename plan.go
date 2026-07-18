@@ -32,6 +32,8 @@ type Plan struct {
 
 	// Accounts reads and creates the plan's accounts.
 	Accounts *AccountsService
+	// Categories reads and writes the plan's categories.
+	Categories *CategoriesService
 }
 
 // Plan returns the handle for id. No I/O happens; the id is validated by
@@ -39,6 +41,7 @@ type Plan struct {
 func (c *Client) Plan(id PlanID) *Plan {
 	p := &Plan{id: id, client: c}
 	p.Accounts = &AccountsService{plan: p}
+	p.Categories = &CategoriesService{plan: p}
 	return p
 }
 
