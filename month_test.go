@@ -76,6 +76,12 @@ func TestMonthAccessorsAndArithmetic(t *testing.T) {
 	require.Equal(t, -1, a.Compare(b))
 	require.Equal(t, 1, b.Compare(a))
 	require.Equal(t, 0, a.Compare(ynab.NewMonth(2016, time.May)))
+	require.Equal(t, -1, ynab.NewMonth(2015, time.December).Compare(ynab.NewMonth(2016, time.January)), "year boundary")
+
+	// Sentinels carry zero components: they order before every concrete
+	// month and equal to each other.
+	require.Equal(t, -1, ynab.CurrentMonth().Compare(a))
+	require.Equal(t, 0, ynab.CurrentMonth().Compare(ynab.Month{}))
 }
 
 func TestMonthSentinelArithmetic(t *testing.T) {
@@ -139,5 +145,12 @@ func TestMonthJSON(t *testing.T) {
 
 		var m ynab.Month
 		require.Error(t, json.Unmarshal([]byte(`"2016-12-05"`), &m))
+	})
+
+	t.Run("rejects non-string wire values", func(t *testing.T) {
+		t.Parallel()
+
+		var m ynab.Month
+		require.Error(t, json.Unmarshal([]byte(`123`), &m))
 	})
 }

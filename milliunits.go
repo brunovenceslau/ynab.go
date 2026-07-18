@@ -119,9 +119,12 @@ func (m Milliunits) String() string {
 // Format renders m per the plan's currency format: decimal_digits decimals
 // (rounded half away from zero), the format's separators, and the currency
 // symbol when display_symbol is set (before the number and after the sign
-// when symbol_first, appended otherwise).
+// when symbol_first, appended otherwise). DecimalDigits is clamped to
+// 0..10 — the wire never exceeds 3, and an out-of-range value from a
+// hostile payload must not drive huge allocations. Amounts that round to
+// zero keep their sign ("-$0.00").
 func (m Milliunits) Format(f CurrencyFormat) string {
-	digits := max(int(f.DecimalDigits), 0)
+	digits := min(max(int(f.DecimalDigits), 0), 10)
 
 	// Rescale the thousandths magnitude to the requested decimal count.
 	u := magnitude(m)

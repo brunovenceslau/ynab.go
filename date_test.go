@@ -66,6 +66,17 @@ func TestDateAccessorsAndArithmetic(t *testing.T) {
 	require.True(t, a.Before(b))
 	require.False(t, a.After(b))
 	require.True(t, b.After(a))
+
+	// Ordering across month and year boundaries, and the zero value
+	// ordering before every real date.
+	require.Equal(t, -1, ynab.NewDate(2015, time.December, 31).Compare(ynab.NewDate(2016, time.January, 1)))
+	require.Equal(t, 1, ynab.NewDate(2015, time.June, 1).Compare(ynab.NewDate(2015, time.May, 31)))
+	require.Equal(t, -1, (ynab.Date{}).Compare(ynab.NewDate(1, time.January, 1)))
+
+	// Arithmetic on the zero value passes through — "no date" never
+	// fabricates a wire-visible date.
+	require.True(t, (ynab.Date{}).AddDays(5).IsZero())
+	require.True(t, (ynab.Date{}).AddMonths(-3).IsZero())
 }
 
 func TestDateTimeConversions(t *testing.T) {

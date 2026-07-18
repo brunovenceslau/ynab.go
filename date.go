@@ -60,13 +60,22 @@ func (d Date) Month() time.Month { return d.month }
 func (d Date) Day() int { return d.day }
 
 // AddDays returns the date n days after d (before, for negative n).
+// The zero value passes through unchanged — arithmetic on "no date" must
+// never fabricate a wire-visible date.
 func (d Date) AddDays(n int) Date {
+	if d.IsZero() {
+		return d
+	}
 	return DateOf(d.Time().AddDate(0, 0, n))
 }
 
 // AddMonths returns the date n months after d, normalizing the way
 // time.AddDate does: January 31 plus one month rolls over into March.
+// The zero value passes through unchanged.
 func (d Date) AddMonths(n int) Date {
+	if d.IsZero() {
+		return d
+	}
 	return DateOf(d.Time().AddDate(0, n, 0))
 }
 

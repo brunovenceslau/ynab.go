@@ -99,4 +99,7 @@ func TestSince(t *testing.T) {
 	q = url.Values{}
 	require.NotPanics(t, func() { ynab.ApplyListOptions(q, zero) }, "zero ListOption is inert")
 	require.Empty(t, q)
+
+	got := ynab.ApplyListOptions(nil, ynab.Since(7))
+	require.Equal(t, "7", got.Get("last_knowledge_of_server"), "nil query map self-allocates")
 }
