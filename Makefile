@@ -36,3 +36,10 @@ update-spec:
 # -count=1: live-API runs must never be served from the test cache.
 smoke:
 	go test -tags=smoke -count=1 -run 'TestLiveSmoke' ./...
+
+ACTIONLINT_VERSION := v1.7.12
+ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+
+.PHONY: actionlint
+actionlint:
+	$(ACTIONLINT) .github/workflows/*.yaml

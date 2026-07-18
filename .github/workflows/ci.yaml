@@ -1,0 +1,70 @@
+# CI — every step maps 1:1 to a locally runnable command (the mapping is
+# the step name). The tip leg is post-push-verified: it cannot run on the
+# dev host and exists to catch upcoming-Go breakage early.
+name: ci
+
+on:
+  push:
+    branches: [main, v1]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.25.x', 'tip']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        if: matrix.go != 'tip'
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/setup-go@v5
+        if: matrix.go == 'tip'
+        with:
+          go-version: stable
+
+      - name: install gotip (pinned)
+        if: matrix.go == 'tip'
+        run: |
+          go install golang.org/dl/gotip@v0.0.0-20260707194042-2a89cd203549
+          gotip download
+          echo "$(gotip env GOROOT)/bin" >> "$GITHUB_PATH"
+
+      - name: go version
+        run: go version
+
+      - name: make lint          # local equivalent: make lint
+        run: make lint
+
+      - name: make test          # local equivalent: make test
+        run: make test
+
+      - name: make contract      # local equivalent: make contract
+        run: make contract
+
+      - name: vet tagged files   # local equivalent: go vet -tags='smoke integration' ./...
+        run: go vet -tags='smoke integration' ./...
+
+      - name: make vulncheck     # local equivalent: make vulncheck
+        run: make vulncheck
+
+      - name: mod tidy diff      # local equivalent: go mod tidy && git diff --exit-code
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      - name: make coverage      # local equivalent: make coverage
+        if: matrix.go != 'tip'
+        run: make coverage
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.go != 'tip'
+        with:
+          name: coverage
+          path: cover.out

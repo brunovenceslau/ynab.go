@@ -1,0 +1,39 @@
+# G6 — weekly spec-drift watch: fetch the live OpenAPI spec, diff against
+# the vendored pin. On drift the job FAILS (red badge) and uploads the
+# diff as an artifact; re-vendoring is a deliberate human change, never
+# automated (and this repository's workflow opens no automatic PRs).
+name: spec-drift
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # weekly, Monday 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: fetch live spec    # local equivalent: the update-spec curl, into a temp file
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            https://api.ynab.com/papi/open_api_spec.yaml -o /tmp/live_spec.yaml
+
+      - name: diff against vendored
+        run: |
+          if ! diff -u openapi.yaml /tmp/live_spec.yaml > /tmp/spec.diff; then
+            echo '::error::live OpenAPI spec drifted from the vendored 1.86.0 pin — review /tmp/spec.diff artifact and re-vendor deliberately'
+            cp /tmp/spec.diff spec.diff
+            exit 1
+          fi
+          echo 'vendored spec matches the live spec'
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: spec-diff
+          path: spec.diff
