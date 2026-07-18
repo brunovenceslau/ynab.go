@@ -1,6 +1,8 @@
 package ynab
 
 import (
+	"context"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -207,6 +209,121 @@ type TransactionFilter struct {
 	UntilDate Date
 	Type      TransactionType
 	Since     ServerKnowledge
+}
+
+// TransactionsService reads and writes the plan's transactions.
+type TransactionsService struct {
+	plan *Plan
+}
+
+// transactionsResult is the shared full-transaction list payload.
+type transactionsResult struct {
+	Transactions    []Transaction   `json:"transactions"`
+	ServerKnowledge ServerKnowledge `json:"server_knowledge"`
+}
+
+// hybridResult is the hybrid list payload. Server knowledge is optional
+// on this wire shape.
+type hybridResult struct {
+	Transactions    []HybridTransaction `json:"transactions"`
+	ServerKnowledge ServerKnowledge     `json:"server_knowledge"`
+}
+
+// List returns the plan's transactions. The server defaults the filter's
+// SinceDate to one year ago when unset.
+//
+// YNAB operationId: getTransactions
+func (s *TransactionsService) List(
+	ctx context.Context, filter TransactionFilter,
+) ([]Transaction, ServerKnowledge, error) {
+	data, err := do[transactionsResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("transactions"), filter.encode(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transactions, data.ServerKnowledge, nil
+}
+
+// ListByAccount returns one account's transactions.
+//
+// YNAB operationId: getTransactionsByAccount
+func (s *TransactionsService) ListByAccount(
+	ctx context.Context, accountID string, filter TransactionFilter,
+) ([]Transaction, ServerKnowledge, error) {
+	data, err := do[transactionsResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("accounts", accountID, "transactions"), filter.encode(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transactions, data.ServerKnowledge, nil
+}
+
+// ListByCategory returns one category's transactions as hybrid rows
+// (split legs appear individually). Wire quirk, documented rather than
+// papered over: server knowledge is optional on this response and may
+// come back 0 — do not advance a cursor from a zero.
+//
+// YNAB operationId: getTransactionsByCategory
+func (s *TransactionsService) ListByCategory(
+	ctx context.Context, categoryID string, filter TransactionFilter,
+) ([]HybridTransaction, ServerKnowledge, error) {
+	data, err := do[hybridResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("categories", categoryID, "transactions"), filter.encode(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transactions, data.ServerKnowledge, nil
+}
+
+// ListByPayee returns one payee's transactions as hybrid rows. The same
+// optional-server-knowledge quirk as ListByCategory applies.
+//
+// YNAB operationId: getTransactionsByPayee
+func (s *TransactionsService) ListByPayee(
+	ctx context.Context, payeeID string, filter TransactionFilter,
+) ([]HybridTransaction, ServerKnowledge, error) {
+	data, err := do[hybridResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("payees", payeeID, "transactions"), filter.encode(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transactions, data.ServerKnowledge, nil
+}
+
+// ListByMonth returns one month's transactions. Month accepts
+// CurrentMonth.
+//
+// YNAB operationId: getTransactionsByMonth
+func (s *TransactionsService) ListByMonth(
+	ctx context.Context, m Month, filter TransactionFilter,
+) ([]Transaction, ServerKnowledge, error) {
+	if m.IsZero() {
+		return nil, 0, zeroMonthError("Transactions.ListByMonth")
+	}
+	data, err := do[transactionsResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("months", m.String(), "transactions"), filter.encode(), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transactions, data.ServerKnowledge, nil
+}
+
+// transactionResult is the single-transaction payload.
+type transactionResult struct {
+	Transaction     *Transaction    `json:"transaction"`
+	ServerKnowledge ServerKnowledge `json:"server_knowledge"`
+}
+
+// Get returns a single transaction by id.
+//
+// YNAB operationId: getTransactionById
+func (s *TransactionsService) Get(ctx context.Context, transactionID string) (*Transaction, ServerKnowledge, error) {
+	data, err := do[transactionResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("transactions", transactionID), nil, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Transaction, data.ServerKnowledge, nil
 }
 
 // encode renders the filter's query parameters, nil when unfiltered.
