@@ -81,8 +81,12 @@ jobs:
         if: matrix.go != 'tip'
         run: |
           CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh "v$(sed -n 's/^const Version = "\(.*\)"$/\1/p' client.go)"
-          ! CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v1.0.0-rc1
-          ! CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v0.0.0
+          if CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v1.0.0-rc1; then
+            echo '::error::the gate accepted a prerelease tag'; exit 1
+          fi
+          if CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v0.0.0; then
+            echo '::error::the gate accepted a tag that mismatches Version'; exit 1
+          fi
 
       - name: make coverage
         if: matrix.go != 'tip'
