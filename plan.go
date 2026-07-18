@@ -206,6 +206,36 @@ func (p *Plan) Export(ctx context.Context, opts ...ListOption) (*PlanDetail, Ser
 	return data.Plan, data.ServerKnowledge, nil
 }
 
+// Delta is the one-request full-plan delta: an Export since st's plan
+// cursor, advancing *st in place on success (st.Plan moves to the new
+// server knowledge; the per-service cursors are separate spaces and stay
+// untouched). A zero st.Plan performs the initial full read. st must
+// carry this plan's id — reusing another plan's cursor would silently
+// corrupt a local store, so it is rejected pre-flight.
+func (p *Plan) Delta(ctx context.Context, st *SyncState) (*PlanDetail, error) {
+	if st == nil {
+		return nil, &ArgumentError{Op: "Plan.Delta", Field: "st", Reason: "sync state must not be nil"}
+	}
+	if st.PlanID != "" && st.PlanID != p.id {
+		return nil, &ArgumentError{
+			Op: "Plan.Delta", Field: "st",
+			Reason: "sync state belongs to plan " + string(st.PlanID) + ", not " + string(p.id),
+		}
+	}
+
+	var opts []ListOption
+	if st.Plan != 0 {
+		opts = append(opts, Since(st.Plan))
+	}
+	detail, sk, err := p.Export(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	st.PlanID = p.id
+	st.Plan = sk
+	return detail, nil
+}
+
 // Settings returns the plan's date and currency settings.
 //
 // YNAB operationId: getPlanSettingsById

@@ -154,11 +154,16 @@ func TestContractValidateDocLines(t *testing.T) {
 		require.Empty(t, contract.ValidateDocLines(table, []string{"createTransaction"}, found))
 	})
 
-	t.Run("one of two methods still satisfies the row", func(t *testing.T) {
+	t.Run("a listed method without its doc line is caught", func(t *testing.T) {
 		t.Parallel()
 
+		// One doc line satisfies the op's existence, but every method the
+		// table lists must carry its own line — CreateBatch cannot hide
+		// behind Create.
 		found := map[string][]string{"createTransaction": {"TransactionsService.Create"}}
-		require.Empty(t, contract.ValidateDocLines(table, []string{"createTransaction"}, found), "never a bijection")
+		problems := contract.ValidateDocLines(table, []string{"createTransaction"}, found)
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "TransactionsService.CreateBatch carries no doc line")
 	})
 
 	t.Run("unknown operationId rejected", func(t *testing.T) {

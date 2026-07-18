@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"pkg.venceslau.dev/ynab/internal/transport"
 )
@@ -138,6 +140,28 @@ var sentinelByStatus = map[int]error{
 	429: ErrRateLimited,
 	500: ErrServerError,
 	503: ErrServiceUnavailable,
+}
+
+// maxLenError reports one spec-declared maxLength violation.
+func maxLenError(op, field string, limit int) *ArgumentError {
+	return &ArgumentError{Op: op, Field: field, Reason: fmt.Sprintf("must be at most %d characters", limit)}
+}
+
+// checkRuneMax validates a spec-declared maxLength bound in characters
+// (code points), the unit JSON Schema's maxLength counts.
+func checkRuneMax(op, field, v string, limit int) error {
+	if utf8.RuneCountInString(v) > limit {
+		return maxLenError(op, field, limit)
+	}
+	return nil
+}
+
+// checkOptRuneMax is checkRuneMax over a set Optional[string].
+func checkOptRuneMax(op, field string, o Optional[string], limit int) error {
+	if v, ok := o.Get(); ok {
+		return checkRuneMax(op, field, v, limit)
+	}
+	return nil
 }
 
 // decodeWireError maps a non-2xx response to *Error — the decoder the root

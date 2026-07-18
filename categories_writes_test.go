@@ -1,6 +1,7 @@
 package ynab_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -147,12 +148,14 @@ func init() {
 			require.NoError(t, err)
 			require.Equal(t, renamedName, updated.Name)
 
+			cleanupCtx := context.WithoutCancel(t.Context())
+			t.Cleanup(func() {
+				_, _, err := plan.Categories.Assign(cleanupCtx, ynab.CurrentMonth(), created.ID, 0)
+				require.NoError(t, err, "assignment back to zero restores the plan")
+			})
 			assigned, _, err := plan.Categories.Assign(t.Context(), ynab.CurrentMonth(), created.ID, 1000)
 			require.NoError(t, err)
 			require.Equal(t, ynab.Milliunits(1000), assigned.Budgeted)
-
-			_, _, err = plan.Categories.Assign(t.Context(), ynab.CurrentMonth(), created.ID, 0)
-			require.NoError(t, err, "assignment back to zero restores the plan")
 
 			_, _, err = plan.Categories.RenameGroup(t.Context(), group.ID, fmt.Sprintf("itest-done-%d", stamp))
 			require.NoError(t, err)

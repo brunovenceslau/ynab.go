@@ -219,7 +219,8 @@ func TestContractRegressionAudit(t *testing.T) {
 	entries, err := os.ReadDir(".")
 	require.NoError(t, err)
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), "_test.go") {
+		// This file's own label map would satisfy the audit vacuously.
+		if e.IsDir() || !strings.HasSuffix(e.Name(), "_test.go") || e.Name() == "contract_complete_test.go" {
 			continue
 		}
 		raw, err := os.ReadFile(filepath.Clean(e.Name()))

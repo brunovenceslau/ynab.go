@@ -45,7 +45,11 @@
             "goal_target_formatted": null,
             "goal_target_currency": null,
             "goal_under_funded_formatted": null,
-            "goal_under_funded_currency": null
+            "goal_under_funded_currency": null,
+            "goal_overall_funded_formatted": null,
+            "goal_overall_funded_currency": null,
+            "goal_overall_left_formatted": null,
+            "goal_overall_left_currency": null
           }
         ]
       }

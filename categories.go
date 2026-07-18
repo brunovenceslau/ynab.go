@@ -86,16 +86,20 @@ type CategoryBase struct {
 // integers, never on the float companions.
 type Category struct {
 	CategoryBase
-	BalanceFormatted         string   `json:"balance_formatted"`
-	BalanceCurrency          float64  `json:"balance_currency"`
-	ActivityFormatted        string   `json:"activity_formatted"`
-	ActivityCurrency         float64  `json:"activity_currency"`
-	BudgetedFormatted        string   `json:"budgeted_formatted"`
-	BudgetedCurrency         float64  `json:"budgeted_currency"`
-	GoalTargetFormatted      *string  `json:"goal_target_formatted"`
-	GoalTargetCurrency       *float64 `json:"goal_target_currency"`
-	GoalUnderFundedFormatted *string  `json:"goal_under_funded_formatted"`
-	GoalUnderFundedCurrency  *float64 `json:"goal_under_funded_currency"`
+	BalanceFormatted           string   `json:"balance_formatted"`
+	BalanceCurrency            float64  `json:"balance_currency"`
+	ActivityFormatted          string   `json:"activity_formatted"`
+	ActivityCurrency           float64  `json:"activity_currency"`
+	BudgetedFormatted          string   `json:"budgeted_formatted"`
+	BudgetedCurrency           float64  `json:"budgeted_currency"`
+	GoalTargetFormatted        *string  `json:"goal_target_formatted"`
+	GoalTargetCurrency         *float64 `json:"goal_target_currency"`
+	GoalUnderFundedFormatted   *string  `json:"goal_under_funded_formatted"`
+	GoalUnderFundedCurrency    *float64 `json:"goal_under_funded_currency"`
+	GoalOverallFundedFormatted *string  `json:"goal_overall_funded_formatted"`
+	GoalOverallFundedCurrency  *float64 `json:"goal_overall_funded_currency"`
+	GoalOverallLeftFormatted   *string  `json:"goal_overall_left_formatted"`
+	GoalOverallLeftCurrency    *float64 `json:"goal_overall_left_currency"`
 }
 
 // SyncID keys the category for MergeByID.
@@ -292,8 +296,8 @@ func (s *CategoriesService) RenameGroup(
 func (s *CategoriesService) saveGroup(
 	ctx context.Context, op, method, path, name string,
 ) (*CategoryGroup, ServerKnowledge, error) {
-	if len(name) > categoryGroupNameMax {
-		return nil, 0, &ArgumentError{Op: op, Field: "name", Reason: "must be at most 50 characters"}
+	if err := checkRuneMax(op, "name", name, categoryGroupNameMax); err != nil {
+		return nil, 0, err
 	}
 	data, err := do[categoryGroupResult](ctx, s.plan.client, method, path, nil,
 		nameOnlyBody("category_group", name))

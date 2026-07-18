@@ -123,7 +123,9 @@ type ScheduledTransactionSpec struct {
 	FlagColor Optional[FlagColor] `json:"flag_color,omitzero"`
 }
 
-// validate applies the spec-stated invariants before any I/O.
+// validate applies the spec-stated invariants before any I/O. The date
+// window is checked against the local calendar day; near midnight the
+// server's notion of "today" may differ by one day.
 func (s ScheduledTransactionSpec) validate(op string) error {
 	today := Today()
 	switch {
@@ -132,13 +134,10 @@ func (s ScheduledTransactionSpec) validate(op string) error {
 	case s.Date.After(today.AddMonths(60)):
 		return &ArgumentError{Op: op, Field: "date", Reason: "must be at most 5 years out"}
 	}
-	if v, ok := s.PayeeName.Get(); ok && len(v) > txnPayeeNameMax {
-		return &ArgumentError{Op: op, Field: "payee_name", Reason: "must be at most 200 characters"}
-	}
-	if v, ok := s.Memo.Get(); ok && len(v) > memoMax {
-		return &ArgumentError{Op: op, Field: "memo", Reason: "must be at most 500 characters"}
-	}
-	return nil
+	return errFirst(
+		checkOptRuneMax(op, "payee_name", s.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "memo", s.Memo, memoMax),
+	)
 }
 
 // ScheduledTransactionsService reads and writes the plan's scheduled
@@ -156,7 +155,9 @@ type scheduledResult struct {
 //
 // Surgical wire normalization: a plan with no scheduled transactions
 // answers 404 instead of an empty list — this method, and only this
-// method, folds that 404 into ([], 0, nil). Every other operation's 404
+// method, folds that 404 into ([], 0, nil). The fold cannot distinguish
+// an empty plan from a mistyped plan id (both are 404.2 on the wire), so
+// a wrong id also yields an empty list here. Every other operation's 404
 // still means ErrResourceNotFound (see API_NOTES.md).
 //
 // YNAB operationId: getScheduledTransactions

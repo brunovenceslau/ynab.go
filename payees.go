@@ -73,8 +73,8 @@ func (s *PayeesService) Rename(ctx context.Context, payeeID, name string) (*Paye
 
 // save validates the shared name bound and performs a payee write.
 func (s *PayeesService) save(ctx context.Context, op, method, path, name string) (*Payee, ServerKnowledge, error) {
-	if len(name) > payeeNameMax {
-		return nil, 0, &ArgumentError{Op: op, Field: "name", Reason: "must be at most 500 characters"}
+	if err := checkRuneMax(op, "name", name, payeeNameMax); err != nil {
+		return nil, 0, err
 	}
 	data, err := do[struct {
 		Payee           *Payee          `json:"payee"`

@@ -32,12 +32,22 @@ func ValidateDocLines(table []Operation, implemented []string, found map[string]
 	}
 
 	for _, id := range implemented {
-		if _, ok := byID[id]; !ok {
+		row, ok := byID[id]
+		if !ok {
 			problems = append(problems, fmt.Sprintf("registered operationId %s has no table row", id))
 			continue
 		}
 		if len(found[id]) == 0 {
 			problems = append(problems, fmt.Sprintf("registered operationId %s has no doc-line-bearing method", id))
+			continue
+		}
+		// Every method the table lists must carry the doc line, so a
+		// rename or an accidental deletion on one of a 1:N row's methods
+		// (createTransaction's CreateBatch) cannot hide behind its sibling.
+		for _, m := range row.GoMethods {
+			if !slices.Contains(found[id], m) {
+				problems = append(problems, fmt.Sprintf("%s: table method %s carries no doc line", id, m))
+			}
 		}
 	}
 	return problems

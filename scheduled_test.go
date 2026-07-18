@@ -1,6 +1,7 @@
 package ynab_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -138,8 +139,9 @@ func init() {
 				Memo:      ynab.Set(memo),
 			})
 			require.NoError(t, err)
+			cleanupCtx := context.WithoutCancel(t.Context())
 			t.Cleanup(func() {
-				gone, err := plan.Scheduled.Delete(t.Context(), created.ID)
+				gone, err := plan.Scheduled.Delete(cleanupCtx, created.ID)
 				require.NoError(t, err, "cleanup must restore the test plan")
 				require.True(t, gone.IsDeleted())
 			})

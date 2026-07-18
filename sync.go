@@ -48,6 +48,23 @@ type Syncable interface {
 	IsDeleted() bool
 }
 
+// SyncState is a JSON-persistable bundle of delta cursors for one plan —
+// save it between runs and hand it back to keep reads incremental. Each
+// field is its own (plan, stream) cursor space: Plan belongs to
+// Plan.Delta / Plan.Export, the others to their service's list. Zero
+// cursors are omitted from the JSON. Like MergeByID's maps, a SyncState
+// is caller-synchronized — guard it yourself if goroutines share it.
+type SyncState struct {
+	PlanID       PlanID          `json:"plan_id"`
+	Plan         ServerKnowledge `json:"plan,omitzero"`
+	Accounts     ServerKnowledge `json:"accounts,omitzero"`
+	Categories   ServerKnowledge `json:"categories,omitzero"`
+	Months       ServerKnowledge `json:"months,omitzero"`
+	Payees       ServerKnowledge `json:"payees,omitzero"`
+	Transactions ServerKnowledge `json:"transactions,omitzero"`
+	Scheduled    ServerKnowledge `json:"scheduled,omitzero"`
+}
+
 // MergeByID folds a delta batch into a local store: tombstones delete,
 // everything else upserts. It returns the map, allocating one when local
 // is nil (the first sync). The map is caller-synchronized — guard it

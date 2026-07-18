@@ -66,9 +66,11 @@ func runWriteCase(t *testing.T, wc writeCase) {
 
 	var mu sync.Mutex
 	var rec *recordedRequest
+	requests := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body) // a short read surfaces as a diff below
 		mu.Lock()
+		requests++
 		rec = &recordedRequest{method: r.Method, path: r.URL.Path, body: b}
 		mu.Unlock()
 		w.WriteHeader(http.StatusCreated)
@@ -82,6 +84,7 @@ func runWriteCase(t *testing.T, wc writeCase) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.NotNil(t, rec, "the call must reach the wire")
+	require.Equal(t, 1, requests, "a write must send exactly one request")
 	require.Empty(t, diffRecorded(wc, *rec), "recorded %s %s body %s", rec.method, rec.path, rec.body)
 }
 

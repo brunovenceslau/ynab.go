@@ -45,7 +45,11 @@
             "goal_target_formatted": "$500.00",
             "goal_target_currency": 500.0,
             "goal_under_funded_formatted": "$123.93",
-            "goal_under_funded_currency": 123.93
+            "goal_under_funded_currency": 123.93,
+            "goal_overall_funded_formatted": "$376.07",
+            "goal_overall_funded_currency": 376.07,
+            "goal_overall_left_formatted": "$123.93",
+            "goal_overall_left_currency": 123.93
           }
         ]
       },
@@ -93,7 +97,11 @@
             "goal_target_formatted": "$12,000.00",
             "goal_target_currency": 12000.0,
             "goal_under_funded_formatted": null,
-            "goal_under_funded_currency": null
+            "goal_under_funded_currency": null,
+            "goal_overall_funded_formatted": null,
+            "goal_overall_funded_currency": null,
+            "goal_overall_left_formatted": null,
+            "goal_overall_left_currency": null
           }
         ]
       }

@@ -1,6 +1,7 @@
 package ynab_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -102,6 +103,15 @@ func init() {
 			require.NotEmpty(t, accounts)
 			memo := fmt.Sprintf("itest-txn-%d", time.Now().UnixNano())
 
+			cleanupCtx := context.WithoutCancel(t.Context())
+			deleteOnCleanup := func(id string) {
+				t.Cleanup(func() {
+					gone, _, err := plan.Transactions.Delete(cleanupCtx, id)
+					require.NoError(t, err, "cleanup must restore the test plan")
+					require.True(t, gone.IsDeleted())
+				})
+			}
+
 			created, _, err := plan.Transactions.Create(t.Context(), ynab.TransactionSpec{
 				AccountID: accounts[0].ID,
 				Date:      ynab.Today(),
@@ -111,6 +121,7 @@ func init() {
 				Approved:  ynab.Set(false),
 			})
 			require.NoError(t, err)
+			deleteOnCleanup(created.ID)
 			require.False(t, created.Approved, "Set(false) survives the live wire")
 
 			batch, err := plan.Transactions.CreateBatch(t.Context(), []ynab.TransactionSpec{{
@@ -121,6 +132,7 @@ func init() {
 			}})
 			require.NoError(t, err)
 			require.Len(t, batch.TransactionIDs, 1)
+			deleteOnCleanup(batch.TransactionIDs[0])
 
 			updated, _, err := plan.Transactions.Update(t.Context(), created.ID,
 				ynab.TransactionUpdate{Memo: ynab.Set(memo + "-upd")})
@@ -137,13 +149,6 @@ func init() {
 			imported, err := plan.Transactions.Import(t.Context())
 			require.NoError(t, err, "an empty import result is a nil-error answer")
 			t.Logf("importTransactions returned %d ids", len(imported))
-
-			// Cleanup: the test plan goes back to baseline.
-			for _, id := range []string{created.ID, batch.TransactionIDs[0]} {
-				gone, _, err := plan.Transactions.Delete(t.Context(), id)
-				require.NoError(t, err)
-				require.True(t, gone.IsDeleted())
-			}
 		},
 	})
 }

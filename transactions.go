@@ -376,25 +376,54 @@ const (
 // validate applies the spec-stated invariants — and only those — before
 // any I/O.
 func (s TransactionSpec) validate(op string) error {
-	if v, ok := s.ImportID.Get(); ok && len(v) > importIDMax {
-		return &ArgumentError{Op: op, Field: "import_id", Reason: "must be at most 36 characters"}
+	if err := errFirst(
+		checkOptRuneMax(op, "import_id", s.ImportID, importIDMax),
+		checkOptRuneMax(op, "payee_name", s.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "memo", s.Memo, memoMax),
+	); err != nil {
+		return err
 	}
-	if v, ok := s.PayeeName.Get(); ok && len(v) > txnPayeeNameMax {
-		return &ArgumentError{Op: op, Field: "payee_name", Reason: "must be at most 200 characters"}
+	if len(s.Splits) == 0 {
+		return nil
 	}
-	if v, ok := s.Memo.Get(); ok && len(v) > memoMax {
-		return &ArgumentError{Op: op, Field: "memo", Reason: "must be at most 500 characters"}
-	}
-	if len(s.Splits) > 0 {
-		var sum Milliunits
-		for _, leg := range s.Splits {
-			sum = sum.Add(leg.Amount)
+
+	var sum Milliunits
+	for i, leg := range s.Splits {
+		if err := errFirst(
+			checkOptRuneMax(op, "payee_name", leg.PayeeName, txnPayeeNameMax),
+			checkOptRuneMax(op, "memo", leg.Memo, memoMax),
+		); err != nil {
+			var argErr *ArgumentError
+			if errors.As(err, &argErr) {
+				argErr.Reason += " (split " + strconv.Itoa(i) + ")"
+			}
+			return err
 		}
-		if sum != s.Amount {
-			return &ArgumentError{Op: op, Reason: "split amounts must sum exactly to Amount"}
+		sum = sum.Add(leg.Amount)
+	}
+	if sum != s.Amount {
+		return &ArgumentError{Op: op, Reason: "split amounts must sum exactly to Amount"}
+	}
+	return nil
+}
+
+// errFirst returns the first non-nil error.
+func errFirst(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// validate applies the update payload's spec-stated bounds — the same
+// maxLengths the create spec declares.
+func (u TransactionUpdate) validate(op string) error {
+	return errFirst(
+		checkOptRuneMax(op, "payee_name", u.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "memo", u.Memo, memoMax),
+	)
 }
 
 // BatchResult is what CreateBatch returns. DuplicateImportIDs lists the
@@ -496,10 +525,13 @@ func (p TransactionPatch) MarshalJSON() ([]byte, error) {
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		return nil, err
 	}
-	if p.id != "" {
+	switch {
+	case p.id != "":
 		fields["id"], err = json.Marshal(p.id)
-	} else {
+	case p.importID != "":
 		fields["import_id"], err = json.Marshal(p.importID)
+	default:
+		return nil, errors.New("ynab: TransactionPatch needs an identity — use PatchByID or PatchByImportID")
 	}
 	if err != nil {
 		return nil, err
@@ -513,6 +545,9 @@ func (p TransactionPatch) MarshalJSON() ([]byte, error) {
 func (s *TransactionsService) Update(
 	ctx context.Context, transactionID string, update TransactionUpdate,
 ) (*Transaction, ServerKnowledge, error) {
+	if err := update.validate("Transactions.Update"); err != nil {
+		return nil, 0, err
+	}
 	data, err := do[transactionResult](ctx, s.plan.client,
 		http.MethodPut, s.plan.path("transactions", transactionID), nil, body{"transaction": update})
 	if err != nil {
@@ -532,6 +567,9 @@ func (s *TransactionsService) UpdateBatch(ctx context.Context, patches []Transac
 				Op: "Transactions.UpdateBatch", Field: "id",
 				Reason: "patch " + strconv.Itoa(i) + " has an empty identity — use PatchByID or PatchByImportID",
 			}
+		}
+		if err := p.validate("Transactions.UpdateBatch"); err != nil {
+			return nil, err
 		}
 	}
 	data, err := do[BatchResult](ctx, s.plan.client,
