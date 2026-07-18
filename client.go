@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"pkg.venceslau.dev/ynab/internal/transport"
 )
 
 // Version is this library's release version. The release gate asserts it
@@ -59,6 +61,9 @@ type Client struct {
 	// configErr is the first option failure; every method surfaces it as
 	// *ArgumentError before any I/O (the config-error contract).
 	configErr error
+
+	// core is the wired transport layer, built once after options run.
+	core *transport.Core
 }
 
 // staticToken adapts a fixed personal-access token to TokenSource.
@@ -95,6 +100,19 @@ func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
 	c.baseURL, _ = url.Parse(defaultBaseURL) // a constant; cannot fail
 	for _, opt := range opts {
 		opt(c)
+	}
+
+	c.core = &transport.Core{
+		HTTPClient:  c.httpClient,
+		BaseURL:     c.baseURL,
+		UserAgent:   c.userAgent,
+		Token:       c.tokenSource.Token,
+		Timeout:     c.timeout,
+		DecodeError: decodeWireError,
+		Logger:      c.logger,
+	}
+	if c.limiter != nil {
+		c.core.Wait = c.limiter.Wait
 	}
 	return c
 }

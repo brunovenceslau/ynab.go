@@ -2,8 +2,10 @@ package ynab
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -134,6 +136,46 @@ var sentinelByStatus = map[int]error{
 	429: ErrRateLimited,
 	500: ErrServerError,
 	503: ErrServiceUnavailable,
+}
+
+// decodeWireError maps a non-2xx response to *Error — the decoder the root
+// package injects into the transport core. An undecodable or non-envelope
+// body still yields *Error carrying the status code; Retry-After is parsed
+// best-effort on 429 and never required.
+func decodeWireError(status int, body []byte, hdr http.Header) error {
+	e := &Error{StatusCode: status}
+
+	var env struct {
+		Error *struct {
+			ID     string `json:"id"`
+			Name   string `json:"name"`
+			Detail string `json:"detail"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &env); err == nil && env.Error != nil {
+		e.ID, e.Name, e.Detail = env.Error.ID, env.Error.Name, env.Error.Detail
+	}
+	if status == http.StatusTooManyRequests {
+		e.RetryAfter = parseRetryAfter(hdr.Get("Retry-After"))
+	}
+	return e
+}
+
+// parseRetryAfter reads the two documented Retry-After forms — delay
+// seconds and HTTP-date — returning 0 (unknown) for anything else.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
+		return time.Duration(secs) * time.Second
+	}
+	if t, err := http.ParseTime(v); err == nil {
+		if d := time.Until(t); d > 0 {
+			return d
+		}
+	}
+	return 0
 }
 
 // IsRetryable reports whether retrying the operation may succeed, per the
