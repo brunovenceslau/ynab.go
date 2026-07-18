@@ -39,12 +39,13 @@ update-spec:
 	git diff --stat openapi.yaml
 
 # -count=1: live-API runs must never be served from the test cache.
+# CGO_ENABLED=0: no -race here, so cgo buys nothing and blocks nothing.
 smoke:
-	go test -tags=smoke -count=1 -run 'TestLiveSmoke' ./...
+	CGO_ENABLED=0 go test -tags=smoke -count=1 -run 'TestLiveSmoke' ./...
 
 # -p 1: the live suite is never concurrent with itself.
 integration:
-	go test -tags=integration -count=1 -p 1 -run 'TestLiveIntegration' ./...
+	CGO_ENABLED=0 go test -tags=integration -count=1 -p 1 -run 'TestLiveIntegration' ./...
 
 # Fails if go.mod/go.sum are untidy; running it locally is also the fix.
 tidy-check:
