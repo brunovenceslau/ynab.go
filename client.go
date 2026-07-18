@@ -151,7 +151,9 @@ func WithHTTPClient(hc *http.Client) Option {
 // https://api.ynab.com/v1) — the first-class seam for httptest servers.
 // A rawURL that is not an absolute http(s) URL, or that carries
 // credentials, a query, or a fragment, never falls back silently: it
-// trips the config-error contract instead.
+// trips the config-error contract instead. Plain http is accepted for
+// local test servers only — over a real network it would send the bearer
+// token in cleartext.
 func WithBaseURL(rawURL string) Option {
 	return func(c *Client) {
 		u, err := url.Parse(rawURL)
@@ -248,6 +250,11 @@ func WithLogger(l *slog.Logger) Option {
 // EXPERIMENTAL: RawDo exists as the escape hatch for endpoints this
 // library does not cover yet. It is outside the compatibility promise —
 // its signature and behavior may change in any release.
+//
+// Escape dynamic path segments yourself and beware the trap:
+// url.PathEscape("..") returns ".." unchanged, so interpolating untrusted
+// input can traverse onto another route. Never build RawDo paths from
+// end-user input.
 func (c *Client) RawDo(ctx context.Context, method, path string, q url.Values, body []byte) ([]byte, error) {
 	if err := c.configError(); err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"pkg.venceslau.dev/ynab/internal/transport"
@@ -224,12 +225,18 @@ func nameOnlyBody(wrapper, name string) body {
 	return body{wrapper: map[string]any{"name": name}}
 }
 
-// do funnels every operation through the config-error contract and the
-// transport pipeline.
+// do funnels every operation through the config-error contract, the
+// empty-segment guard, and the transport pipeline.
 func do[T any](ctx context.Context, c *Client, method, path string, q url.Values, body any) (T, error) {
+	var zero T
 	if err := c.configError(); err != nil {
-		var zero T
 		return zero, err
+	}
+	// An empty id argument would collapse a path segment and silently
+	// shift the request onto a different route (Plan("").Settings would
+	// hit the plans list). Reject it before any I/O instead.
+	if path == "" || strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
+		return zero, &ArgumentError{Op: method + " " + path, Reason: "an id argument is empty"}
 	}
 	return transport.Do[T](ctx, c.core, method, path, q, body)
 }

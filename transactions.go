@@ -526,6 +526,14 @@ func (s *TransactionsService) Update(
 //
 // YNAB operationId: updateTransactions
 func (s *TransactionsService) UpdateBatch(ctx context.Context, patches []TransactionPatch) (*BatchResult, error) {
+	for i, p := range patches {
+		if p.id == "" && p.importID == "" {
+			return nil, &ArgumentError{
+				Op: "Transactions.UpdateBatch", Field: "id",
+				Reason: "patch " + strconv.Itoa(i) + " has an empty identity — use PatchByID or PatchByImportID",
+			}
+		}
+	}
 	data, err := do[BatchResult](ctx, s.plan.client,
 		http.MethodPatch, s.plan.path("transactions"), nil, body{"transactions": patches})
 	if err != nil {
