@@ -1,0 +1,175 @@
+{
+  "data": {
+    "plan": {
+      "id": "aa111111-1111-1111-1111-111111111111",
+      "name": "Family Plan",
+      "last_modified_on": "2026-07-01T12:34:56.789Z",
+      "first_month": "2024-01-01",
+      "last_month": "2026-08-01",
+      "date_format": null,
+      "currency_format": null,
+      "accounts": [
+        {
+          "id": "ac333333-3333-3333-3333-333333333333",
+          "name": "Bare",
+          "type": "cash",
+          "on_budget": true,
+          "closed": false,
+          "note": null,
+          "balance": 0,
+          "cleared_balance": 0,
+          "uncleared_balance": 0,
+          "transfer_payee_id": null,
+          "direct_import_linked": false,
+          "direct_import_in_error": false,
+          "last_reconciled_at": null,
+          "debt_original_balance": null,
+          "debt_interest_rates": null,
+          "debt_minimum_payments": null,
+          "debt_escrow_amounts": null,
+          "deleted": false
+        }
+      ],
+      "payees": [
+        {
+          "id": "pa111111-1111-1111-1111-111111111111",
+          "name": "Grocer & Co",
+          "transfer_account_id": null,
+          "deleted": false
+        }
+      ],
+      "payee_locations": [
+        {
+          "id": "pl111111-1111-1111-1111-111111111111",
+          "payee_id": "pa111111-1111-1111-1111-111111111111",
+          "latitude": "-23.5505199",
+          "longitude": "-46.6333094",
+          "deleted": false
+        }
+      ],
+      "category_groups": [
+        {
+          "id": "cg111111-1111-1111-1111-111111111111",
+          "name": "Everyday",
+          "hidden": false,
+          "internal": false,
+          "deleted": false
+        }
+      ],
+      "categories": [
+        {
+          "id": "ca333333-3333-3333-3333-333333333333",
+          "category_group_id": "cg111111-1111-1111-1111-111111111111",
+          "category_group_name": "Everyday",
+          "name": "Bare",
+          "hidden": false,
+          "internal": false,
+          "original_category_group_id": null,
+          "note": null,
+          "budgeted": 0,
+          "activity": 0,
+          "balance": 0,
+          "goal_type": null,
+          "goal_needs_whole_amount": null,
+          "goal_day": null,
+          "goal_cadence": null,
+          "goal_cadence_frequency": null,
+          "goal_creation_month": null,
+          "goal_target": null,
+          "goal_target_month": null,
+          "goal_target_date": null,
+          "goal_percentage_complete": null,
+          "goal_months_to_budget": null,
+          "goal_under_funded": null,
+          "goal_overall_funded": null,
+          "goal_overall_left": null,
+          "goal_snoozed_at": null,
+          "deleted": false
+        }
+      ],
+      "months": [
+        {
+          "month": "2026-06-01",
+          "note": null,
+          "income": 5000000,
+          "budgeted": 4500000,
+          "activity": -3200000,
+          "to_be_budgeted": 500000,
+          "age_of_money": null,
+          "deleted": false,
+          "categories": []
+        }
+      ],
+      "transactions": [
+        {
+          "id": "tr333333-3333-3333-3333-333333333333",
+          "date": "2026-07-10",
+          "amount": -294230,
+          "memo": null,
+          "cleared": "uncleared",
+          "approved": false,
+          "flag_color": null,
+          "flag_name": null,
+          "account_id": "ac111111-1111-1111-1111-111111111111",
+          "payee_id": null,
+          "category_id": null,
+          "transfer_account_id": null,
+          "transfer_transaction_id": null,
+          "matched_transaction_id": null,
+          "import_id": null,
+          "import_payee_name": null,
+          "import_payee_name_original": null,
+          "debt_transaction_type": null,
+          "deleted": false
+        }
+      ],
+      "subtransactions": [
+        {
+          "id": "st111111-1111-1111-1111-111111111111",
+          "transaction_id": "tr111111-1111-1111-1111-111111111111",
+          "amount": -147115,
+          "memo": null,
+          "payee_id": null,
+          "payee_name": null,
+          "category_id": null,
+          "category_name": null,
+          "transfer_account_id": null,
+          "transfer_transaction_id": null,
+          "deleted": false
+        }
+      ],
+      "scheduled_transactions": [
+        {
+          "id": "sc333333-3333-3333-3333-333333333333",
+          "date_first": "2026-08-01",
+          "date_next": "2026-08-01",
+          "frequency": "never",
+          "amount": -1500000,
+          "memo": null,
+          "flag_color": null,
+          "flag_name": null,
+          "account_id": "ac111111-1111-1111-1111-111111111111",
+          "payee_id": null,
+          "category_id": null,
+          "transfer_account_id": null,
+          "deleted": false
+        }
+      ],
+      "scheduled_subtransactions": [
+        {
+          "id": "ss111111-1111-1111-1111-111111111111",
+          "scheduled_transaction_id": "sc222222-2222-2222-2222-222222222222",
+          "amount": -750000,
+          "memo": null,
+          "payee_id": null,
+          "payee_name": null,
+          "category_id": null,
+          "category_name": null,
+          "transfer_account_id": null,
+          "deleted": false
+        }
+      ]
+    },
+    "server_knowledge": 8001
+  }
+}

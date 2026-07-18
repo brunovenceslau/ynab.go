@@ -84,9 +84,11 @@ type DateFormat struct {
 	Format string `json:"format"`
 }
 
-// PlanSummary is one plan in a plan list. DateFormat and CurrencyFormat
-// are null when unavailable.
-type PlanSummary struct {
+// planCore holds the scalar plan fields PlanSummary and PlanDetail
+// share. The two types deliberately do not embed one another: their
+// collection element types differ (full models vs export *Base shapes),
+// so each declares its own correctly-typed collections around this core.
+type planCore struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	LastModifiedOn time.Time       `json:"last_modified_on"`
@@ -94,10 +96,35 @@ type PlanSummary struct {
 	LastMonth      Month           `json:"last_month"`
 	DateFormat     *DateFormat     `json:"date_format"`
 	CurrencyFormat *CurrencyFormat `json:"currency_format"`
+}
+
+// PlanSummary is one plan in a plan list. DateFormat and CurrencyFormat
+// are null when unavailable.
+type PlanSummary struct {
+	planCore
 
 	// Accounts is populated only when Plans is called with
 	// IncludeAccounts; otherwise the key is absent and the slice nil.
 	Accounts []Account `json:"accounts"`
+}
+
+// PlanDetail is the full-plan export Plan.Export returns: every
+// collection at once, entities in their export *Base shapes. Category
+// groups arrive flat here — their Categories slices stay nil because the
+// categories collection carries every category directly.
+type PlanDetail struct {
+	planCore
+
+	Accounts                 []AccountBase                     `json:"accounts"`
+	Payees                   []Payee                           `json:"payees"`
+	PayeeLocations           []PayeeLocation                   `json:"payee_locations"`
+	CategoryGroups           []CategoryGroup                   `json:"category_groups"`
+	Categories               []CategoryBase                    `json:"categories"`
+	Months                   []MonthDetailBase                 `json:"months"`
+	Transactions             []TransactionSummaryBase          `json:"transactions"`
+	Subtransactions          []SubTransactionBase              `json:"subtransactions"`
+	ScheduledTransactions    []ScheduledTransactionSummaryBase `json:"scheduled_transactions"`
+	ScheduledSubtransactions []ScheduledSubTransactionBase     `json:"scheduled_subtransactions"`
 }
 
 // PlanList is the result of Client.Plans. DefaultPlan is null unless the
@@ -160,6 +187,22 @@ func (c *Client) Plans(ctx context.Context, opts ...PlansOption) (*PlanList, err
 		return nil, err
 	}
 	return &data, nil
+}
+
+// Export returns the full plan — every collection in one request. With
+// Since, only entities changed after the cursor are returned, deletions
+// arriving as tombstones inside their collections.
+//
+// YNAB operationId: getPlanById
+func (p *Plan) Export(ctx context.Context, opts ...ListOption) (*PlanDetail, ServerKnowledge, error) {
+	data, err := do[struct {
+		Plan            *PlanDetail     `json:"plan"`
+		ServerKnowledge ServerKnowledge `json:"server_knowledge"`
+	}](ctx, p.client, http.MethodGet, transport.JoinPath("plans", string(p.id)), applyListOptions(nil, opts), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data.Plan, data.ServerKnowledge, nil
 }
 
 // Settings returns the plan's date and currency settings.

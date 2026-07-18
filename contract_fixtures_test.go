@@ -131,20 +131,29 @@ func strictDecode(raw []byte, model any) error {
 }
 
 // nullCoverageProblems checks, per model type, that every pointer field's
-// tag path carries a literal null in at least one of its fixtures.
+// tag path that appears in the model's fixtures carries a literal null in
+// at least one of them. A path wholly absent from every fixture belongs
+// to a wire shape this model never serves (PlanDetail's flat category
+// groups, e.g.) and is exempt — but showing a key without ever showing
+// its null is a gap.
 func nullCoverageProblems(entries []loadedNullFixture) []string {
 	var problems []string
 
 	type modelGroup struct {
-		paths []string
-		nulls map[string]bool
+		paths   []string
+		nulls   map[string]bool
+		present map[string]bool
 	}
 	groups := map[reflect.Type]*modelGroup{}
 	for _, e := range entries {
 		mt := normalizeModelType(reflect.TypeOf(e.model))
 		g, ok := groups[mt]
 		if !ok {
-			g = &modelGroup{paths: pointerFieldPaths(mt), nulls: map[string]bool{}}
+			g = &modelGroup{
+				paths:   pointerFieldPaths(mt),
+				nulls:   map[string]bool{},
+				present: map[string]bool{},
+			}
 			groups[mt] = g
 		}
 		var doc any
@@ -152,12 +161,12 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 			problems = append(problems, e.name+": fixture is not valid JSON: "+err.Error())
 			continue
 		}
-		collectNullPaths(doc, "$", g.nulls)
+		collectNullPaths(doc, "$", g.nulls, g.present)
 	}
 
 	for mt, g := range groups {
 		for _, p := range g.paths {
-			if !g.nulls[p] {
+			if g.present[p] && !g.nulls[p] {
 				problems = append(problems, mt.String()+": nullable field "+p+" is never null in any registered fixture")
 			}
 		}
@@ -213,21 +222,23 @@ func pointerFieldPaths(t reflect.Type) []string {
 	return paths
 }
 
-// collectNullPaths records every JSON path whose value is a literal null,
-// collapsing array indices so fixtures and models align.
-func collectNullPaths(doc any, prefix string, out map[string]bool) {
+// collectNullPaths records every JSON path present in the document and
+// which of them carry a literal null, collapsing array indices so
+// fixtures and models align.
+func collectNullPaths(doc any, prefix string, nulls, present map[string]bool) {
 	switch v := doc.(type) {
 	case map[string]any:
 		for k, child := range v {
 			p := prefix + "." + k
+			present[p] = true
 			if child == nil {
-				out[p] = true
+				nulls[p] = true
 			}
-			collectNullPaths(child, p, out)
+			collectNullPaths(child, p, nulls, present)
 		}
 	case []any:
 		for _, child := range v {
-			collectNullPaths(child, prefix, out)
+			collectNullPaths(child, prefix, nulls, present)
 		}
 	}
 }
