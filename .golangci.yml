@@ -85,6 +85,11 @@ linters:
       min-occurrences: 4
     gocyclo:
       min-complexity: 13
+    gosec:
+      excludes:
+        # G404 (math/rand): the only randomness in this library is retry
+        # backoff jitter — not a cryptographic use.
+        - G404
     nolintlint:
       require-explanation: true
       require-specific: true

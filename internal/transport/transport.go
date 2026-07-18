@@ -43,6 +43,13 @@ type Core struct {
 	// pipeline's Retry-After peek.
 	DecodeError func(status int, body []byte, hdr http.Header) error
 
+	// Retry configures the pipeline in retry.go.
+	Retry RetryConfig
+
+	// Rand overrides the backoff jitter source; tests inject a
+	// deterministic one. Nil means math/rand/v2.
+	Rand func() float64
+
 	Logger *slog.Logger
 }
 
@@ -57,7 +64,7 @@ func Do[T any](ctx context.Context, c *Core, method, path string, query url.Valu
 		return zero, fmt.Errorf("ynab: %s %s: encode request body: %w", method, path, err)
 	}
 
-	res, err := c.attempt(ctx, method, path, query, payload)
+	res, err := c.execute(ctx, method, path, query, payload)
 	if err != nil {
 		return zero, err
 	}
@@ -86,12 +93,12 @@ func (c *Core) attempt(ctx context.Context, method, path string, query url.Value
 
 	if c.Wait != nil {
 		if err := c.Wait(ctx); err != nil {
-			return result{}, fmt.Errorf("ynab: %s %s: limiter: %w", method, path, err)
+			return result{}, &hookError{err: fmt.Errorf("ynab: %s %s: limiter: %w", method, path, err)}
 		}
 	}
 	token, err := c.Token(ctx)
 	if err != nil {
-		return result{}, fmt.Errorf("ynab: %s %s: token source: %w", method, path, err)
+		return result{}, &hookError{err: fmt.Errorf("ynab: %s %s: token source: %w", method, path, err)}
 	}
 
 	u := c.requestURL(path, query)

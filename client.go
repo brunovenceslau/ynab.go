@@ -109,7 +109,14 @@ func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
 		Token:       c.tokenSource.Token,
 		Timeout:     c.timeout,
 		DecodeError: decodeWireError,
-		Logger:      c.logger,
+		Retry: transport.RetryConfig{
+			MaxAttempts: c.retry.MaxAttempts,
+			MinBackoff:  c.retry.MinBackoff,
+			MaxBackoff:  c.retry.MaxBackoff,
+			RetryWrites: c.retry.RetryWrites,
+			Disabled:    c.retryOff,
+		},
+		Logger: c.logger,
 	}
 	if c.limiter != nil {
 		c.core.Wait = c.limiter.Wait
