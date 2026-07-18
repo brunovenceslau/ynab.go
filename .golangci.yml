@@ -68,13 +68,13 @@ linters:
   exclusions:
     rules:
       # Table-driven tests legitimately repeat wire literals and sentinel
-      # names (goconst), and per-service tests deliberately stay DAMP —
-      # structurally similar tests over different services are clearer
-      # than a shared helper (dupl).
+      # names (goconst), deliberately stay DAMP across services (dupl),
+      # and case tables grow past any sane statement budget (funlen).
       - path: _test\.go
         linters:
           - goconst
           - dupl
+          - funlen
       # The contract spec scanner reads the repo-local vendored spec at a
       # path supplied by tests — not user input (G304 file inclusion).
       - path: internal/contract/specscan\.go

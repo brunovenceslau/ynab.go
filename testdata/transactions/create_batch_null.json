@@ -1,0 +1,54 @@
+{
+  "data": {
+    "transactions": [
+      {
+        "id": "tr333333-3333-3333-3333-333333333333",
+        "date": "2026-07-10",
+        "amount": -294230,
+        "memo": null,
+        "cleared": "uncleared",
+        "approved": false,
+        "flag_color": null,
+        "flag_name": null,
+        "account_id": "ac111111-1111-1111-1111-111111111111",
+        "payee_id": null,
+        "category_id": null,
+        "transfer_account_id": null,
+        "transfer_transaction_id": null,
+        "matched_transaction_id": null,
+        "import_id": null,
+        "import_payee_name": null,
+        "import_payee_name_original": null,
+        "debt_transaction_type": null,
+        "deleted": false,
+        "amount_formatted": "-$294.23",
+        "amount_currency": -294.23,
+        "account_name": "Checking",
+        "payee_name": null,
+        "category_name": null,
+        "subtransactions": [
+          {
+            "id": "st9",
+            "transaction_id": "tr333333-3333-3333-3333-333333333333",
+            "amount": -1,
+            "memo": null,
+            "payee_id": null,
+            "payee_name": null,
+            "category_id": null,
+            "category_name": null,
+            "transfer_account_id": null,
+            "transfer_transaction_id": null,
+            "deleted": false,
+            "amount_formatted": "x",
+            "amount_currency": -0.001
+          }
+        ]
+      }
+    ],
+    "transaction_ids": [
+      "tr333333-3333-3333-3333-333333333333"
+    ],
+    "duplicate_import_ids": [],
+    "server_knowledge": 6502
+  }
+}
