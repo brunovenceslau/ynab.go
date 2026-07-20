@@ -237,3 +237,36 @@ func TestContractHeaders429SansRetryAfter(t *testing.T) {
 func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
+
+func TestContractReadErrorPropagation(t *testing.T) {
+	t.Parallel()
+
+	readRegistryMu.Lock()
+	cases := make([]readCase, len(readRegistry))
+	copy(cases, readRegistry)
+	readRegistryMu.Unlock()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":{"id":"500","name":"internal_server_error","detail":"boom"}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, rc := range cases {
+		name := rc.op
+		if rc.variant != "" {
+			name += "/" + rc.variant
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+			_, err := rc.call(t, client)
+			require.ErrorIs(t, err, ynab.ErrServerError, "the 500 must propagate through the method")
+		})
+	}
+}
+
+// fixtureModels maps every fixture file to its decode target: wrapper key
+// under the envelope's data plus the public model. TestFixturesDecodeStrict
+// strict-decodes each one, so a typo'd fixture key can never silently

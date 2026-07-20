@@ -372,9 +372,9 @@ type SubtransactionSpec struct {
 // Spec-declared transaction write bounds. (The payee-name bound here is
 // the transaction field's 200, distinct from the payee entity's 500.)
 const (
-	importIDMax     = 36
+	importIDMax             = 36
 	transactionPayeeNameMax = 200
-	memoMax         = 500
+	memoMax                 = 500
 )
 
 // validate applies the spec-stated invariants — and only those — before

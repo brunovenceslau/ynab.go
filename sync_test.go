@@ -7,6 +7,7 @@ package ynab_test
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -107,3 +108,72 @@ func TestSince(t *testing.T) {
 	got := ynab.ApplyListOptions(nil, ynab.Since(7))
 	require.Equal(t, "7", got.Get("last_knowledge_of_server"), "nil query map self-allocates")
 }
+
+// TestSyncableAdapters pins every SyncID/IsDeleted pair: a wrong merge
+// key would silently corrupt users' delta stores and no wire gate can
+// see it.
+func TestSyncableAdapters(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		s    ynab.Syncable
+		id   string
+	}{
+		{name: "Account", s: ynab.Account{AccountBase: ynab.AccountBase{ID: "a", Deleted: true}}, id: "a"},
+		{name: "Category", s: ynab.Category{CategoryBase: ynab.CategoryBase{ID: "c", Deleted: true}}, id: "c"},
+		{name: "CategoryGroup", s: ynab.CategoryGroup{ID: "g", Deleted: true}, id: "g"},
+		{name: "Payee", s: ynab.Payee{ID: "p", Deleted: true}, id: "p"},
+		{name: "PayeeLocation", s: ynab.PayeeLocation{ID: "l", Deleted: true}, id: "l"},
+		{
+			name: "MonthSummary",
+			s: ynab.MonthSummary{MonthSummaryBase: ynab.MonthSummaryBase{
+				Month: ynab.NewMonth(2026, time.July), Deleted: true,
+			}},
+			id: "2026-07-01",
+		},
+		{
+			name: "Transaction",
+			s:    ynab.Transaction{TransactionBase: ynab.TransactionBase{ID: "t", Deleted: true}},
+			id:   "t",
+		},
+		{
+			name: "Subtransaction",
+			s:    ynab.Subtransaction{SubtransactionBase: ynab.SubtransactionBase{ID: "s", Deleted: true}},
+			id:   "s",
+		},
+		{
+			name: "HybridTransaction",
+			s: ynab.HybridTransaction{
+				TransactionBase:     ynab.TransactionBase{ID: "h", Deleted: true},
+				ParentTransactionID: ptr("NOT-the-key"),
+			},
+			id: "h",
+		},
+		{
+			name: "ScheduledTransaction",
+			s: ynab.ScheduledTransaction{
+				ScheduledTransactionBase: ynab.ScheduledTransactionBase{ID: "sc", Deleted: true},
+			},
+			id: "sc",
+		},
+		{
+			name: "ScheduledSubtransaction",
+			s: ynab.ScheduledSubtransaction{
+				ScheduledSubtransactionBase: ynab.ScheduledSubtransactionBase{ID: "ss", Deleted: true},
+			},
+			id: "ss",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.id, tt.s.SyncID())
+			require.True(t, tt.s.IsDeleted())
+		})
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// TestEnumValidTables covers every enum's Valid across its full value set

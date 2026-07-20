@@ -15,6 +15,8 @@ package ynab_test
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -327,4 +329,103 @@ func TestContractNullFixturesSelfCheck(t *testing.T) {
 		t.Parallel()
 		runExtremeNumericsCase(t, syntheticThing{}, "selftest/thing_extreme.json", "thing")
 	})
+}
+
+func fixtureModels() map[string]struct {
+	wrapper string
+	model   any
+} {
+	m := map[string]struct {
+		wrapper string
+		model   any
+	}{}
+	add := func(pattern, wrapper string, model any) {
+		m[pattern] = struct {
+			wrapper string
+			model   any
+		}{wrapper, model}
+	}
+
+	add("user/get.json", "user", ynab.User{})
+	add("plans/list*.json", "", ynab.PlanList{})
+	add("plans/settings*.json", "settings", ynab.PlanSettings{})
+	add("plans/export*.json", "plan", ynab.PlanDetail{})
+	add("accounts/list*.json", "accounts", []ynab.Account{})
+	add("accounts/get.json", "account", ynab.Account{})
+	add("accounts/create.json", "account", ynab.Account{})
+	add("accounts/extreme.json", "account", ynab.Account{})
+	add("categories/list*.json", "category_groups", []ynab.CategoryGroup{})
+	add("categories/get*.json", "category", ynab.Category{})
+	add("categories/create.json", "category", ynab.Category{})
+	add("categories/update.json", "category", ynab.Category{})
+	add("categories/assign.json", "category", ynab.Category{})
+	add("categories/get_for_month.json", "category", ynab.Category{})
+	add("categories/extreme.json", "category", ynab.Category{})
+	add("categories/group_create.json", "category_group", ynab.CategoryGroup{})
+	add("categories/group_rename.json", "category_group", ynab.CategoryGroup{})
+	add("months/list*.json", "months", []ynab.MonthSummary{})
+	add("months/get*.json", "month", ynab.MonthDetail{})
+	add("payees/list*.json", "payees", []ynab.Payee{})
+	add("payees/get.json", "payee", ynab.Payee{})
+	add("payees/create.json", "payee", ynab.Payee{})
+	add("payees/rename.json", "payee", ynab.Payee{})
+	add("payee_locations/list.json", "payee_locations", []ynab.PayeeLocation{})
+	add("payee_locations/by_payee.json", "payee_locations", []ynab.PayeeLocation{})
+	add("payee_locations/get.json", "payee_location", ynab.PayeeLocation{})
+	add("money_movements/list.json", "money_movements", []ynab.MoneyMovement{})
+	add("money_movements/by_month.json", "money_movements", []ynab.MoneyMovement{})
+	add("money_movements/groups.json", "money_movement_groups", []ynab.MoneyMovementGroup{})
+	add("money_movements/groups_by_month.json", "money_movement_groups", []ynab.MoneyMovementGroup{})
+	add("transactions/list*.json", "transactions", []ynab.Transaction{})
+	add("transactions/hybrid*.json", "transactions", []ynab.HybridTransaction{})
+	add("transactions/get*.json", "transaction", ynab.Transaction{})
+	add("transactions/update.json", "transaction", ynab.Transaction{})
+	add("transactions/delete.json", "transaction", ynab.Transaction{})
+	add("transactions/extreme.json", "transaction", ynab.Transaction{})
+	add("transactions/create.json", "transaction", ynab.Transaction{})
+	add("transactions/batch*.json", "", ynab.BatchResult{})
+	add("transactions/import_*.json", "transaction_ids", []string{})
+	add("scheduled/list.json", "scheduled_transactions", []ynab.ScheduledTransaction{})
+	add("scheduled/get.json", "scheduled_transaction", ynab.ScheduledTransaction{})
+	add("scheduled/create.json", "scheduled_transaction", ynab.ScheduledTransaction{})
+	add("scheduled/update.json", "scheduled_transaction", ynab.ScheduledTransaction{})
+	add("scheduled/delete.json", "scheduled_transaction", ynab.ScheduledTransaction{})
+	return m
+}
+
+func TestFixturesDecodeStrict(t *testing.T) {
+	t.Parallel()
+
+	models := fixtureModels()
+	match := func(name string) (string, any, bool) {
+		for pattern, mm := range models {
+			ok, err := filepath.Match(pattern, name)
+			require.NoError(t, err)
+			if ok {
+				return mm.wrapper, mm.model, true
+			}
+		}
+		return "", nil, false
+	}
+
+	var checked int
+	err := filepath.WalkDir("testdata", func(path string, d os.DirEntry, err error) error {
+		require.NoError(t, err)
+		if d.IsDir() || !strings.HasSuffix(path, ".json") || strings.HasPrefix(path, filepath.Join("testdata", "selftest")) {
+			return nil
+		}
+		rel, err := filepath.Rel("testdata", path)
+		require.NoError(t, err)
+		rel = filepath.ToSlash(rel)
+
+		wrapper, model, ok := match(rel)
+		require.True(t, ok, "fixture %s has no strict-decode mapping — add it to fixtureModels", rel)
+
+		doc := modelDocument(t, loadFixture(t, rel), wrapper)
+		require.NoError(t, strictDecode(doc, model), "fixture %s must strict-decode into %T", rel, model)
+		checked++
+		return nil
+	})
+	require.NoError(t, err)
+	require.Greater(t, checked, 40, "the walk must actually visit the fixture tree")
 }
