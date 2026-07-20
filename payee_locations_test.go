@@ -10,12 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
 func init() {
-	contract.MarkImplemented("getPayeeLocations", "getPayeeLocationById", "getPayeeLocationsByPayee")
-
 	registerReadCase(readCase{
 		op:      "getPayeeLocations",
 		fixture: "payee_locations/list.json",

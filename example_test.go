@@ -151,7 +151,7 @@ func ExampleDate() {
 	// zero: "" IsZero: true
 }
 
-// ExampleMonth is the budget-month value type, deliberately distinct
+// ExampleMonth is the plan-month value type, deliberately distinct
 // from Date. Besides concrete months there are two sentinels: the
 // server-resolved CurrentMonth and the zero "no month" value.
 func ExampleMonth() {

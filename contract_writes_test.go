@@ -112,8 +112,8 @@ func diffRecorded(wc writeCase, rec recordedRequest) []string {
 	return append(problems, contract.DiffJSON([]byte(wc.body), rec.body)...)
 }
 
-// TestContractWrites is gate G2: registry completeness against the G1
-// implemented registry, then every registered case replayed byte-exact.
+// TestContractWrites is gate G2: registry completeness against the
+// table's operation ids, then every registered case replayed byte-exact.
 func TestContractWrites(t *testing.T) {
 	t.Parallel()
 
@@ -126,7 +126,7 @@ func TestContractWrites(t *testing.T) {
 	for _, wc := range cases {
 		infos = append(infos, contract.WriteCaseInfo{OpID: wc.op, HasBody: wc.body != ""})
 	}
-	require.Empty(t, contract.DiffWriteCoverage(contract.Table(), contract.ImplementedIDs(), infos))
+	require.Empty(t, contract.DiffWriteCoverage(contract.Table(), contract.TableIDs(), infos))
 
 	for _, wc := range cases {
 		name := wc.op

@@ -30,12 +30,12 @@ func isBodiless(id string) bool {
 	return ok
 }
 
-// DiffWriteCoverage checks the G2 registry against the G1 implemented
-// registry: every implemented non-GET operation needs at least one case;
-// every body-carrying one needs at least one body case; createTransaction
-// needs exactly two body cases (single and batch) while remaining one G1
-// row.
-func DiffWriteCoverage(table []Operation, implemented []string, cases []WriteCaseInfo) []string {
+// DiffWriteCoverage checks the G2 registry against the given operation
+// ids (the table's, in the gates): every non-GET operation needs at least
+// one case; every body-carrying one needs at least one body case;
+// createTransaction needs exactly two body cases (single and batch) while
+// remaining one G1 row.
+func DiffWriteCoverage(table []Operation, ids []string, cases []WriteCaseInfo) []string {
 	var problems []string
 
 	byID := make(map[string]Operation, len(table))
@@ -52,7 +52,7 @@ func DiffWriteCoverage(table []Operation, implemented []string, cases []WriteCas
 		}
 	}
 
-	for _, id := range implemented {
+	for _, id := range ids {
 		row, ok := byID[id]
 		if !ok || row.Method == http.MethodGet {
 			continue // unknown ids are the doc-line check's problem; GETs are not G2's

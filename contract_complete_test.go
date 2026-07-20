@@ -176,30 +176,14 @@ func writeOpReadCases() []readCase {
 	}
 }
 
-// TestContractComplete is the strict 44/44 assertion, active now that the
-// last operation landed: every table row implemented (op 30's single row
-// satisfied by Create and CreateBatch — 1:N, never a bijection), every
-// operation G4-covered, no phantom registrations.
+// TestContractComplete is the strict 44/44 assertion: every table row
+// present (op 30's single row satisfied by Create and CreateBatch — 1:N,
+// never a bijection), every operation G4-covered.
 func TestContractComplete(t *testing.T) {
 	t.Parallel()
 
 	table := contract.Table()
 	require.Len(t, table, 44)
-
-	implemented := map[string]struct{}{}
-	for _, id := range contract.ImplementedIDs() {
-		implemented[id] = struct{}{}
-	}
-	require.Len(t, implemented, 44, "all 44 operations registered as implemented")
-
-	byID := map[string]struct{}{}
-	for _, op := range table {
-		byID[op.ID] = struct{}{}
-		require.Contains(t, implemented, op.ID, "table row %s not implemented", op.ID)
-	}
-	for id := range implemented {
-		require.Contains(t, byID, id, "phantom implemented operation %s", id)
-	}
 
 	// G4 completeness over the whole table: every operation — reads and
 	// writes alike — has at least one header-stripped read case.

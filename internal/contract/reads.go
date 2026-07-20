@@ -12,11 +12,11 @@ type ReadCaseInfo struct {
 	OpID string
 }
 
-// DiffReadCoverage checks the G4 registry against the G1 implemented
-// registry: every implemented GET operation needs at least one endpoint
-// case, so a slice cannot mark an op implemented while skipping the
-// header-stripped harness. (Write ops replay through G2 instead.)
-func DiffReadCoverage(table []Operation, implemented []string, cases []ReadCaseInfo) []string {
+// DiffReadCoverage checks the G4 registry against the given operation
+// ids (the table's, in the gates): every GET operation needs at least
+// one read case, so an op cannot skip the header-stripped harness.
+// (Write ops replay through G2 instead.)
+func DiffReadCoverage(table []Operation, ids []string, cases []ReadCaseInfo) []string {
 	var problems []string
 
 	byID := make(map[string]Operation, len(table))
@@ -28,7 +28,7 @@ func DiffReadCoverage(table []Operation, implemented []string, cases []ReadCaseI
 		count[c.OpID]++
 	}
 
-	for _, id := range implemented {
+	for _, id := range ids {
 		row, ok := byID[id]
 		if !ok || row.Method != http.MethodGet {
 			continue

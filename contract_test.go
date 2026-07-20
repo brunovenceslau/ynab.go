@@ -34,13 +34,12 @@ func TestContractSpecDiff(t *testing.T) {
 }
 
 // TestContractDocLines scans the root package for `// YNAB operationId:`
-// trailing doc lines and validates them against the table and the
-// implemented registry.
+// trailing doc lines and validates them against the table.
 func TestContractDocLines(t *testing.T) {
 	t.Parallel()
 
 	found := scanDocLines(t)
-	require.Empty(t, contract.ValidateDocLines(contract.Table(), contract.ImplementedIDs(), found))
+	require.Empty(t, contract.ValidateDocLines(contract.Table(), contract.TableIDs(), found))
 }
 
 // scanDocLines parses the root package (non-test files) and returns

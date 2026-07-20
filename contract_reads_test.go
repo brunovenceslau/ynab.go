@@ -170,7 +170,7 @@ func TestContractHeadersDetectsDependence(t *testing.T) {
 }
 
 // TestContractReads is gate G4 over the registry: read-side
-// completeness against the G1 implemented registry, then every case run
+// completeness against the table's operation ids, then every case run
 // twice.
 func TestContractReads(t *testing.T) {
 	t.Parallel()
@@ -184,7 +184,7 @@ func TestContractReads(t *testing.T) {
 	for _, rc := range cases {
 		infos = append(infos, contract.ReadCaseInfo{OpID: rc.op})
 	}
-	require.Empty(t, contract.DiffReadCoverage(contract.Table(), contract.ImplementedIDs(), infos))
+	require.Empty(t, contract.DiffReadCoverage(contract.Table(), contract.TableIDs(), infos))
 
 	for _, rc := range cases {
 		name := rc.op

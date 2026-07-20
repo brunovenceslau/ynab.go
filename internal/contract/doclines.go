@@ -10,11 +10,11 @@ import (
 )
 
 // ValidateDocLines cross-checks the `// YNAB operationId:` doc lines found
-// in the root package against the table and the implemented registry:
-// every found id must be a table row and every found method must belong to
-// that row; every registered row must have at least one doc-line-bearing
-// method. The op→method relation is 1:N — never a bijection.
-func ValidateDocLines(table []Operation, implemented []string, found map[string][]string) []string {
+// in the root package against the table and the given operation ids (the
+// table's, in the gates): every found id must be a table row and every
+// found method must belong to that row; every id's row must have all its
+// methods doc-lined. The op→method relation is 1:N — never a bijection.
+func ValidateDocLines(table []Operation, ids []string, found map[string][]string) []string {
 	var problems []string
 
 	byID := make(map[string]Operation, len(table))
@@ -35,7 +35,7 @@ func ValidateDocLines(table []Operation, implemented []string, found map[string]
 		}
 	}
 
-	for _, id := range implemented {
+	for _, id := range ids {
 		row, ok := byID[id]
 		if !ok {
 			problems = append(problems, fmt.Sprintf("registered operationId %s has no table row", id))

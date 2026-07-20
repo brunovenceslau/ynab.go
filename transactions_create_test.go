@@ -14,12 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
 func init() {
-	contract.MarkImplemented("createTransaction")
-
 	// Op 30 fans out to two methods and requires exactly two G2 body
 	// cases: the single {"transaction":...} and the batch
 	// {"transactions":[...]} shapes.

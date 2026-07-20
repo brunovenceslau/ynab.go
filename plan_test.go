@@ -13,12 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
 func init() {
-	contract.MarkImplemented("getUser", "getPlans", "getPlanSettingsById")
-
 	registerReadCase(readCase{
 		op:      "getUser",
 		fixture: "user/get.json",

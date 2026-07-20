@@ -8,7 +8,12 @@
 // tests only and takes no dependencies.
 package contract
 
-import "net/http"
+import (
+	"net/http"
+	"regexp"
+	"slices"
+	"strings"
+)
 
 // Operation is one row of the coverage table: an operationId, its wire
 // shape, and the Go methods implementing it (1:N — createTransaction fans
@@ -100,6 +105,33 @@ func Table() []Operation {
 		op("deleteScheduledTransaction", del,
 			"/plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}", "ScheduledTransactionsService.Delete"),
 	}
+}
+
+// TableIDs returns every operationId in the table, sorted.
+func TableIDs() []string {
+	table := Table()
+	ids := make([]string, 0, len(table))
+	for _, op := range table {
+		ids = append(ids, op.ID)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// PathRegexp converts a table path template — e.g.
+// /plans/{plan_id}/transactions/{transaction_id} — into an anchored
+// regexp matching concrete request paths, each {param} one wildcard
+// segment.
+func PathRegexp(pathTemplate string) *regexp.Regexp {
+	segments := strings.Split(pathTemplate, "/")
+	for i, seg := range segments {
+		if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
+			segments[i] = `[^/]+`
+		} else {
+			segments[i] = regexp.QuoteMeta(seg)
+		}
+	}
+	return regexp.MustCompile("^" + strings.Join(segments, "/") + "$")
 }
 
 // deltaParams returns a fresh query-param set for the 11 delta-capable

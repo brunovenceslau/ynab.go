@@ -9,13 +9,17 @@
 // injection. Delta cursors switch to *_delta fixtures on the four
 // streams that have them (plan export, accounts, categories, payees);
 // the other delta-capable streams serve their full list regardless of
-// cursor. Internal on purpose: the public mocking seams are
-// WithBaseURL+httptest and WithHTTPClient, not a second public surface.
+// cursor. Method and path derive from contract.Table, so the fake cannot
+// drift from the coverage contract. Internal on purpose: the public
+// mocking seams are WithBaseURL+httptest and WithHTTPClient, not a
+// second public surface.
 package ynabtest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,80 +28,102 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+
+	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
-// route maps one request shape to its fixture.
-type route struct {
-	method  string
-	pattern *regexp.Regexp
+// fixtureSpec is the fake's own per-operation data: which fixture(s) an
+// operation serves and how.
+type fixtureSpec struct {
 	fixture string
 	// deltaFixture is served instead when last_knowledge_of_server is
 	// present and non-empty.
 	deltaFixture string
 	status       int // 0 means 200
-	// bodyKey selects between routes sharing method+path by a top-level
+	// bodyKey selects between specs sharing method+path by a top-level
 	// request body key (createTransaction single vs batch).
 	bodyKey string
 }
 
-// routes returns the fake API's surface, one line per wire shape,
-// compiled once.
-var routes = sync.OnceValue(func() []route {
-	r := func(method, pattern, fixture string) route {
-		return route{method: method, pattern: regexp.MustCompile("^" + pattern + "$"), fixture: fixture}
-	}
-	created := func(rt route) route { rt.status = http.StatusCreated; return rt }
-	delta := func(rt route, fixture string) route { rt.deltaFixture = fixture; return rt }
-	withBodyKey := func(rt route, key string) route { rt.bodyKey = key; return rt }
+// fixtures is the one hand-maintained axis, keyed by operationId; verb
+// and path come from contract.Table. routes panics on a key without a
+// table row or a table row without a key.
+var fixtures = map[string][]fixtureSpec{
+	"getUser":                       {{fixture: "user/get.json"}},
+	"getPlans":                      {{fixture: "plans/list.json"}},
+	"getPlanById":                   {{fixture: "plans/export.json", deltaFixture: "plans/export_delta.json"}},
+	"getPlanSettingsById":           {{fixture: "plans/settings.json"}},
+	"getPlanMonths":                 {{fixture: "months/list.json"}},
+	"getPlanMonth":                  {{fixture: "months/get.json"}},
+	"getAccounts":                   {{fixture: "accounts/list.json", deltaFixture: "accounts/list_delta.json"}},
+	"createAccount":                 {{fixture: "accounts/create.json", status: http.StatusCreated}},
+	"getAccountById":                {{fixture: "accounts/get.json"}},
+	"getCategories":                 {{fixture: "categories/list.json", deltaFixture: "categories/list_delta.json"}},
+	"createCategory":                {{fixture: "categories/create.json", status: http.StatusCreated}},
+	"getCategoryById":               {{fixture: "categories/get.json"}},
+	"updateCategory":                {{fixture: "categories/update.json"}},
+	"getMonthCategoryById":          {{fixture: "categories/get_for_month.json"}},
+	"updateMonthCategory":           {{fixture: "categories/assign.json"}},
+	"createCategoryGroup":           {{fixture: "categories/group_create.json", status: http.StatusCreated}},
+	"updateCategoryGroup":           {{fixture: "categories/group_rename.json"}},
+	"getPayees":                     {{fixture: "payees/list.json", deltaFixture: "payees/list_delta.json"}},
+	"createPayee":                   {{fixture: "payees/create.json", status: http.StatusCreated}},
+	"getPayeeById":                  {{fixture: "payees/get.json"}},
+	"updatePayee":                   {{fixture: "payees/rename.json"}},
+	"getPayeeLocations":             {{fixture: "payee_locations/list.json"}},
+	"getPayeeLocationById":          {{fixture: "payee_locations/get.json"}},
+	"getPayeeLocationsByPayee":      {{fixture: "payee_locations/by_payee.json"}},
+	"getMoneyMovements":             {{fixture: "money_movements/list.json"}},
+	"getMoneyMovementsByMonth":      {{fixture: "money_movements/by_month.json"}},
+	"getMoneyMovementGroups":        {{fixture: "money_movements/groups.json"}},
+	"getMoneyMovementGroupsByMonth": {{fixture: "money_movements/groups_by_month.json"}},
+	"getTransactions":               {{fixture: "transactions/list.json"}},
+	"createTransaction": {
+		{fixture: "transactions/create.json", status: http.StatusCreated, bodyKey: "transaction"},
+		{fixture: "transactions/batch.json", status: http.StatusCreated, bodyKey: "transactions"},
+	},
+	"updateTransactions":          {{fixture: "transactions/batch.json"}},
+	"importTransactions":          {{fixture: "transactions/import_ids.json", status: http.StatusCreated}},
+	"getTransactionById":          {{fixture: "transactions/get.json"}},
+	"updateTransaction":           {{fixture: "transactions/update.json"}},
+	"deleteTransaction":           {{fixture: "transactions/delete.json"}},
+	"getTransactionsByAccount":    {{fixture: "transactions/list.json"}},
+	"getTransactionsByCategory":   {{fixture: "transactions/hybrid.json"}},
+	"getTransactionsByPayee":      {{fixture: "transactions/hybrid.json"}},
+	"getTransactionsByMonth":      {{fixture: "transactions/list.json"}},
+	"getScheduledTransactions":    {{fixture: "scheduled/list.json"}},
+	"createScheduledTransaction":  {{fixture: "scheduled/create.json", status: http.StatusCreated}},
+	"getScheduledTransactionById": {{fixture: "scheduled/get.json"}},
+	"updateScheduledTransaction":  {{fixture: "scheduled/update.json"}},
+	"deleteScheduledTransaction":  {{fixture: "scheduled/delete.json"}},
+}
 
-	const plan = `/plans/[^/]+`
-	return []route{
-		r(http.MethodGet, `/user`, "user/get.json"),
-		r(http.MethodGet, `/plans`, "plans/list.json"),
-		delta(r(http.MethodGet, plan, "plans/export.json"), "plans/export_delta.json"),
-		r(http.MethodGet, plan+`/settings`, "plans/settings.json"),
-		delta(r(http.MethodGet, plan+`/accounts`, "accounts/list.json"), "accounts/list_delta.json"),
-		created(r(http.MethodPost, plan+`/accounts`, "accounts/create.json")),
-		r(http.MethodGet, plan+`/accounts/[^/]+`, "accounts/get.json"),
-		delta(r(http.MethodGet, plan+`/categories`, "categories/list.json"), "categories/list_delta.json"),
-		created(r(http.MethodPost, plan+`/categories`, "categories/create.json")),
-		r(http.MethodGet, plan+`/categories/[^/]+`, "categories/get.json"),
-		r(http.MethodPatch, plan+`/categories/[^/]+`, "categories/update.json"),
-		r(http.MethodGet, plan+`/months/[^/]+/categories/[^/]+`, "categories/get_for_month.json"),
-		r(http.MethodPatch, plan+`/months/[^/]+/categories/[^/]+`, "categories/assign.json"),
-		created(r(http.MethodPost, plan+`/category_groups`, "categories/group_create.json")),
-		r(http.MethodPatch, plan+`/category_groups/[^/]+`, "categories/group_rename.json"),
-		delta(r(http.MethodGet, plan+`/payees`, "payees/list.json"), "payees/list_delta.json"),
-		created(r(http.MethodPost, plan+`/payees`, "payees/create.json")),
-		r(http.MethodGet, plan+`/payees/[^/]+`, "payees/get.json"),
-		r(http.MethodPatch, plan+`/payees/[^/]+`, "payees/rename.json"),
-		r(http.MethodGet, plan+`/payee_locations`, "payee_locations/list.json"),
-		r(http.MethodGet, plan+`/payee_locations/[^/]+`, "payee_locations/get.json"),
-		r(http.MethodGet, plan+`/payees/[^/]+/payee_locations`, "payee_locations/by_payee.json"),
-		r(http.MethodGet, plan+`/months`, "months/list.json"),
-		r(http.MethodGet, plan+`/months/[^/]+`, "months/get.json"),
-		r(http.MethodGet, plan+`/money_movements`, "money_movements/list.json"),
-		r(http.MethodGet, plan+`/months/[^/]+/money_movements`, "money_movements/by_month.json"),
-		r(http.MethodGet, plan+`/money_movement_groups`, "money_movements/groups.json"),
-		r(http.MethodGet, plan+`/months/[^/]+/money_movement_groups`, "money_movements/groups_by_month.json"),
-		r(http.MethodGet, plan+`/transactions`, "transactions/list.json"),
-		withBodyKey(created(r(http.MethodPost, plan+`/transactions`, "transactions/create.json")), "transaction"),
-		withBodyKey(created(r(http.MethodPost, plan+`/transactions`, "transactions/batch.json")), "transactions"),
-		r(http.MethodPatch, plan+`/transactions`, "transactions/batch.json"),
-		created(r(http.MethodPost, plan+`/transactions/import`, "transactions/import_ids.json")),
-		r(http.MethodGet, plan+`/transactions/[^/]+`, "transactions/get.json"),
-		r(http.MethodPut, plan+`/transactions/[^/]+`, "transactions/update.json"),
-		r(http.MethodDelete, plan+`/transactions/[^/]+`, "transactions/delete.json"),
-		r(http.MethodGet, plan+`/accounts/[^/]+/transactions`, "transactions/list.json"),
-		r(http.MethodGet, plan+`/categories/[^/]+/transactions`, "transactions/hybrid.json"),
-		r(http.MethodGet, plan+`/payees/[^/]+/transactions`, "transactions/hybrid.json"),
-		r(http.MethodGet, plan+`/months/[^/]+/transactions`, "transactions/list.json"),
-		r(http.MethodGet, plan+`/scheduled_transactions`, "scheduled/list.json"),
-		created(r(http.MethodPost, plan+`/scheduled_transactions`, "scheduled/create.json")),
-		r(http.MethodGet, plan+`/scheduled_transactions/[^/]+`, "scheduled/get.json"),
-		r(http.MethodPut, plan+`/scheduled_transactions/[^/]+`, "scheduled/update.json"),
-		r(http.MethodDelete, plan+`/scheduled_transactions/[^/]+`, "scheduled/delete.json"),
+// route maps one request shape to its fixture spec.
+type route struct {
+	method  string
+	pattern *regexp.Regexp
+	fixtureSpec
+}
+
+// routes derives the fake API's surface from the contract table, compiled
+// once. It panics on any table/fixtures mismatch, in either direction.
+var routes = sync.OnceValue(func() []route {
+	table := contract.Table()
+	if len(fixtures) != len(table) {
+		panic(fmt.Sprintf("ynabtest: %d fixture entries for %d table operations", len(fixtures), len(table)))
 	}
+	rts := make([]route, 0, len(table)+1)
+	for _, op := range table {
+		specs, ok := fixtures[op.ID]
+		if !ok {
+			panic("ynabtest: table operation " + op.ID + " has no fixture entry")
+		}
+		pattern := contract.PathRegexp(op.Path)
+		for _, fs := range specs {
+			rts = append(rts, route{method: op.Method, pattern: pattern, fixtureSpec: fs})
+		}
+	}
+	return rts
 })
 
 // Server is a fake YNAB API bound to the module's golden fixtures.
@@ -191,12 +217,13 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 // resolve finds the route for a request, disambiguating shared
-// method+path routes by the request body's top-level key. Note: this
-// drains r.Body — if the fake ever grows request recording, buffer and
-// restore the body here first.
+// method+path routes by the request body's top-level key; the body is
+// restored for any downstream reader.
 func (s *Server) resolve(r *http.Request) (route, bool) {
+	raw, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewReader(raw))
 	var bodyKeys map[string]json.RawMessage
-	_ = json.NewDecoder(r.Body).Decode(&bodyKeys)
+	_ = json.Unmarshal(raw, &bodyKeys)
 
 	for _, rt := range routes() {
 		if rt.method != r.Method || !rt.pattern.MatchString(r.URL.Path) {

@@ -15,15 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
-	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
 func init() {
-	contract.MarkImplemented(
-		"createCategory", "updateCategory", "updateMonthCategory",
-		"createCategoryGroup", "updateCategoryGroup",
-	)
-
 	registerWriteCase(writeCase{
 		op:     "createCategory",
 		method: http.MethodPost,
