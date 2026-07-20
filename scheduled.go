@@ -190,6 +190,21 @@ func (s *ScheduledTransactionsService) List(
 	return data.ScheduledTransactions, data.ServerKnowledge, nil
 }
 
+// Get returns a single scheduled transaction by id. A missing id answers
+// ErrResourceNotFound — the List-only 404 normalization does not apply.
+//
+// YNAB operationId: getScheduledTransactionById
+func (s *ScheduledTransactionsService) Get(
+	ctx context.Context, scheduledTransactionID string,
+) (*ScheduledTransaction, error) {
+	data, err := do[scheduledResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("scheduled_transactions", scheduledTransactionID), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return data.ScheduledTransaction, nil
+}
+
 // Create adds a scheduled transaction (HTTP 201).
 //
 // YNAB operationId: createScheduledTransaction
@@ -201,21 +216,6 @@ func (s *ScheduledTransactionsService) Create(
 	}
 	data, err := do[scheduledResult](ctx, s.plan.client,
 		http.MethodPost, s.plan.path("scheduled_transactions"), nil, body{"scheduled_transaction": spec})
-	if err != nil {
-		return nil, err
-	}
-	return data.ScheduledTransaction, nil
-}
-
-// Get returns a single scheduled transaction by id. A missing id answers
-// ErrResourceNotFound — the List-only 404 normalization does not apply.
-//
-// YNAB operationId: getScheduledTransactionById
-func (s *ScheduledTransactionsService) Get(
-	ctx context.Context, scheduledTransactionID string,
-) (*ScheduledTransaction, error) {
-	data, err := do[scheduledResult](ctx, s.plan.client,
-		http.MethodGet, s.plan.path("scheduled_transactions", scheduledTransactionID), nil, nil)
 	if err != nil {
 		return nil, err
 	}

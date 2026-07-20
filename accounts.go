@@ -148,6 +148,20 @@ func (s *AccountsService) List(ctx context.Context, opts ...ListOption) ([]Accou
 	return data.Accounts, data.ServerKnowledge, nil
 }
 
+// Get returns a single account by id. A missing id answers
+// [ErrResourceNotFound].
+//
+// YNAB operationId: getAccountById
+func (s *AccountsService) Get(ctx context.Context, accountID string) (*Account, error) {
+	data, err := do[struct {
+		Account *Account `json:"account"`
+	}](ctx, s.plan.client, http.MethodGet, s.plan.path("accounts", accountID), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return data.Account, nil
+}
+
 // Create adds an unlinked account to the plan and returns it (HTTP 201).
 // Wire asymmetry, documented rather than papered over: unlike other
 // creates, createAccount returns no server knowledge — advance your
@@ -158,20 +172,6 @@ func (s *AccountsService) Create(ctx context.Context, spec AccountSpec) (*Accoun
 	data, err := do[struct {
 		Account *Account `json:"account"`
 	}](ctx, s.plan.client, http.MethodPost, s.plan.path("accounts"), nil, body{"account": spec})
-	if err != nil {
-		return nil, err
-	}
-	return data.Account, nil
-}
-
-// Get returns a single account by id. A missing id answers
-// [ErrResourceNotFound].
-//
-// YNAB operationId: getAccountById
-func (s *AccountsService) Get(ctx context.Context, accountID string) (*Account, error) {
-	data, err := do[struct {
-		Account *Account `json:"account"`
-	}](ctx, s.plan.client, http.MethodGet, s.plan.path("accounts", accountID), nil, nil)
 	if err != nil {
 		return nil, err
 	}

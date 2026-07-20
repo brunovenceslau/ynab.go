@@ -45,15 +45,6 @@ func (s *PayeesService) List(ctx context.Context, opts ...ListOption) ([]Payee, 
 	return data.Payees, data.ServerKnowledge, nil
 }
 
-// Create adds a payee (HTTP 201) and returns it with the new server
-// knowledge. Names are bounded at 500 characters by the API; longer
-// names fail pre-flight as *ArgumentError.
-//
-// YNAB operationId: createPayee
-func (s *PayeesService) Create(ctx context.Context, name string) (*Payee, ServerKnowledge, error) {
-	return s.save(ctx, "Payees.Create", http.MethodPost, s.plan.path("payees"), name)
-}
-
 // Get returns a single payee by id. A missing id answers
 // [ErrResourceNotFound].
 //
@@ -66,6 +57,15 @@ func (s *PayeesService) Get(ctx context.Context, payeeID string) (*Payee, error)
 		return nil, err
 	}
 	return data.Payee, nil
+}
+
+// Create adds a payee (HTTP 201) and returns it with the new server
+// knowledge. Names are bounded at 500 characters by the API; longer
+// names fail pre-flight as *ArgumentError.
+//
+// YNAB operationId: createPayee
+func (s *PayeesService) Create(ctx context.Context, name string) (*Payee, ServerKnowledge, error) {
+	return s.save(ctx, "Payees.Create", http.MethodPost, s.plan.path("payees"), name)
 }
 
 // Rename changes a payee's name. The same 500-character bound as Create
