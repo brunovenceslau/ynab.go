@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -216,12 +215,4 @@ func TestPlansIncludeAccounts(t *testing.T) {
 	without, err := client2.Plans(t.Context())
 	require.NoError(t, err)
 	require.Nil(t, without.Plans[0].Accounts)
-}
-
-// replaceOnce is a small fixture-mutation helper.
-func replaceOnce(t *testing.T, b []byte, old, newV string) []byte {
-	t.Helper()
-	s := string(b)
-	require.Contains(t, s, old)
-	return []byte(strings.Replace(s, old, newV, 1))
 }

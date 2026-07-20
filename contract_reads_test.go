@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -66,6 +67,14 @@ func registerReadCase(rc readCase) {
 	if rc.model != nil {
 		registerReadModel(rc.model)
 	}
+}
+
+// replaceOnce is a small fixture-mutation helper.
+func replaceOnce(t *testing.T, b []byte, old, newV string) []byte {
+	t.Helper()
+	s := string(b)
+	require.Contains(t, s, old)
+	return []byte(strings.Replace(s, old, newV, 1))
 }
 
 // loadFixture reads a golden fixture from testdata/.

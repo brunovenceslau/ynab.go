@@ -5,6 +5,7 @@
 package ynab_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
 	"testing"
@@ -15,8 +16,9 @@ import (
 	"pkg.venceslau.dev/ynab"
 )
 
-// decodeTransactionFixture strictly decodes a wrapped fixture document.
-func decodeTransactionFixture[T any](t *testing.T, fixture, wrapper string) T {
+// decodeFixture strictly decodes a wrapped fixture document — unknown
+// keys fail, so a typo'd fixture cannot pass vacuously.
+func decodeFixture[T any](t *testing.T, fixture, wrapper string) T {
 	t.Helper()
 
 	raw := loadFixture(t, fixture)
@@ -26,7 +28,9 @@ func decodeTransactionFixture[T any](t *testing.T, fixture, wrapper string) T {
 	require.NoError(t, json.Unmarshal(env["data"], &data))
 
 	var v T
-	require.NoError(t, json.Unmarshal(data[wrapper], &v))
+	dec := json.NewDecoder(bytes.NewReader(data[wrapper]))
+	dec.DisallowUnknownFields()
+	require.NoError(t, dec.Decode(&v))
 	return v
 }
 
@@ -36,7 +40,7 @@ func TestTransactionModels(t *testing.T) {
 	t.Run("full transaction with subtransactions", func(t *testing.T) {
 		t.Parallel()
 
-		tx := decodeTransactionFixture[ynab.Transaction](t, "transactions/get.json", "transaction")
+		tx := decodeFixture[ynab.Transaction](t, "transactions/get.json", "transaction")
 		require.Equal(t, ynab.NewDate(2026, time.July, 10), tx.Date)
 		require.Equal(t, ynab.Milliunits(-294230), tx.Amount)
 		require.Equal(t, ynab.ClearedStatusCleared, tx.Cleared)
@@ -60,7 +64,7 @@ func TestTransactionModels(t *testing.T) {
 	t.Run("all-null variant decodes", func(t *testing.T) {
 		t.Parallel()
 
-		tx := decodeTransactionFixture[ynab.Transaction](t, "transactions/get_null.json", "transaction")
+		tx := decodeFixture[ynab.Transaction](t, "transactions/get_null.json", "transaction")
 		require.Nil(t, tx.Memo)
 		require.Nil(t, tx.FlagColor, "null flag_color is nil, never the empty FlagColorNone")
 		require.Nil(t, tx.PayeeID)
@@ -74,7 +78,7 @@ func TestTransactionModels(t *testing.T) {
 	t.Run("hybrid rows carry both type values", func(t *testing.T) {
 		t.Parallel()
 
-		rows := decodeTransactionFixture[[]ynab.HybridTransaction](t, "transactions/hybrid.json", "transactions")
+		rows := decodeFixture[[]ynab.HybridTransaction](t, "transactions/hybrid.json", "transactions")
 		require.Len(t, rows, 2)
 
 		regular, leg := rows[0], rows[1]
