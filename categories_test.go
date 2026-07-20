@@ -118,25 +118,52 @@ func TestCategoriesList(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/categories", rec.URL.Path)
 		require.Equal(t, ynab.ServerKnowledge(2000), sk)
-		require.Len(t, groups, 2)
 
-		groceries := groups[0].Categories[0]
-		require.Equal(t, "Groceries", groceries.Name)
-		require.Equal(t, ynab.Milliunits(500000), groceries.Budgeted)
-		require.Equal(t, ynab.GoalTypeNEED, *groceries.GoalType)
-		require.True(t, groceries.GoalType.Valid())
-		require.Equal(t, ynab.Milliunits(500000), *groceries.GoalTarget)
-		require.Equal(t, "weekly shop", *groceries.Note)
-		require.Equal(t, ynab.NewDate(2025, time.January, 1), *groceries.GoalCreationMonth)
-
-		vacation := groups[1].Categories[0]
-		require.Equal(t, ynab.GoalTypeTBD, *vacation.GoalType)
-		require.Equal(t, ynab.NewDate(2027, time.June, 15), *vacation.GoalTargetDate)
-		// Regression (first live run): the deprecated goal_target_month is a
-		// calendar DATE mirroring goal_target_date — the real API returns
-		// day components in it, so a Month here would fail to decode.
-		require.Equal(t, ynab.NewDate(2027, time.June, 15), *vacation.GoalTargetMonth)
-		require.Nil(t, vacation.Note)
+		// The complete expected tree, transcribed from the fixture. Note
+		// the regression pin (first live run) inside the Vacation literal:
+		// the deprecated goal_target_month is a calendar DATE mirroring
+		// goal_target_date — the real API returns day components in it, so
+		// a Month there would fail to decode.
+		vacation := ynab.Category{
+			CategoryBase: ynab.CategoryBase{
+				ID:                     "ca222222-2222-2222-2222-222222222222",
+				CategoryGroupID:        "cg222222-2222-2222-2222-222222222222",
+				CategoryGroupName:      "Savings Goals",
+				Name:                   "Vacation",
+				Budgeted:               0,
+				Activity:               0,
+				Balance:                0,
+				GoalType:               ptr(ynab.GoalTypeTBD),
+				GoalCreationMonth:      ptr(ynab.NewDate(2026, time.January, 1)),
+				GoalTarget:             ptr(ynab.Milliunits(12000000)),
+				GoalTargetMonth:        ptr(ynab.NewDate(2027, time.June, 15)),
+				GoalTargetDate:         ptr(ynab.NewDate(2027, time.June, 15)),
+				GoalPercentageComplete: ptr(10),
+				Deleted:                false,
+			},
+			BalanceFormatted:    "$0.00",
+			BalanceCurrency:     0,
+			ActivityFormatted:   "$0.00",
+			ActivityCurrency:    0,
+			BudgetedFormatted:   "$0.00",
+			BudgetedCurrency:    0,
+			GoalTargetFormatted: ptr("$12,000.00"),
+			GoalTargetCurrency:  ptr(12000.0),
+		}
+		want := []ynab.CategoryGroup{
+			{
+				ID:         "cg111111-1111-1111-1111-111111111111",
+				Name:       "Everyday",
+				Categories: []ynab.Category{goldenGroceriesCategory()},
+			},
+			{
+				ID:         "cg222222-2222-2222-2222-222222222222",
+				Name:       "Savings Goals",
+				Categories: []ynab.Category{vacation},
+			},
+		}
+		require.Equal(t, want, groups)
+		require.True(t, groups[0].Categories[0].GoalType.Valid())
 	})
 
 	t.Run("delta nests changes in groups — flatten before merging", func(t *testing.T) {
@@ -223,6 +250,7 @@ func TestCategoriesGetForMonth(t *testing.T) {
 
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
+		require.Equal(t, "Categories.GetForMonth", argErr.Op)
 		require.Equal(t, "month", argErr.Field)
 		require.Empty(t, rec.Method, "no request must be sent")
 	})

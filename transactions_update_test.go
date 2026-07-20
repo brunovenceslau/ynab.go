@@ -89,9 +89,12 @@ func init() {
 func init() {
 	registerIntegrationCase(integrationCase{
 		name: "transactions writes create update delete import",
+		// getAccounts anchors the created rows; getTransactions is the
+		// post-delete delta read observing the tombstone.
 		ops: []string{
 			"createTransaction", "updateTransaction", "updateTransactions",
 			"deleteTransaction", "importTransactions",
+			"getAccounts", "getTransactions",
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()

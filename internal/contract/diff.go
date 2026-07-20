@@ -6,6 +6,7 @@ package contract
 
 import (
 	"fmt"
+	"net/http"
 	"slices"
 )
 
@@ -42,6 +43,14 @@ func DiffSpec(table []Operation, spec *Spec) []string {
 		}
 		if op.Path != specOp.Path {
 			problems = append(problems, fmt.Sprintf("%s: table path %s, spec path %s", op.ID, op.Path, specOp.Path))
+		}
+		// The bodilessOps declaration stays the readable local truth, but
+		// it must agree with the spec's requestBody presence on every
+		// non-GET operation.
+		if op.Method != http.MethodGet && specOp.HasBody == isBodiless(op.ID) {
+			problems = append(problems, fmt.Sprintf(
+				"%s: spec requestBody presence %v contradicts bodilessOps (bodiless=%v)",
+				op.ID, specOp.HasBody, isBodiless(op.ID)))
 		}
 		problems = append(problems, diffParams(op.ID, op.QueryParams, specOp.QueryParams)...)
 	}

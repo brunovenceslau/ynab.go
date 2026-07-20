@@ -4,14 +4,21 @@
 
 package ynab_test
 
-// The fixture-honesty test: the ynabtest fake server serves the exact
-// golden fixture bytes the read cases assert against, and the real
-// client decodes them identically through both. Fixtures therefore
-// cannot diverge between the fake and the read harness.
+// The fixture-honesty gate: the ynabtest fake server serves the exact
+// golden fixture bytes the endpoint tests assert against, proven by
+// decoding through both and requiring identical results. Coverage is
+// derived, not hand-kept: every registered G4 read case whose fixture
+// the fake serves is probed automatically — including the sixteen
+// non-GET operations, whose success decodes register read cases in
+// contract_complete_test.go — hand probes add the four delta streams,
+// and a closing completeness check requires every FixtureNames() entry to be
+// probed — a fake route whose fixture no probe decodes fails loudly.
+// (Route→fixture mapping itself is pinned byte-level by the literal
+// table in internal/ynabtest/server_test.go; shared fixtures across
+// routes are that layer's job, not this one's.)
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -19,216 +26,134 @@ import (
 	"pkg.venceslau.dev/ynab/internal/ynabtest"
 )
 
+// honestyProbe decodes one fixture through any client; the test runs it
+// against the fake and against the read harness's fixture server.
+type honestyProbe struct {
+	name    string
+	fixture string
+	status  int // the status the fixture server answers; 0 means 200
+	call    func(t *testing.T, c *ynab.Client) any
+}
+
+// derivedReadProbes turns the G4 read registry into probes, one per
+// registered case whose fixture the fake serves. The served filter
+// mechanically excludes the *_null/extreme/no-server-knowledge variants
+// the fake has no route for.
+func derivedReadProbes(served map[string]bool) []honestyProbe {
+	readRegistryMu.Lock()
+	cases := make([]readCase, len(readRegistry))
+	copy(cases, readRegistry)
+	readRegistryMu.Unlock()
+
+	var probes []honestyProbe
+	for _, rc := range cases {
+		if rc.status != 0 || !served[rc.fixture] {
+			continue
+		}
+		name := rc.op
+		if rc.variant != "" {
+			name += "/" + rc.variant
+		}
+		probes = append(probes, honestyProbe{
+			name:    name,
+			fixture: rc.fixture,
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				got, err := rc.call(t, c)
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				return got
+			},
+		})
+	}
+	return probes
+}
+
+// deltaProbes covers the four delta streams the fake switches to on a
+// cursor — the read registry cannot reach them because no registered
+// case passes [ynab.Since].
+func deltaProbes() []honestyProbe {
+	return []honestyProbe{
+		{
+			name: "getPlanById/delta", fixture: "plans/export_delta.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				detail, sk, err := c.Plan("p-1").Export(t.Context(), ynab.Since(1))
+				require.NoError(t, err)
+				return pairWithSK(detail, sk)
+			},
+		},
+		{
+			name: "getAccounts/delta", fixture: "accounts/list_delta.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				accounts, sk, err := c.Plan("p-1").Accounts.List(t.Context(), ynab.Since(1))
+				require.NoError(t, err)
+				return pairWithSK(accounts, sk)
+			},
+		},
+		{
+			name: "getCategories/delta", fixture: "categories/list_delta.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				groups, sk, err := c.Plan("p-1").Categories.List(t.Context(), ynab.Since(1))
+				require.NoError(t, err)
+				return pairWithSK(groups, sk)
+			},
+		},
+		{
+			name: "getPayees/delta", fixture: "payees/list_delta.json",
+			call: func(t *testing.T, c *ynab.Client) any {
+				t.Helper()
+				payees, sk, err := c.Plan("p-1").Payees.List(t.Context(), ynab.Since(1))
+				require.NoError(t, err)
+				return pairWithSK(payees, sk)
+			},
+		},
+	}
+}
+
+// pairWithSK bundles a decoded value with its server knowledge so the
+// equality covers both returns.
+func pairWithSK(v any, sk ynab.ServerKnowledge) any {
+	return struct {
+		Value any
+		SK    ynab.ServerKnowledge
+	}{v, sk}
+}
+
 func TestFixtureHonesty(t *testing.T) {
 	t.Parallel()
 
 	srv := ynabtest.NewServer(t)
 	viaFake := ynab.New("test-token", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
 
-	// Each probe decodes through the fake AND through the read
-	// harness's fixture server; the results must be identical.
-	probes := []struct {
-		name    string
-		fixture string
-		call    func(t *testing.T, c *ynab.Client) any
-	}{
-		{
-			name: "user", fixture: "user/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				u, err := c.User(t.Context())
-				require.NoError(t, err)
-				return u
-			},
-		},
-		{
-			name: "accounts list", fixture: "accounts/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				accounts, sk, err := c.Plan("p-1").Accounts.List(t.Context())
-				require.NoError(t, err)
-				return struct {
-					Accounts []ynab.Account
-					SK       ynab.ServerKnowledge
-				}{accounts, sk}
-			},
-		},
-		{
-			name: "categories list", fixture: "categories/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				groups, sk, err := c.Plan("p-1").Categories.List(t.Context())
-				require.NoError(t, err)
-				return struct {
-					Groups []ynab.CategoryGroup
-					SK     ynab.ServerKnowledge
-				}{groups, sk}
-			},
-		},
-		{
-			name: "plan export", fixture: "plans/export.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				detail, sk, err := c.Plan("p-1").Export(t.Context())
-				require.NoError(t, err)
-				return struct {
-					Detail *ynab.PlanDetail
-					SK     ynab.ServerKnowledge
-				}{detail, sk}
-			},
-		},
-		{
-			name: "month detail", fixture: "months/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				month, err := c.Plan("p-1").Months.Get(t.Context(), ynab.NewMonth(2026, time.July))
-				require.NoError(t, err)
-				return month
-			},
-		},
-		{
-			name: "transactions list", fixture: "transactions/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				txns, sk, err := c.Plan("p-1").Transactions.List(t.Context(), ynab.TransactionFilter{})
-				require.NoError(t, err)
-				return struct {
-					Txns []ynab.Transaction
-					SK   ynab.ServerKnowledge
-				}{txns, sk}
-			},
-		},
-		{
-			name: "scheduled list", fixture: "scheduled/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				scheduled, sk, err := c.Plan("p-1").Scheduled.List(t.Context())
-				require.NoError(t, err)
-				return struct {
-					Scheduled []ynab.ScheduledTransaction
-					SK        ynab.ServerKnowledge
-				}{scheduled, sk}
-			},
-		},
-		{
-			name: "plans list", fixture: "plans/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				plans, err := c.Plans(t.Context())
-				require.NoError(t, err)
-				return plans
-			},
-		},
-		{
-			name: "plan settings", fixture: "plans/settings.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				settings, err := c.Plan("p-1").Settings(t.Context())
-				require.NoError(t, err)
-				return settings
-			},
-		},
-		{
-			name: "account get", fixture: "accounts/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				account, err := c.Plan("p-1").Accounts.Get(t.Context(), "ac1")
-				require.NoError(t, err)
-				return account
-			},
-		},
-		{
-			name: "payee get", fixture: "payees/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				payee, err := c.Plan("p-1").Payees.Get(t.Context(), "pa1")
-				require.NoError(t, err)
-				return payee
-			},
-		},
-		{
-			name: "payee locations by payee", fixture: "payee_locations/by_payee.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				locations, err := c.Plan("p-1").PayeeLocations.ListByPayee(t.Context(), "pa1")
-				require.NoError(t, err)
-				return locations
-			},
-		},
-		{
-			name: "months list", fixture: "months/list.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				months, sk, err := c.Plan("p-1").Months.List(t.Context())
-				require.NoError(t, err)
-				return struct {
-					Months []ynab.MonthSummary
-					SK     ynab.ServerKnowledge
-				}{months, sk}
-			},
-		},
-		{
-			name: "month category get", fixture: "categories/get_for_month.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				category, err := c.Plan("p-1").Categories.GetForMonth(t.Context(), ynab.CurrentMonth(), "ca1")
-				require.NoError(t, err)
-				return category
-			},
-		},
-		{
-			name: "money movements by month", fixture: "money_movements/by_month.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				movements, _, err := c.Plan("p-1").MoneyMovements.ListByMonth(t.Context(), ynab.CurrentMonth())
-				require.NoError(t, err)
-				return movements
-			},
-		},
-		{
-			name: "money movement groups", fixture: "money_movements/groups.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				groups, _, err := c.Plan("p-1").MoneyMovements.ListGroups(t.Context())
-				require.NoError(t, err)
-				return groups
-			},
-		},
-		{
-			name: "hybrid by category", fixture: "transactions/hybrid.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				rows, _, err := c.Plan("p-1").Transactions.ListByCategory(t.Context(), "ca1", ynab.TransactionFilter{})
-				require.NoError(t, err)
-				return rows
-			},
-		},
-		{
-			name: "transaction get", fixture: "transactions/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				tx, _, err := c.Plan("p-1").Transactions.Get(t.Context(), "tr1")
-				require.NoError(t, err)
-				return tx
-			},
-		},
-		{
-			name: "scheduled get", fixture: "scheduled/get.json",
-			call: func(t *testing.T, c *ynab.Client) any {
-				t.Helper()
-				scheduled, err := c.Plan("p-1").Scheduled.Get(t.Context(), "sc1")
-				require.NoError(t, err)
-				return scheduled
-			},
-		},
+	served := map[string]bool{}
+	for _, name := range ynabtest.FixtureNames() {
+		served[name] = true
 	}
+	probes := append(derivedReadProbes(served), deltaProbes()...)
+
+	// The self-enforcing half of the header's claim: every fixture the
+	// fake can serve is decoded by at least one probe — a new fake route
+	// cannot ship without a probe here.
+	probed := map[string]bool{}
+	for _, probe := range probes {
+		require.True(t, served[probe.fixture],
+			"probe %s decodes %s, which the fake does not serve", probe.name, probe.fixture)
+		probed[probe.fixture] = true
+	}
+	for _, name := range ynabtest.FixtureNames() {
+		require.True(t, probed[name], "fake fixture %s has no honesty probe", name)
+	}
+
 	for _, probe := range probes {
 		t.Run(probe.name, func(t *testing.T) {
 			t.Parallel()
 
 			fromFake := probe.call(t, viaFake)
 
-			direct, _ := serveFixture(t, probe.fixture, 0)
+			direct, _ := serveFixture(t, probe.fixture, probe.status)
 			fromFixture := probe.call(t, direct)
 
 			require.Equal(t, fromFixture, fromFake,

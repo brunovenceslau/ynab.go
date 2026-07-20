@@ -55,6 +55,14 @@ func TestEmptyIDsRejectedPreflight(t *testing.T) {
 			_, err := client.Plan("p-1").Scheduled.Get(t.Context(), "")
 			return err
 		},
+		"empty payee location id": func() error {
+			_, err := client.Plan("p-1").PayeeLocations.Get(t.Context(), "")
+			return err
+		},
+		"empty payee id on locations list": func() error {
+			_, err := client.Plan("p-1").PayeeLocations.ListByPayee(t.Context(), "")
+			return err
+		},
 	}
 	for name, call := range calls {
 		t.Run(name, func(t *testing.T) {

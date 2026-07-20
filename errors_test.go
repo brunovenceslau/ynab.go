@@ -8,6 +8,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"maps"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -92,12 +99,77 @@ func TestErrorTaxonomy(t *testing.T) {
 	})
 }
 
+// TestErrorSentinelCompleteness makes allSentinels' "every exported
+// sentinel" claim mechanical: an AST scan of errors.go's package-level
+// Err* var declarations must equal the map's key set, so a 15th
+// sentinel added to errors.go without a test entry fails here.
+func TestErrorSentinelCompleteness(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "errors.go", nil, 0)
+	require.NoError(t, err)
+
+	var scanned []string
+	for _, decl := range file.Decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, name := range vs.Names {
+				if strings.HasPrefix(name.Name, "Err") {
+					scanned = append(scanned, name.Name)
+				}
+			}
+		}
+	}
+
+	require.ElementsMatch(t, scanned, slices.Collect(maps.Keys(allSentinels())),
+		"allSentinels must list exactly the exported Err* vars of errors.go")
+}
+
+// TestErrorSentinelTablesConsistent cross-checks the taxonomy's three
+// encodings of each code — the message text, the sentinelByID key, and
+// the sentinelByStatus key — so a typo'd map key or message id fails
+// deterministically instead of surfacing as a wrong errors.Is result.
+func TestErrorSentinelTablesConsistent(t *testing.T) {
+	t.Parallel()
+
+	known := map[error]string{}
+	for name, s := range allSentinels() {
+		known[s] = name
+	}
+
+	require.Len(t, ynab.SentinelByID, 12)
+	for id, s := range ynab.SentinelByID {
+		require.Contains(t, known, s, "byID[%s] maps to an unknown sentinel", id)
+		require.True(t, strings.HasSuffix(s.Error(), "("+id+")"),
+			"message %q must end with its wire id (%s)", s.Error(), id)
+	}
+
+	require.Len(t, ynab.SentinelByStatus, 8)
+	for status, s := range ynab.SentinelByStatus {
+		require.Contains(t, known, s, "byStatus[%d] maps to an unknown sentinel", status)
+		msg := s.Error()
+		open := strings.LastIndex(msg, "(")
+		require.True(t, open >= 0 && strings.HasSuffix(msg, ")"),
+			"message %q must carry a parenthesized code suffix", msg)
+		require.True(t, strings.HasPrefix(msg[open+1:len(msg)-1], strconv.Itoa(status)),
+			"message %q code must start with its status %d", msg, status)
+	}
+}
+
 func TestErrorNilSafety(t *testing.T) {
 	t.Parallel()
 
 	var e *ynab.Error
 	require.NotPanics(t, func() { _ = e.Error() })
-	require.NotEmpty(t, e.Error())
+	require.Equal(t, "ynab: <nil>", e.Error())
 
 	require.NotPanics(t, func() {
 		require.NotErrorIs(t, error(e), ynab.ErrNotFound)
@@ -109,7 +181,7 @@ func TestErrorNilSafety(t *testing.T) {
 
 	var a *ynab.ArgumentError
 	require.NotPanics(t, func() { _ = a.Error() })
-	require.NotEmpty(t, a.Error())
+	require.Equal(t, "ynab: <nil>", a.Error())
 }
 
 func TestErrorMessages(t *testing.T) {

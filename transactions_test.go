@@ -41,15 +41,8 @@ func TestTransactionModels(t *testing.T) {
 		t.Parallel()
 
 		tx := decodeFixture[ynab.Transaction](t, "transactions/get.json", "transaction")
-		require.Equal(t, ynab.NewDate(2026, time.July, 10), tx.Date)
-		require.Equal(t, ynab.Milliunits(-294230), tx.Amount)
-		require.Equal(t, ynab.ClearedStatusCleared, tx.Cleared)
+		require.Equal(t, goldenGroceryRunTransaction(), tx)
 		require.True(t, tx.Cleared.Valid())
-		require.True(t, tx.Approved)
-		require.Equal(t, ynab.FlagColorRed, *tx.FlagColor)
-		require.Equal(t, "urgent", *tx.FlagName)
-		require.Equal(t, "YNAB:-294230:2026-07-10:1", *tx.ImportID)
-		require.Equal(t, "Split", *tx.CategoryName)
 
 		require.Len(t, tx.Subtransactions, 2)
 		sum := ynab.Milliunits(0)
@@ -79,16 +72,34 @@ func TestTransactionModels(t *testing.T) {
 		t.Parallel()
 
 		rows := decodeFixture[[]ynab.HybridTransaction](t, "transactions/hybrid.json", "transactions")
-		require.Len(t, rows, 2)
 
-		regular, leg := rows[0], rows[1]
-		require.Equal(t, ynab.HybridTypeTransaction, regular.Type)
-		require.True(t, regular.Type.Valid())
-		require.Nil(t, regular.ParentTransactionID)
-
-		require.Equal(t, ynab.HybridTypeSubtransaction, leg.Type)
-		require.Equal(t, regular.ID, *leg.ParentTransactionID)
-		require.Equal(t, "Vacation", leg.CategoryName)
+		leg := ynab.HybridTransaction{
+			TransactionBase: ynab.TransactionBase{
+				ID:                      "st555555-5555-5555-5555-555555555555",
+				Date:                    ynab.NewDate(2026, time.July, 10),
+				Amount:                  -5000,
+				Memo:                    ptr("groceries run"),
+				Cleared:                 ynab.ClearedStatusCleared,
+				Approved:                true,
+				FlagColor:               ptr(ynab.FlagColorRed),
+				FlagName:                ptr("urgent"),
+				AccountID:               "ac111111-1111-1111-1111-111111111111",
+				PayeeID:                 ptr("pa111111-1111-1111-1111-111111111111"),
+				CategoryID:              ptr("ca111111-1111-1111-1111-111111111111"),
+				ImportID:                ptr("YNAB:-294230:2026-07-10:1"),
+				ImportPayeeName:         ptr("GROCER CO"),
+				ImportPayeeNameOriginal: ptr("GROCER*CO 123"),
+				Deleted:                 false,
+			},
+			AmountFormatted:     "-$5.00",
+			AmountCurrency:      -5,
+			Type:                ynab.HybridTypeSubtransaction,
+			ParentTransactionID: ptr("tr444444-4444-4444-4444-444444444444"),
+			AccountName:         "Checking",
+			CategoryName:        "Vacation",
+		}
+		require.Equal(t, []ynab.HybridTransaction{goldenHybridGroceryRow(), leg}, rows)
+		require.True(t, rows[0].Type.Valid())
 	})
 
 	t.Run("unknown enum values decode losslessly", func(t *testing.T) {

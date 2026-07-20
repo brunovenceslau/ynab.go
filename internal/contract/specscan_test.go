@@ -51,6 +51,22 @@ func TestContractScanSpec(t *testing.T) {
 		}
 	}
 	require.Equal(t, 11, deltas)
+
+	// requestBody detection: 13 of the 16 non-GET operations carry one;
+	// the three bodiless ops are exactly the two DELETEs and the import.
+	bodies := 0
+	for _, op := range spec.Ops {
+		if op.HasBody {
+			bodies++
+			require.NotEqual(t, "GET", op.Method, "%s: a GET cannot carry a requestBody", op.ID)
+		}
+	}
+	require.Equal(t, 13, bodies)
+	require.True(t, byID["createAccount"].HasBody)
+	require.True(t, byID["updateTransactions"].HasBody)
+	require.False(t, byID["deleteTransaction"].HasBody)
+	require.False(t, byID["deleteScheduledTransaction"].HasBody)
+	require.False(t, byID["importTransactions"].HasBody)
 }
 
 func TestContractDiffHolds(t *testing.T) {
@@ -141,6 +157,40 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 		spec, table := scan(t)
 		spec.Ops[0].Method = "POST"
 		require.NotEmpty(t, contract.DiffSpec(table, spec))
+	})
+
+	t.Run("request body drift against bodilessOps", func(t *testing.T) {
+		t.Parallel()
+
+		// A spec bump adding a body to importTransactions must trip the
+		// bodiless cross-check instead of drifting into G2 silently.
+		spec, table := scan(t)
+		for i := range spec.Ops {
+			if spec.Ops[i].ID == "importTransactions" {
+				spec.Ops[i].HasBody = true
+			}
+		}
+		problems := contract.DiffSpec(table, spec)
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "importTransactions")
+		require.Contains(t, problems[0], "requestBody")
+	})
+
+	t.Run("dropped body on a body-carrying op", func(t *testing.T) {
+		t.Parallel()
+
+		// The other direction: the spec dropping createAccount's body
+		// while bodilessOps still omits it is a contradiction too.
+		spec, table := scan(t)
+		for i := range spec.Ops {
+			if spec.Ops[i].ID == "createAccount" {
+				spec.Ops[i].HasBody = false
+			}
+		}
+		problems := contract.DiffSpec(table, spec)
+		require.NotEmpty(t, problems)
+		require.Contains(t, problems[0], "createAccount")
+		require.Contains(t, problems[0], "requestBody")
 	})
 }
 

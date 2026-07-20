@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -125,17 +124,10 @@ func TestPlans(t *testing.T) {
 		got, err := client.Plans(t.Context())
 		require.NoError(t, err)
 
-		require.Len(t, got.Plans, 2)
-		first := got.Plans[0]
-		require.Equal(t, "Family Plan", first.Name)
-		require.Equal(t, ynab.NewMonth(2024, time.January), first.FirstMonth)
-		require.Equal(t, ynab.NewMonth(2026, time.August), first.LastMonth)
-		require.Equal(t, "MM/DD/YYYY", first.DateFormat.Format)
-		require.Equal(t, "USD", first.CurrencyFormat.ISOCode)
-		require.Equal(t, 2026, first.LastModifiedOn.Year())
-
-		require.NotNil(t, got.DefaultPlan)
-		require.Equal(t, first.ID, got.DefaultPlan.ID)
+		require.Equal(t, &ynab.PlanList{
+			Plans:       []ynab.PlanSummary{goldenFamilyPlanSummary(), goldenSideHustlePlanSummary()},
+			DefaultPlan: ptr(goldenFamilyPlanSummary()),
+		}, got)
 
 		require.Equal(t, "/plans", rec.URL.Path)
 		require.Empty(t, rec.URL.RawQuery, "no options, no parameters")
@@ -173,8 +165,19 @@ func TestPlanSettings(t *testing.T) {
 		client, rec := serveFixture(t, "plans/settings.json", 0)
 		got, err := client.Plan(ynab.PlanIDLastUsed).Settings(t.Context())
 		require.NoError(t, err)
-		require.Equal(t, "DD/MM/YYYY", got.DateFormat.Format)
-		require.Equal(t, "EUR", got.CurrencyFormat.ISOCode)
+		require.Equal(t, &ynab.PlanSettings{
+			DateFormat: &ynab.DateFormat{Format: "DD/MM/YYYY"},
+			CurrencyFormat: &ynab.CurrencyFormat{
+				ISOCode:          "EUR",
+				ExampleFormat:    "123.456,78",
+				DecimalDigits:    2,
+				DecimalSeparator: ",",
+				SymbolFirst:      false,
+				GroupSeparator:   ".",
+				CurrencySymbol:   "€",
+				DisplaySymbol:    true,
+			},
+		}, got)
 		require.Equal(t, "/plans/last-used/settings", rec.URL.Path)
 	})
 

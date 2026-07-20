@@ -108,9 +108,13 @@ func init() {
 func init() {
 	registerIntegrationCase(integrationCase{
 		name: "transactions reads",
+		// The ops list carries the scoped-list targets AND the helper
+		// reads the body performs to find real ids — the live runner
+		// checks recorded traffic against this set.
 		ops: []string{
 			"getTransactions", "getTransactionById", "getTransactionsByAccount",
 			"getTransactionsByCategory", "getTransactionsByPayee", "getTransactionsByMonth",
+			"getAccounts", "getCategories", "getPayees", "getPlanMonth",
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -125,27 +129,54 @@ func init() {
 				require.LessOrEqual(t, tx.Date.Compare(today), 0, "until_date must be honored server-side")
 			}
 
+			// Each scoped list must answer rows scoped to the argument, not
+			// merely answer (vacuously true on an empty list).
 			accounts, _, err := plan.Accounts.List(t.Context())
 			require.NoError(t, err)
 			require.NotEmpty(t, accounts)
-			_, _, err = plan.Transactions.ListByAccount(t.Context(), accounts[0].ID, since)
+			byAccount, _, err := plan.Transactions.ListByAccount(t.Context(), accounts[0].ID, since)
 			require.NoError(t, err)
+			for _, tx := range byAccount {
+				require.Equal(t, accounts[0].ID, tx.AccountID, "rows must be scoped to the requested account")
+			}
 
 			groups, _, err := plan.Categories.List(t.Context())
 			require.NoError(t, err)
 			require.NotEmpty(t, groups)
 			require.NotEmpty(t, groups[0].Categories)
-			_, _, err = plan.Transactions.ListByCategory(t.Context(), groups[0].Categories[0].ID, since)
+			categoryID := groups[0].Categories[0].ID
+			byCategory, _, err := plan.Transactions.ListByCategory(t.Context(), categoryID, since)
 			require.NoError(t, err)
+			for _, row := range byCategory {
+				if row.CategoryID != nil {
+					require.Equal(t, categoryID, *row.CategoryID, "rows must be scoped to the requested category")
+				}
+			}
 
 			payees, _, err := plan.Payees.List(t.Context())
 			require.NoError(t, err)
 			require.NotEmpty(t, payees)
-			_, _, err = plan.Transactions.ListByPayee(t.Context(), payees[0].ID, since)
+			byPayee, _, err := plan.Transactions.ListByPayee(t.Context(), payees[0].ID, since)
 			require.NoError(t, err)
+			for _, row := range byPayee {
+				if row.PayeeID != nil {
+					require.Equal(t, payees[0].ID, *row.PayeeID, "rows must be scoped to the requested payee")
+				}
+			}
 
-			_, _, err = plan.Transactions.ListByMonth(t.Context(), ynab.CurrentMonth(), ynab.TransactionFilter{})
+			// The month window is asserted against the SERVER's resolved
+			// current month — a client-side CurrentMonth resolution would
+			// race the server's user-timezone notion at month boundaries.
+			current, err := plan.Months.Get(t.Context(), ynab.CurrentMonth())
 			require.NoError(t, err)
+			byMonth, _, err := plan.Transactions.ListByMonth(t.Context(), current.Month, ynab.TransactionFilter{})
+			require.NoError(t, err)
+			first := current.Month.FirstDay()
+			next := current.Month.Next().FirstDay()
+			for _, tx := range byMonth {
+				require.GreaterOrEqual(t, tx.Date.Compare(first), 0, "rows must fall inside the requested month")
+				require.Negative(t, tx.Date.Compare(next), "rows must fall inside the requested month")
+			}
 
 			if len(txns) > 0 {
 				got, _, err := plan.Transactions.Get(t.Context(), txns[0].ID)
@@ -244,8 +275,19 @@ func TestTransactionsHybridLists(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payees/pa1/transactions", rec.URL.Path)
 		require.Zero(t, sk, "absent key decodes to zero — never advance a cursor from it")
-		require.Len(t, rows, 1)
+		require.Equal(t, []ynab.HybridTransaction{goldenHybridGroceryRow()}, rows)
 	})
+}
+
+func TestTransactionsListByAccount(t *testing.T) {
+	t.Parallel()
+
+	client, rec := serveFixture(t, "transactions/list.json", 0)
+	txns, _, err := client.Plan("p-1").Transactions.ListByAccount(t.Context(), "ac1", ynab.TransactionFilter{})
+	require.NoError(t, err)
+	require.Equal(t, "/plans/p-1/accounts/ac1/transactions", rec.URL.Path,
+		"the account id must reach the path — dropping it would list the whole plan")
+	require.Equal(t, []ynab.Transaction{goldenGroceryRunTransaction()}, txns)
 }
 
 func TestTransactionsListByMonth(t *testing.T) {
@@ -269,6 +311,8 @@ func TestTransactionsListByMonth(t *testing.T) {
 			t.Context(), ynab.Month{}, ynab.TransactionFilter{})
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
+		require.Equal(t, "Transactions.ListByMonth", argErr.Op)
+		require.Equal(t, "month", argErr.Field)
 		require.Empty(t, rec.Method, "no request must be sent")
 	})
 }

@@ -82,9 +82,11 @@ func init() {
 
 	registerIntegrationCase(integrationCase{
 		name: "money movements reads",
+		// getPlanMonth: the body resolves the server's current month once
+		// so the month-scoped asserts cannot race the server's timezone.
 		ops: []string{
 			"getMoneyMovements", "getMoneyMovementsByMonth",
-			"getMoneyMovementGroups", "getMoneyMovementGroupsByMonth",
+			"getMoneyMovementGroups", "getMoneyMovementGroupsByMonth", "getPlanMonth",
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -97,14 +99,27 @@ func init() {
 				require.NotEmpty(t, m.ID)
 			}
 
-			_, _, err = plan.MoneyMovements.ListByMonth(t.Context(), ynab.CurrentMonth())
+			// Month-scoped reads answer rows scoped to the SERVER-resolved
+			// current month (vacuously true on an empty list).
+			current, err := plan.Months.Get(t.Context(), ynab.CurrentMonth())
 			require.NoError(t, err)
+
+			byMonth, _, err := plan.MoneyMovements.ListByMonth(t.Context(), current.Month)
+			require.NoError(t, err)
+			for _, m := range byMonth {
+				if m.Month != nil {
+					require.Equal(t, current.Month, *m.Month, "rows must be scoped to the requested month")
+				}
+			}
 
 			_, _, err = plan.MoneyMovements.ListGroups(t.Context())
 			require.NoError(t, err)
 
-			_, _, err = plan.MoneyMovements.ListGroupsByMonth(t.Context(), ynab.CurrentMonth())
+			groupsByMonth, _, err := plan.MoneyMovements.ListGroupsByMonth(t.Context(), current.Month)
 			require.NoError(t, err)
+			for _, g := range groupsByMonth {
+				require.Equal(t, current.Month, g.Month, "groups must be scoped to the requested month")
+			}
 		},
 	})
 }
@@ -121,32 +136,33 @@ func TestMoneyMovements(t *testing.T) {
 		require.Equal(t, "/plans/p-1/money_movements", rec.URL.Path)
 		require.Empty(t, rec.URL.RawQuery, "the method signature accepts no options — no cursor can leak")
 		require.Equal(t, ynab.ServerKnowledge(5000), sk)
-		require.Len(t, movements, 2)
-
-		full := movements[0]
-		require.Equal(t, ynab.Milliunits(250000), full.Amount)
-		require.Equal(t, ynab.NewMonth(2026, time.July), *full.Month)
-		require.Equal(t, "topping up groceries", *full.Note)
-
-		bare := movements[1]
-		require.Nil(t, bare.Month)
-		require.Nil(t, bare.MovedAt)
-		require.Nil(t, bare.FromCategoryID)
-		require.Nil(t, bare.ToCategoryID)
+		require.Equal(t, []ynab.MoneyMovement{
+			goldenTopUpMovement(),
+			{
+				ID:              "mm333333-3333-3333-3333-333333333333",
+				Amount:          0,
+				AmountFormatted: "$0.00",
+				AmountCurrency:  0,
+			},
+		}, movements)
 	})
 
 	t.Run("month variants hit the month paths", func(t *testing.T) {
 		t.Parallel()
 
 		client, rec := serveFixture(t, "money_movements/by_month.json", 0)
-		_, _, err := client.Plan("p-1").MoneyMovements.ListByMonth(t.Context(), ynab.NewMonth(2026, time.July))
+		movements, sk, err := client.Plan("p-1").MoneyMovements.ListByMonth(t.Context(), ynab.NewMonth(2026, time.July))
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/months/2026-07-01/money_movements", rec.URL.Path)
+		require.Equal(t, ynab.ServerKnowledge(5001), sk)
+		require.Equal(t, []ynab.MoneyMovement{goldenTopUpMovement()}, movements)
 
 		client2, rec2 := serveFixture(t, "money_movements/groups_by_month.json", 0)
-		_, _, err = client2.Plan("p-1").MoneyMovements.ListGroupsByMonth(t.Context(), ynab.CurrentMonth())
+		groups, sk2, err := client2.Plan("p-1").MoneyMovements.ListGroupsByMonth(t.Context(), ynab.CurrentMonth())
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/months/current/money_movement_groups", rec2.URL.Path)
+		require.Equal(t, ynab.ServerKnowledge(5003), sk2)
+		require.Equal(t, []ynab.MoneyMovementGroup{goldenRebalanceGroup()}, groups)
 	})
 
 	t.Run("groups decode", func(t *testing.T) {
@@ -156,9 +172,14 @@ func TestMoneyMovements(t *testing.T) {
 		groups, sk, err := client.Plan("p-1").MoneyMovements.ListGroups(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, ynab.ServerKnowledge(5002), sk)
-		require.Len(t, groups, 2)
-		require.Equal(t, "monthly rebalance", *groups[0].Note)
-		require.Nil(t, groups[1].Note)
+		require.Equal(t, []ynab.MoneyMovementGroup{
+			goldenRebalanceGroup(),
+			{
+				ID:             "mg222222-2222-2222-2222-222222222222",
+				GroupCreatedAt: time.Date(2026, time.July, 10, 9, 29, 0, 0, time.UTC),
+				Month:          ynab.NewMonth(2026, time.July),
+			},
+		}, groups)
 	})
 
 	t.Run("extreme numerics decode", func(t *testing.T) {
@@ -174,9 +195,13 @@ func TestMoneyMovements(t *testing.T) {
 		_, _, err := client.Plan("p-1").MoneyMovements.ListByMonth(t.Context(), ynab.Month{})
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
+		require.Equal(t, "MoneyMovements.ListByMonth", argErr.Op)
+		require.Equal(t, "month", argErr.Field)
 
 		_, _, err = client.Plan("p-1").MoneyMovements.ListGroupsByMonth(t.Context(), ynab.Month{})
 		require.ErrorAs(t, err, &argErr)
+		require.Equal(t, "MoneyMovements.ListGroupsByMonth", argErr.Op)
+		require.Equal(t, "month", argErr.Field)
 		require.Empty(t, rec.Method, "no request must be sent for either call")
 	})
 }

@@ -129,10 +129,11 @@ func init() {
 func init() {
 	registerIntegrationCase(integrationCase{
 		name: "scheduled transactions lifecycle",
+		// getAccounts: the body lists accounts to anchor the created row.
 		ops: []string{
 			"getScheduledTransactions", "createScheduledTransaction",
 			"getScheduledTransactionById", "updateScheduledTransaction",
-			"deleteScheduledTransaction",
+			"deleteScheduledTransaction", "getAccounts",
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -247,21 +248,61 @@ func TestScheduledList(t *testing.T) {
 		require.Equal(t, "/plans/p-1/scheduled_transactions", rec.URL.Path)
 		require.Equal(t, "6900", rec.URL.Query().Get("last_knowledge_of_server"))
 		require.Equal(t, ynab.ServerKnowledge(7000), sk)
-		require.Len(t, scheduled, 3)
 
-		rent := scheduled[0]
-		require.Equal(t, ynab.FrequencyMonthly, rent.Frequency)
-		require.True(t, rent.Frequency.Valid())
-		require.Equal(t, ynab.NewDate(2026, time.August, 1), rent.DateNext)
-
-		split := scheduled[1]
-		require.Equal(t, "Split", *split.CategoryName)
-		require.Len(t, split.Subtransactions, 2)
-		require.Equal(t, split.ID, split.Subtransactions[0].ScheduledTransactionID)
-
-		bare := scheduled[2]
-		require.Nil(t, bare.Memo)
-		require.Nil(t, bare.PayeeID)
+		// The complete expected value: the rent row, the split with its
+		// two legs, and the all-null bare row, verbatim from the fixture.
+		split := ynab.ScheduledTransaction{
+			ScheduledTransactionBase: ynab.ScheduledTransactionBase{
+				ID:        "sc222222-2222-2222-2222-222222222222",
+				DateFirst: ynab.NewDate(2026, time.August, 1),
+				DateNext:  ynab.NewDate(2026, time.August, 1),
+				Frequency: ynab.FrequencyMonthly,
+				Amount:    -1500000,
+				Memo:      ptr("rent"),
+				AccountID: "ac111111-1111-1111-1111-111111111111",
+				PayeeID:   ptr("pa555555-5555-5555-5555-555555555555"),
+				Deleted:   false,
+			},
+			AmountFormatted: "-$1,500.00",
+			AmountCurrency:  -1500,
+			AccountName:     "Checking",
+			PayeeName:       ptr("Landlord"),
+			CategoryName:    ptr("Split"),
+			Subtransactions: []ynab.ScheduledSubtransaction{
+				{
+					ScheduledSubtransactionBase: goldenScheduledRentLegBase(),
+					AmountFormatted:             "-$750.00",
+					AmountCurrency:              -750,
+				},
+				{
+					ScheduledSubtransactionBase: ynab.ScheduledSubtransactionBase{
+						ID:                     "ss222222-2222-2222-2222-222222222222",
+						ScheduledTransactionID: "sc222222-2222-2222-2222-222222222222",
+						Amount:                 -750000,
+						Deleted:                false,
+					},
+					AmountFormatted: "-$750.00",
+					AmountCurrency:  -750,
+				},
+			},
+		}
+		bare := ynab.ScheduledTransaction{
+			ScheduledTransactionBase: ynab.ScheduledTransactionBase{
+				ID:        "sc333333-3333-3333-3333-333333333333",
+				DateFirst: ynab.NewDate(2026, time.August, 1),
+				DateNext:  ynab.NewDate(2026, time.August, 1),
+				Frequency: ynab.FrequencyNever,
+				Amount:    -1500000,
+				AccountID: "ac111111-1111-1111-1111-111111111111",
+				Deleted:   false,
+			},
+			AmountFormatted: "-$1,500.00",
+			AmountCurrency:  -1500,
+			AccountName:     "Checking",
+			Subtransactions: []ynab.ScheduledSubtransaction{},
+		}
+		require.Equal(t, []ynab.ScheduledTransaction{goldenRentScheduled(), split, bare}, scheduled)
+		require.True(t, scheduled[0].Frequency.Valid())
 	})
 
 	t.Run("delta with tombstone", func(t *testing.T) {
@@ -303,6 +344,16 @@ func TestScheduledList(t *testing.T) {
 		_, err = client.Plan("p-1").Scheduled.Get(t.Context(), "sc-missing")
 		require.ErrorIs(t, err, ynab.ErrResourceNotFound)
 	})
+}
+
+func TestScheduledGet(t *testing.T) {
+	t.Parallel()
+
+	client, rec := serveFixture(t, "scheduled/get.json", 0)
+	got, err := client.Plan("p-1").Scheduled.Get(t.Context(), "sc111111-1111-1111-1111-111111111111")
+	require.NoError(t, err)
+	require.Equal(t, "/plans/p-1/scheduled_transactions/sc111111-1111-1111-1111-111111111111", rec.URL.Path)
+	require.Equal(t, ptr(goldenRentScheduled()), got)
 }
 
 func TestScheduledExtremeNumerics(t *testing.T) {

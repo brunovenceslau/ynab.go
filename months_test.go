@@ -93,18 +93,15 @@ func TestMonthsList(t *testing.T) {
 		require.Equal(t, "/plans/p-1/months", rec.URL.Path)
 		require.Equal(t, "2900", rec.URL.Query().Get("last_knowledge_of_server"))
 		require.Equal(t, ynab.ServerKnowledge(3000), sk)
-		require.Len(t, months, 2)
 
-		july := months[0]
-		require.Equal(t, ynab.NewMonth(2026, time.July), july.Month)
-		require.Equal(t, ynab.Milliunits(5000000), july.Income)
-		require.Equal(t, "kickoff", *july.Note)
-		require.Equal(t, 24, *july.AgeOfMoney)
-		require.Equal(t, "2026-07-01", july.SyncID())
-
-		june := months[1]
-		require.Nil(t, june.Note)
-		require.Nil(t, june.AgeOfMoney)
+		// The complete expected value: June differs from July only where
+		// the fixture says so (nil note, nil age of money, month).
+		june := goldenJulyMonthSummary()
+		june.Month = ynab.NewMonth(2026, time.June)
+		june.Note = nil
+		june.AgeOfMoney = nil
+		require.Equal(t, []ynab.MonthSummary{goldenJulyMonthSummary(), june}, months)
+		require.Equal(t, "2026-07-01", months[0].SyncID())
 	})
 
 	t.Run("delta with tombstone", func(t *testing.T) {
@@ -143,9 +140,10 @@ func TestMonthsGet(t *testing.T) {
 		got, err := client.Plan("p-1").Months.Get(t.Context(), ynab.NewMonth(2026, time.July))
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/months/2026-07-01", rec.URL.Path)
-		require.Equal(t, ynab.NewMonth(2026, time.July), got.Month)
-		require.Len(t, got.Categories, 1)
-		require.Equal(t, "Groceries", got.Categories[0].Name)
+		require.Equal(t, &ynab.MonthDetail{
+			MonthSummary: goldenJulyMonthSummary(),
+			Categories:   []ynab.Category{goldenGroceriesCategory()},
+		}, got)
 	})
 
 	t.Run("current month hits months current", func(t *testing.T) {
@@ -165,6 +163,7 @@ func TestMonthsGet(t *testing.T) {
 
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
+		require.Equal(t, "Months.Get", argErr.Op)
 		require.Equal(t, "month", argErr.Field)
 		require.Empty(t, rec.Method, "no request must be sent")
 	})

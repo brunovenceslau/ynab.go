@@ -128,6 +128,21 @@ func TestContractWrites(t *testing.T) {
 	}
 	require.Empty(t, contract.DiffWriteCoverage(contract.Table(), contract.TableIDs(), infos))
 
+	// Each case's hand-written path must instantiate its operation's
+	// spec-diffed table template — the trustworthy third source. A typo
+	// copied from the implementation into the case (so recorded and
+	// expected agree) fails here, naming the operation.
+	rowByID := map[string]contract.Operation{}
+	for _, row := range contract.Table() {
+		rowByID[row.ID] = row
+	}
+	for _, wc := range cases {
+		row, ok := rowByID[wc.op]
+		require.True(t, ok, "write case %s names no table operation", wc.op)
+		require.Regexp(t, contract.PathRegexp(row.Path), wc.path,
+			"write case %s: path must instantiate the table template %s", wc.op, row.Path)
+	}
+
 	for _, wc := range cases {
 		name := wc.op
 		if wc.variant != "" {

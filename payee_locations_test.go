@@ -43,7 +43,9 @@ func init() {
 
 	registerIntegrationCase(integrationCase{
 		name: "payee locations reads",
-		ops:  []string{"getPayeeLocations", "getPayeeLocationById", "getPayeeLocationsByPayee"},
+		// getPayees: the empty-plan branch lists payees to drive the
+		// by-payee call against a real id.
+		ops: []string{"getPayeeLocations", "getPayeeLocationById", "getPayeeLocationsByPayee", "getPayees"},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
 
@@ -94,9 +96,7 @@ func TestPayeeLocations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payee_locations", rec.URL.Path)
 		require.Empty(t, rec.URL.RawQuery, "no delta cursor exists for payee locations")
-		require.Len(t, locations, 2)
-		require.Equal(t, "-23.5505199", locations[0].Latitude)
-		require.Equal(t, "-46.6333094", locations[0].Longitude)
+		require.Equal(t, goldenPayeeLocations(), locations)
 	})
 
 	t.Run("get by id", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestPayeeLocations(t *testing.T) {
 		got, err := client.Plan("p-1").PayeeLocations.Get(t.Context(), "pl111111-1111-1111-1111-111111111111")
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payee_locations/pl111111-1111-1111-1111-111111111111", rec.URL.Path)
-		require.Equal(t, "pa111111-1111-1111-1111-111111111111", got.PayeeID)
+		require.Equal(t, ptr(goldenPayeeLocations()[0]), got)
 	})
 
 	t.Run("list by payee", func(t *testing.T) {
@@ -117,6 +117,6 @@ func TestPayeeLocations(t *testing.T) {
 			t.Context(), "pa111111-1111-1111-1111-111111111111")
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payees/pa111111-1111-1111-1111-111111111111/payee_locations", rec.URL.Path)
-		require.Len(t, locations, 1)
+		require.Equal(t, goldenPayeeLocations()[:1], locations)
 	})
 }

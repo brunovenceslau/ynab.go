@@ -117,24 +117,49 @@ func TestAccountsList(t *testing.T) {
 		accounts, sk, err := client.Plan("p-1").Accounts.List(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, ynab.ServerKnowledge(1473), sk)
-		require.Len(t, accounts, 2)
 		require.Equal(t, "/plans/p-1/accounts", rec.URL.Path)
 
-		checking := accounts[0]
-		require.Equal(t, ynab.AccountTypeChecking, checking.Type)
-		require.True(t, checking.Type.Valid())
-		require.Equal(t, ynab.Milliunits(123930), checking.Balance)
-		require.Equal(t, "primary", *checking.Note)
-		require.Equal(t, "$123.93", checking.BalanceFormatted)
-		require.InEpsilon(t, 123.93, checking.BalanceCurrency, 1e-9)
-
-		mortgage := accounts[1]
-		require.Equal(t, ynab.LoanAccountPeriodicValue{
-			"2024-01-01": 3500,
-			"2025-06-01": 4250,
-		}, mortgage.DebtInterestRates)
-		require.Nil(t, mortgage.Note)
-		require.Nil(t, mortgage.LastReconciledAt)
+		// The complete expected value, transcribed from the fixture: every
+		// field is load-bearing, so a swapped json tag cannot survive.
+		want := []ynab.Account{
+			{
+				AccountBase:               goldenCheckingAccountBase(),
+				BalanceFormatted:          "$123.93",
+				BalanceCurrency:           123.93,
+				ClearedBalanceFormatted:   "$100.00",
+				ClearedBalanceCurrency:    100,
+				UnclearedBalanceFormatted: "$23.93",
+				UnclearedBalanceCurrency:  23.93,
+			},
+			{
+				AccountBase: ynab.AccountBase{
+					ID:               "ac222222-2222-2222-2222-222222222222",
+					Name:             "Mortgage",
+					Type:             ynab.AccountTypeMortgage,
+					OnBudget:         false,
+					Closed:           false,
+					Balance:          -395032000,
+					ClearedBalance:   -395032000,
+					UnclearedBalance: 0,
+					TransferPayeeID:  ptr("pa222222-2222-2222-2222-222222222222"),
+					DebtInterestRates: ynab.LoanAccountPeriodicValue{
+						"2024-01-01": 3500,
+						"2025-06-01": 4250,
+					},
+					DebtMinimumPayments: ynab.LoanAccountPeriodicValue{"2024-01-01": 1500000},
+					DebtEscrowAmounts:   ynab.LoanAccountPeriodicValue{"2024-01-01": 250000},
+					Deleted:             false,
+				},
+				BalanceFormatted:          "-$395,032.00",
+				BalanceCurrency:           -395032,
+				ClearedBalanceFormatted:   "-$395,032.00",
+				ClearedBalanceCurrency:    -395032,
+				UnclearedBalanceFormatted: "$0.00",
+				UnclearedBalanceCurrency:  0,
+			},
+		}
+		require.Equal(t, want, accounts)
+		require.True(t, accounts[0].Type.Valid())
 	})
 
 	t.Run("delta with tombstone", func(t *testing.T) {

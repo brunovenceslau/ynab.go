@@ -17,6 +17,9 @@ type SpecOp struct {
 	Method      string
 	Path        string
 	QueryParams []string
+	// HasBody reports whether the operation declares a requestBody —
+	// the wire truth DiffSpec checks bodilessOps against.
+	HasBody bool
 }
 
 // Spec is the scanner's view of the vendored openapi.yaml.
@@ -37,6 +40,7 @@ var (
 	reParamName   = regexp.MustCompile(`^\s+- name:\s*(\S+)`)
 	reParamIn     = regexp.MustCompile(`^\s+in:\s*(\S+)`)
 	reVersion     = regexp.MustCompile(`^  version:\s*(\S+)`)
+	reRequestBody = regexp.MustCompile(`^      requestBody:\s*$`)
 	reResponses   = regexp.MustCompile(`^      responses:\s*$`)
 )
 
@@ -67,16 +71,8 @@ func ScanSpec(path string) (*Spec, error) {
 			curOp = &spec.Ops[len(spec.Ops)-1]
 		case spec.Version == "" && reVersion.MatchString(line):
 			spec.Version = reVersion.FindStringSubmatch(line)[1]
-		case reResponses.MatchString(line):
-			// Parameters precede responses in every operation; closing the
-			// op here keeps name/in-shaped lines inside response schemas
-			// from being misattributed to it.
-			curOp = nil
-		case curOp != nil && reParamName.MatchString(line):
-			name := reParamName.FindStringSubmatch(line)[1]
-			if paramIsQuery(lines, i+1) {
-				curOp.QueryParams = append(curOp.QueryParams, name)
-			}
+		default:
+			curOp = scanOpLine(curOp, lines, i)
 		}
 	}
 
@@ -84,6 +80,31 @@ func ScanSpec(path string) (*Spec, error) {
 		return nil, fmt.Errorf("contract: no operations found in %s — scanner or spec layout broken", path)
 	}
 	return spec, nil
+}
+
+// scanOpLine handles the lines belonging to an open operation:
+// requestBody presence, query parameters, and the responses line that
+// closes the op — parameters precede responses in every operation, so
+// closing there keeps name/in-shaped lines inside response schemas from
+// being misattributed.
+func scanOpLine(curOp *SpecOp, lines []string, i int) *SpecOp {
+	line := lines[i]
+	switch {
+	case reResponses.MatchString(line):
+		return nil
+	case curOp == nil:
+		return nil
+	case reRequestBody.MatchString(line):
+		// requestBody sits between operationId and responses at the
+		// operation-child indent, so the open op owns it.
+		curOp.HasBody = true
+	case reParamName.MatchString(line):
+		name := reParamName.FindStringSubmatch(line)[1]
+		if paramIsQuery(lines, i+1) {
+			curOp.QueryParams = append(curOp.QueryParams, name)
+		}
+	}
+	return curOp
 }
 
 // paramIsQuery looks at the lines following a "- name:" for the parameter's

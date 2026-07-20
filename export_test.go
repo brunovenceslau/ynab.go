@@ -12,6 +12,14 @@ import "net/url"
 // DecodeWireError exposes the injected transport error decoder to tests.
 var DecodeWireError = decodeWireError
 
+// SentinelByID and SentinelByStatus expose the taxonomy tables so the
+// sentinel-consistency test can cross-check the three encodings (map
+// keys vs message suffixes).
+var (
+	SentinelByID     = sentinelByID
+	SentinelByStatus = sentinelByStatus
+)
+
 // ApplyListOptions exposes ListOption folding so tests can assert the
 // encoded query parameters.
 func ApplyListOptions(q url.Values, opts ...ListOption) url.Values {

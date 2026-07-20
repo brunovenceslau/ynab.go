@@ -12,23 +12,39 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
+	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
-// countingTransport counts requests and remembers the server's last
-// rate-limit header, so the suite can prove its own budget claims.
+// countingTransport counts requests, remembers the server's last
+// rate-limit header, and records every (method, path) pair so the
+// runner can attribute live traffic to the case that produced it.
 type countingTransport struct {
 	calls     atomic.Int64
 	rateLimit atomic.Value // string, e.g. "36/200"
+
+	mu   sync.Mutex
+	seen []recordedCall
+}
+
+// recordedCall is one live request as the transport saw it.
+type recordedCall struct {
+	method string
+	path   string // includes the client's /v1 base-path prefix
 }
 
 func (ct *countingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ct.calls.Add(1)
+	ct.mu.Lock()
+	ct.seen = append(ct.seen, recordedCall{method: req.Method, path: req.URL.Path})
+	ct.mu.Unlock()
 	resp, err := http.DefaultTransport.RoundTrip(req)
 	if err == nil {
 		if v := resp.Header.Get("X-Rate-Limit"); v != "" {
@@ -36,6 +52,26 @@ func (ct *countingTransport) RoundTrip(req *http.Request) (*http.Response, error
 		}
 	}
 	return resp, err
+}
+
+// recorded returns a snapshot of every call so far.
+func (ct *countingTransport) recorded() []recordedCall {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	return slices.Clone(ct.seen)
+}
+
+// matchOperation maps a recorded live request to its operationId by
+// matching against the contract table's path templates, after stripping
+// the client's /v1 base-path prefix.
+func matchOperation(rc recordedCall) (string, bool) {
+	path := strings.TrimPrefix(rc.path, "/v1")
+	for _, op := range contract.Table() {
+		if op.Method == rc.method && contract.PathRegexp(op.Path).MatchString(path) {
+			return op.ID, true
+		}
+	}
+	return "", false
 }
 
 // TestLiveIntegration runs every registered case against the real API,
@@ -77,6 +113,27 @@ func TestLiveIntegration(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// The suite is sequential, so a before/after window attributes
+			// every recorded request to this case. The check runs from a
+			// Cleanup registered FIRST: cleanups run LIFO, so it sees the
+			// case's own cleanup traffic (deletes, restores) too. Every
+			// recorded operation must be one the case declares — set
+			// semantics, so retries cannot double-count.
+			before := len(transport.recorded())
+			t.Cleanup(func() {
+				declared := map[string]bool{}
+				for _, op := range c.ops {
+					declared[op] = true
+				}
+				for _, rc := range transport.recorded()[before:] {
+					opID, ok := matchOperation(rc)
+					require.True(t, ok, "case %q sent %s %s, which matches no contract operation",
+						c.name, rc.method, rc.path)
+					require.True(t, declared[opID],
+						"case %q hit %s but does not declare it — its ops list has drifted from its body",
+						c.name, opID)
+				}
+			})
 			c.run(t, env) // no t.Parallel: sequential by doctrine
 		})
 	}

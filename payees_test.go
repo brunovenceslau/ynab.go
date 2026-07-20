@@ -114,9 +114,7 @@ func TestPayeesList(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payees", rec.URL.Path)
 		require.Equal(t, ynab.ServerKnowledge(4000), sk)
-		require.Len(t, payees, 2)
-		require.Nil(t, payees[0].TransferAccountID)
-		require.Equal(t, "ac222222-2222-2222-2222-222222222222", *payees[1].TransferAccountID)
+		require.Equal(t, goldenPayees(), payees)
 	})
 
 	t.Run("delta with tombstone", func(t *testing.T) {
@@ -133,6 +131,16 @@ func TestPayeesList(t *testing.T) {
 		local := map[string]ynab.Payee{"pa111111-1111-1111-1111-111111111111": {}}
 		require.Empty(t, ynab.MergeByID(local, payees))
 	})
+}
+
+func TestPayeesGet(t *testing.T) {
+	t.Parallel()
+
+	client, rec := serveFixture(t, "payees/get.json", 0)
+	got, err := client.Plan("p-1").Payees.Get(t.Context(), "pa111111-1111-1111-1111-111111111111")
+	require.NoError(t, err)
+	require.Equal(t, "/plans/p-1/payees/pa111111-1111-1111-1111-111111111111", rec.URL.Path)
+	require.Equal(t, ptr(goldenPayees()[0]), got)
 }
 
 func TestPayeesCreate(t *testing.T) {
