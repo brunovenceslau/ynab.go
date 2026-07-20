@@ -154,6 +154,16 @@ func maxLenError(op, field string, limit int) *ArgumentError {
 	return &ArgumentError{Op: op, Field: field, Reason: fmt.Sprintf("must be at most %d characters", limit)}
 }
 
+// errFirst returns the first non-nil error.
+func errFirst(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // checkRuneMax validates a spec-declared maxLength bound in characters
 // (code points), the unit JSON Schema's maxLength counts.
 func checkRuneMax(op, field, v string, limit int) error {

@@ -411,16 +411,6 @@ func (s TransactionSpec) validate(op string) error {
 	return nil
 }
 
-// errFirst returns the first non-nil error.
-func errFirst(errs ...error) error {
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // validate applies the update payload's spec-stated bounds — the same
 // maxLengths the create spec declares.
 func (u TransactionUpdate) validate(op string) error {
