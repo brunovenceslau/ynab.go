@@ -45,26 +45,26 @@ func (t AccountType) Valid() bool {
 	}
 }
 
-// SaveAccountType is an account type accepted by Create — deliberately a
+// AccountSpecType is an account type accepted by Create — deliberately a
 // distinct type from AccountType: the seven loan/debt read types cannot
 // compile into a create call.
-type SaveAccountType string
+type AccountSpecType string
 
 // The six account types the API accepts on creation.
 const (
-	SaveAccountTypeChecking       SaveAccountType = "checking"
-	SaveAccountTypeSavings        SaveAccountType = "savings"
-	SaveAccountTypeCash           SaveAccountType = "cash"
-	SaveAccountTypeCreditCard     SaveAccountType = "creditCard"
-	SaveAccountTypeOtherAsset     SaveAccountType = "otherAsset"
-	SaveAccountTypeOtherLiability SaveAccountType = "otherLiability"
+	AccountSpecTypeChecking       AccountSpecType = "checking"
+	AccountSpecTypeSavings        AccountSpecType = "savings"
+	AccountSpecTypeCash           AccountSpecType = "cash"
+	AccountSpecTypeCreditCard     AccountSpecType = "creditCard"
+	AccountSpecTypeOtherAsset     AccountSpecType = "otherAsset"
+	AccountSpecTypeOtherLiability AccountSpecType = "otherLiability"
 )
 
 // Valid reports whether t is one of the documented create values.
-func (t SaveAccountType) Valid() bool {
+func (t AccountSpecType) Valid() bool {
 	switch t {
-	case SaveAccountTypeChecking, SaveAccountTypeSavings, SaveAccountTypeCash,
-		SaveAccountTypeCreditCard, SaveAccountTypeOtherAsset, SaveAccountTypeOtherLiability:
+	case AccountSpecTypeChecking, AccountSpecTypeSavings, AccountSpecTypeCash,
+		AccountSpecTypeCreditCard, AccountSpecTypeOtherAsset, AccountSpecTypeOtherLiability:
 		return true
 	default:
 		return false
@@ -124,7 +124,7 @@ func (a AccountBase) IsDeleted() bool { return a.Deleted }
 // are required by the API.
 type AccountSpec struct {
 	Name    string          `json:"name"`
-	Type    SaveAccountType `json:"type"`
+	Type    AccountSpecType `json:"type"`
 	Balance Milliunits      `json:"balance"`
 }
 

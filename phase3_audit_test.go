@@ -94,15 +94,15 @@ func ptr[T any](v T) *T { return &v }
 func TestEnumValidTables(t *testing.T) {
 	t.Parallel()
 
-	t.Run("SaveAccountType", func(t *testing.T) {
+	t.Run("AccountSpecType", func(t *testing.T) {
 		t.Parallel()
-		for _, v := range []ynab.SaveAccountType{
-			ynab.SaveAccountTypeChecking, ynab.SaveAccountTypeSavings, ynab.SaveAccountTypeCash,
-			ynab.SaveAccountTypeCreditCard, ynab.SaveAccountTypeOtherAsset, ynab.SaveAccountTypeOtherLiability,
+		for _, v := range []ynab.AccountSpecType{
+			ynab.AccountSpecTypeChecking, ynab.AccountSpecTypeSavings, ynab.AccountSpecTypeCash,
+			ynab.AccountSpecTypeCreditCard, ynab.AccountSpecTypeOtherAsset, ynab.AccountSpecTypeOtherLiability,
 		} {
 			require.True(t, v.Valid(), v)
 		}
-		require.False(t, ynab.SaveAccountType("mortgage").Valid(), "loan types cannot be created")
+		require.False(t, ynab.AccountSpecType("mortgage").Valid(), "loan types cannot be created")
 	})
 
 	t.Run("GoalType and GoalFrequency", func(t *testing.T) {

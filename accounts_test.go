@@ -71,12 +71,12 @@ func init() {
 		body:   `{"account":{"name":"Vacation Fund","type":"savings","balance":0}}`,
 		call: func(t *testing.T, c *ynab.Client) {
 			t.Helper()
-			spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.SaveAccountTypeSavings, Balance: 0}
+			spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.AccountSpecTypeSavings, Balance: 0}
 			_, err := c.Plan("p-1").Accounts.Create(t.Context(), spec)
 			require.NoError(t, err)
 		},
 	})
-	registerWriteModel(ynab.AccountSpec{Name: "n", Type: ynab.SaveAccountTypeChecking, Balance: 0})
+	registerWriteModel(ynab.AccountSpec{Name: "n", Type: ynab.AccountSpecTypeChecking, Balance: 0})
 
 	registerIntegrationCase(integrationCase{
 		name: "accounts read and create",
@@ -98,7 +98,7 @@ func init() {
 			name := fmt.Sprintf("itest-account-%d", time.Now().UnixNano())
 			created, err := plan.Accounts.Create(t.Context(), ynab.AccountSpec{
 				Name:    name,
-				Type:    ynab.SaveAccountTypeChecking,
+				Type:    ynab.AccountSpecTypeChecking,
 				Balance: 0,
 			})
 			require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestAccountsCreate(t *testing.T) {
 	t.Parallel()
 
 	client, rec := serveFixture(t, "accounts/create.json", http.StatusCreated)
-	spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.SaveAccountTypeSavings, Balance: 0}
+	spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.AccountSpecTypeSavings, Balance: 0}
 	created, err := client.Plan("p-1").Accounts.Create(t.Context(), spec)
 	require.NoError(t, err)
 	require.Equal(t, http.MethodPost, rec.Method)

@@ -43,7 +43,7 @@ func writeOpReadCases() []readCase {
 			op: "createAccount", fixture: "accounts/create.json", model: ynab.Account{},
 			call: func(t *testing.T, c *ynab.Client) (any, error) {
 				t.Helper()
-				spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.SaveAccountTypeSavings}
+				spec := ynab.AccountSpec{Name: "Vacation Fund", Type: ynab.AccountSpecTypeSavings}
 				return c.Plan("p-1").Accounts.Create(t.Context(), spec)
 			},
 		},

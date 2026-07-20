@@ -160,7 +160,7 @@ func TestContractHeadersDetectsDependence(t *testing.T) {
 		"a header-dependent decode must diverge between the two runs")
 }
 
-// TestContractHeaders is gate G4 over the registry: read-side
+// TestContractReads is gate G4 over the registry: read-side
 // completeness against the G1 implemented registry, then every case run
 // twice.
 func TestContractReads(t *testing.T) {
