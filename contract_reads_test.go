@@ -163,7 +163,7 @@ func TestContractHeadersDetectsDependence(t *testing.T) {
 // TestContractHeaders is gate G4 over the registry: read-side
 // completeness against the G1 implemented registry, then every case run
 // twice.
-func TestContractHeaders(t *testing.T) {
+func TestContractReads(t *testing.T) {
 	t.Parallel()
 
 	readRegistryMu.Lock()
