@@ -84,7 +84,7 @@ func TestContractStructs(t *testing.T) {
 // omits a struct); Optional fields must carry omitzero.
 func structLintProblems(roots []reflect.Type) []string {
 	var problems []string
-	seen := map[reflect.Type]bool{}
+	seen := map[reflect.Type]struct{}{}
 	var walk func(t reflect.Type)
 	walk = func(t reflect.Type) {
 		switch t.Kind() {
@@ -97,10 +97,10 @@ func structLintProblems(roots []reflect.Type) []string {
 		}
 		// Module types and anonymous structs (PkgPath "") are in scope;
 		// stdlib and third-party types are not.
-		if seen[t] || (t.PkgPath() != "" && !strings.HasPrefix(t.PkgPath(), "pkg.venceslau.dev/ynab")) {
+		if _, done := seen[t]; done || (t.PkgPath() != "" && !strings.HasPrefix(t.PkgPath(), "pkg.venceslau.dev/ynab")) {
 			return
 		}
-		seen[t] = true
+		seen[t] = struct{}{}
 		if isOptionalType(t) {
 			// Optional's own internals are not a wire struct, but the
 			// wrapped type is: walk what the value field carries.

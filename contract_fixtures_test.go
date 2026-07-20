@@ -57,11 +57,11 @@ func TestContractNullFixtures(t *testing.T) {
 	nullFixturesMu.Unlock()
 
 	loaded := make([]loadedNullFixture, 0, len(entries))
-	registered := map[reflect.Type]bool{}
+	registered := map[reflect.Type]struct{}{}
 	for _, e := range entries {
 		raw := modelDocument(t, loadFixture(t, e.fixture), e.wrapper)
 		loaded = append(loaded, loadedNullFixture{model: e.model, raw: raw, name: e.fixture})
-		registered[normalizeModelType(reflect.TypeOf(e.model))] = true
+		registered[normalizeModelType(reflect.TypeOf(e.model))] = struct{}{}
 	}
 	require.Empty(t, nullCoverageProblems(loaded))
 
@@ -79,7 +79,7 @@ func TestContractNullFixtures(t *testing.T) {
 	for _, m := range reads {
 		mt := normalizeModelType(reflect.TypeOf(m))
 		if len(pointerFieldPaths(mt)) > 0 {
-			require.True(t, registered[mt],
+			require.Contains(t, registered, mt,
 				"%s has nullable fields but no registered null fixture", mt)
 		}
 	}
@@ -187,7 +187,7 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 // another.
 func pointerFieldPaths(t reflect.Type) []string {
 	var paths []string
-	seen := map[reflect.Type]bool{}
+	seen := map[reflect.Type]struct{}{}
 	var walk func(t reflect.Type, prefix string)
 	walk = func(t reflect.Type, prefix string) {
 		switch t.Kind() {
@@ -198,10 +198,10 @@ func pointerFieldPaths(t reflect.Type) []string {
 		default:
 			return
 		}
-		if seen[t] || (t.PkgPath() != "" && !strings.HasPrefix(t.PkgPath(), "pkg.venceslau.dev/ynab")) {
+		if _, done := seen[t]; done || (t.PkgPath() != "" && !strings.HasPrefix(t.PkgPath(), "pkg.venceslau.dev/ynab")) {
 			return
 		}
-		seen[t] = true
+		seen[t] = struct{}{}
 		for i := range t.NumField() {
 			f := t.Field(i)
 			if !f.IsExported() {

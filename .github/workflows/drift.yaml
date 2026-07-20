@@ -1,7 +1,9 @@
-# G6 — weekly spec-drift watch: fetch the live OpenAPI spec, diff against
-# the vendored pin. On drift the job FAILS (red badge) and uploads the
-# diff as an artifact; re-vendoring is a deliberate human change, never
-# automated (and this repository's workflow opens no automatic PRs).
+# G6 — the weekly drift watches. Spec: fetch the live OpenAPI spec and
+# diff against the vendored pin; on drift the job FAILS (red badge) and
+# uploads the diff as an artifact. Go: fail when go.dev lists a newer
+# stable than the workflows pin. Both alarms are red-only — re-vendoring
+# and toolchain bumps are deliberate human changes, never automated (and
+# this repository's workflow opens no automatic PRs).
 # Actions are SHA-pinned (tag in the comment); bump deliberately.
 name: spec-drift
 
@@ -41,3 +43,14 @@ jobs:
         with:
           name: spec-diff
           path: spec.diff
+
+  go-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: make go-latest-check
+        run: make go-latest-check

@@ -8,7 +8,7 @@ GOVULNCHECK := CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCH
 ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
-	check-version-selftest local-ci
+	check-version-selftest local-ci go-latest-check
 
 test:
 	go test -race -shuffle=on ./...
@@ -67,3 +67,23 @@ check-version-selftest:
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
 local-ci: lint test contract vulncheck tidy-check actionlint check-version-selftest coverage
+
+# The toolchain twin of the spec-drift watch: fails when go.dev lists a
+# newer stable Go than the newest one pinned in the workflows, so the
+# matrix never silently goes stale. Bumping stays a deliberate act.
+go-latest-check:
+	@latest=$$(curl --proto '=https' --tlsv1.2 --max-time 30 -fsSL 'https://go.dev/dl/?mode=json' \
+		| sed -n 's/^ *"version": *"go\([0-9]*\.[0-9]*\)[.0-9]*",$$/\1/p' | head -1); \
+	pinned=$$(grep -rho '1\.[0-9]*\.x' .github/workflows/*.yaml | sort -t. -k2 -n | tail -1 | sed 's/\.x//'); \
+	if [ -z "$$latest" ] || [ -z "$$pinned" ]; then \
+		echo 'error: could not resolve latest ('"$$latest"') or pinned ('"$$pinned"') Go version'; exit 1; fi; \
+	echo "latest stable: go$$latest — newest pinned: go$$pinned.x"; \
+	if [ "$$latest" != "$$pinned" ]; then \
+		echo "error: Go $$latest is out — bump the matrices in ci.yaml/smoke.yaml and go-version in release.yaml"; \
+		exit 1; fi; \
+	floor=$$(sed -n 's/^go \([0-9]*\.[0-9]*\)$$/\1/p' go.mod); \
+	for v in $$(grep -rho '1\.[0-9]*\.x' .github/workflows/*.yaml | sed 's/\.x//' | sort -u); do \
+		if [ "$$v" != "$$latest" ] && [ "$$v" != "$$floor" ]; then \
+			echo "error: workflow pin go$$v.x is neither the go.mod floor ($$floor) nor latest ($$latest)"; \
+			exit 1; fi; \
+	done
