@@ -25,6 +25,17 @@ func init() {
 		},
 	})
 	registerReadCase(readCase{
+		op:      "getMoneyMovements",
+		variant: "null",
+		fixture: "money_movements/list_null.json",
+		model:   []ynab.MoneyMovement{},
+		call: func(t *testing.T, c *ynab.Client) (any, error) {
+			t.Helper()
+			movements, _, err := c.Plan("p-1").MoneyMovements.List(t.Context())
+			return movements, err
+		},
+	})
+	registerReadCase(readCase{
 		op:      "getMoneyMovementsByMonth",
 		fixture: "money_movements/by_month.json",
 		model:   []ynab.MoneyMovement{},
@@ -45,6 +56,17 @@ func init() {
 		},
 	})
 	registerReadCase(readCase{
+		op:      "getMoneyMovementGroups",
+		variant: "null",
+		fixture: "money_movements/groups_null.json",
+		model:   []ynab.MoneyMovementGroup{},
+		call: func(t *testing.T, c *ynab.Client) (any, error) {
+			t.Helper()
+			groups, _, err := c.Plan("p-1").MoneyMovements.ListGroups(t.Context())
+			return groups, err
+		},
+	})
+	registerReadCase(readCase{
 		op:      "getMoneyMovementGroupsByMonth",
 		fixture: "money_movements/groups_by_month.json",
 		model:   []ynab.MoneyMovementGroup{},
@@ -55,8 +77,8 @@ func init() {
 		},
 	})
 
-	registerNullFixture([]ynab.MoneyMovement{}, "money_movements/list.json", "money_movements")
-	registerNullFixture([]ynab.MoneyMovementGroup{}, "money_movements/groups.json", "money_movement_groups")
+	registerNullFixture([]ynab.MoneyMovement{}, "money_movements/list_null.json", "money_movements")
+	registerNullFixture([]ynab.MoneyMovementGroup{}, "money_movements/groups_null.json", "money_movement_groups")
 
 	registerIntegrationCase(integrationCase{
 		name: "money movements reads",
@@ -137,6 +159,12 @@ func TestMoneyMovements(t *testing.T) {
 		require.Len(t, groups, 2)
 		require.Equal(t, "monthly rebalance", *groups[0].Note)
 		require.Nil(t, groups[1].Note)
+	})
+
+	t.Run("extreme numerics decode", func(t *testing.T) {
+		t.Parallel()
+
+		runExtremeNumericsCase(t, []ynab.MoneyMovement{}, "money_movements/extreme.json", "money_movements")
 	})
 
 	t.Run("zero month is a pre-flight error", func(t *testing.T) {

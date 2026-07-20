@@ -186,6 +186,25 @@ func TestTransactionsList(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, rec.URL.RawQuery)
 	})
+
+	t.Run("delta with tombstone", func(t *testing.T) {
+		t.Parallel()
+
+		client, rec := serveFixture(t, "transactions/list_delta.json", 0)
+		txns, sk, err := client.Plan("p-1").Transactions.List(t.Context(), ynab.TransactionFilter{Since: 6300})
+		require.NoError(t, err)
+		require.Equal(t, "6300", rec.URL.Query().Get("last_knowledge_of_server"))
+		require.Equal(t, ynab.ServerKnowledge(6400), sk)
+		require.Len(t, txns, 2)
+		require.True(t, txns[1].IsDeleted())
+
+		// Tombstones delete, changes upsert through MergeByID.
+		local := map[string]ynab.Transaction{"tr222222-2222-2222-2222-222222222222": {}}
+		merged := ynab.MergeByID(local, txns)
+		require.Len(t, merged, 1)
+		require.NotContains(t, merged, "tr222222-2222-2222-2222-222222222222")
+		require.Equal(t, ynab.Milliunits(-300000), merged["tr111111-1111-1111-1111-111111111111"].Amount)
+	})
 }
 
 func TestTransactionsGet(t *testing.T) {

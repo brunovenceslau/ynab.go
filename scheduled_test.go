@@ -29,6 +29,17 @@ func init() {
 		},
 	})
 	registerReadCase(readCase{
+		op:      "getScheduledTransactions",
+		variant: "null",
+		fixture: "scheduled/list_null.json",
+		model:   []ynab.ScheduledTransaction{},
+		call: func(t *testing.T, c *ynab.Client) (any, error) {
+			t.Helper()
+			scheduled, _, err := c.Plan("p-1").Scheduled.List(t.Context())
+			return scheduled, err
+		},
+	})
+	registerReadCase(readCase{
 		op:      "getScheduledTransactionById",
 		fixture: "scheduled/get.json",
 		model:   ynab.ScheduledTransaction{},
@@ -38,7 +49,7 @@ func init() {
 		},
 	})
 
-	registerNullFixture([]ynab.ScheduledTransaction{}, "scheduled/list.json", "scheduled_transactions")
+	registerNullFixture([]ynab.ScheduledTransaction{}, "scheduled/list_null.json", "scheduled_transactions")
 
 	// The scheduled date window is validated against the clock, so the
 	// byte-exact G2 bodies carry a date computed once at registration.
@@ -253,6 +264,25 @@ func TestScheduledList(t *testing.T) {
 		require.Nil(t, bare.PayeeID)
 	})
 
+	t.Run("delta with tombstone", func(t *testing.T) {
+		t.Parallel()
+
+		client, rec := serveFixture(t, "scheduled/list_delta.json", 0)
+		scheduled, sk, err := client.Plan("p-1").Scheduled.List(t.Context(), ynab.Since(7000))
+		require.NoError(t, err)
+		require.Equal(t, "7000", rec.URL.Query().Get("last_knowledge_of_server"))
+		require.Equal(t, ynab.ServerKnowledge(7100), sk)
+		require.Len(t, scheduled, 2)
+		require.True(t, scheduled[1].IsDeleted())
+
+		// Tombstones delete, changes upsert through MergeByID.
+		local := map[string]ynab.ScheduledTransaction{"sc333333-3333-3333-3333-333333333333": {}}
+		merged := ynab.MergeByID(local, scheduled)
+		require.Len(t, merged, 1)
+		require.NotContains(t, merged, "sc333333-3333-3333-3333-333333333333")
+		require.Equal(t, ynab.Milliunits(-1600000), merged["sc111111-1111-1111-1111-111111111111"].Amount)
+	})
+
 	t.Run("empty-plan 404 folds into an empty list", func(t *testing.T) {
 		t.Parallel()
 
@@ -273,6 +303,12 @@ func TestScheduledList(t *testing.T) {
 		_, err = client.Plan("p-1").Scheduled.Get(t.Context(), "sc-missing")
 		require.ErrorIs(t, err, ynab.ErrResourceNotFound)
 	})
+}
+
+func TestScheduledExtremeNumerics(t *testing.T) {
+	t.Parallel()
+
+	runExtremeNumericsCase(t, ynab.ScheduledTransaction{}, "scheduled/extreme.json", "scheduled_transaction")
 }
 
 func TestScheduledCreate(t *testing.T) {

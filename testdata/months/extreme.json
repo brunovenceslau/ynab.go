@@ -1,0 +1,23 @@
+{
+  "data": {
+    "month": {
+      "month": "2026-07-01",
+      "note": null,
+      "income": 9223372036854775807,
+      "budgeted": -9223372036854775808,
+      "activity": -9223372036854775808,
+      "to_be_budgeted": 9223372036854775807,
+      "age_of_money": 2147483647,
+      "deleted": false,
+      "income_formatted": "lots",
+      "income_currency": 9.223372036854776e18,
+      "budgeted_formatted": "negative lots",
+      "budgeted_currency": -9.223372036854776e18,
+      "activity_formatted": "negative lots",
+      "activity_currency": -9.223372036854776e18,
+      "to_be_budgeted_formatted": "lots",
+      "to_be_budgeted_currency": 9.223372036854776e18,
+      "categories": []
+    }
+  }
+}

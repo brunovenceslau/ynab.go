@@ -1,0 +1,43 @@
+{
+  "data": {
+    "scheduled_transactions": [
+      {
+        "id": "sc555555-5555-5555-5555-555555555555",
+        "date_first": "2026-08-01",
+        "date_next": "2026-08-01",
+        "frequency": "never",
+        "amount": 0,
+        "memo": null,
+        "flag_color": null,
+        "flag_name": null,
+        "account_id": "ac111111-1111-1111-1111-111111111111",
+        "payee_id": null,
+        "category_id": null,
+        "transfer_account_id": null,
+        "deleted": false,
+        "amount_formatted": "$0.00",
+        "amount_currency": 0.0,
+        "account_name": "Checking",
+        "payee_name": null,
+        "category_name": null,
+        "subtransactions": [
+          {
+            "id": "ss555555-5555-5555-5555-555555555555",
+            "scheduled_transaction_id": "sc555555-5555-5555-5555-555555555555",
+            "amount": 0,
+            "memo": null,
+            "payee_id": null,
+            "payee_name": null,
+            "category_id": null,
+            "category_name": null,
+            "transfer_account_id": null,
+            "deleted": false,
+            "amount_formatted": "$0.00",
+            "amount_currency": 0.0
+          }
+        ]
+      }
+    ],
+    "server_knowledge": 7001
+  }
+}

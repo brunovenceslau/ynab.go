@@ -1,0 +1,43 @@
+{
+  "data": {
+    "months": [
+      {
+        "month": "2026-07-01",
+        "note": "kickoff, revised",
+        "income": 5200000,
+        "budgeted": 4700000,
+        "activity": -3400000,
+        "to_be_budgeted": 500000,
+        "age_of_money": 25,
+        "deleted": false,
+        "income_formatted": "$5,200.00",
+        "income_currency": 5200.0,
+        "budgeted_formatted": "$4,700.00",
+        "budgeted_currency": 4700.0,
+        "activity_formatted": "-$3,400.00",
+        "activity_currency": -3400.0,
+        "to_be_budgeted_formatted": "$500.00",
+        "to_be_budgeted_currency": 500.0
+      },
+      {
+        "month": "2026-06-01",
+        "note": null,
+        "income": 0,
+        "budgeted": 0,
+        "activity": 0,
+        "to_be_budgeted": 0,
+        "age_of_money": null,
+        "deleted": true,
+        "income_formatted": "$0.00",
+        "income_currency": 0.0,
+        "budgeted_formatted": "$0.00",
+        "budgeted_currency": 0.0,
+        "activity_formatted": "$0.00",
+        "activity_currency": 0.0,
+        "to_be_budgeted_formatted": "$0.00",
+        "to_be_budgeted_currency": 0.0
+      }
+    ],
+    "server_knowledge": 3100
+  }
+}

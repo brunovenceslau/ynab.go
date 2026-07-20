@@ -1,0 +1,20 @@
+{
+  "data": {
+    "money_movements": [
+      {
+        "id": "mm555555-5555-5555-5555-555555555555",
+        "month": null,
+        "moved_at": null,
+        "note": null,
+        "money_movement_group_id": null,
+        "performed_by_user_id": null,
+        "from_category_id": null,
+        "to_category_id": null,
+        "amount": 0,
+        "amount_formatted": "$0.00",
+        "amount_currency": 0.0
+      }
+    ],
+    "server_knowledge": 5001
+  }
+}

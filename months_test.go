@@ -106,6 +106,31 @@ func TestMonthsList(t *testing.T) {
 		require.Nil(t, june.Note)
 		require.Nil(t, june.AgeOfMoney)
 	})
+
+	t.Run("delta with tombstone", func(t *testing.T) {
+		t.Parallel()
+
+		client, rec := serveFixture(t, "months/list_delta.json", 0)
+		months, sk, err := client.Plan("p-1").Months.List(t.Context(), ynab.Since(3000))
+		require.NoError(t, err)
+		require.Equal(t, "3000", rec.URL.Query().Get("last_knowledge_of_server"))
+		require.Equal(t, ynab.ServerKnowledge(3100), sk)
+		require.Len(t, months, 2)
+		require.True(t, months[1].IsDeleted())
+
+		// Tombstones delete, changes upsert through MergeByID.
+		local := map[string]ynab.MonthSummary{"2026-06-01": {}}
+		merged := ynab.MergeByID(local, months)
+		require.Len(t, merged, 1)
+		require.NotContains(t, merged, "2026-06-01")
+		require.Equal(t, ynab.Milliunits(5200000), merged["2026-07-01"].Income)
+	})
+}
+
+func TestMonthsExtremeNumerics(t *testing.T) {
+	t.Parallel()
+
+	runExtremeNumericsCase(t, ynab.MonthDetail{}, "months/extreme.json", "month")
 }
 
 func TestMonthsGet(t *testing.T) {
