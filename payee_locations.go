@@ -32,13 +32,17 @@ type PayeeLocationsService struct {
 	plan *Plan
 }
 
+// payeeLocationsResult is the shared locations response payload.
+type payeeLocationsResult struct {
+	PayeeLocations []PayeeLocation `json:"payee_locations"`
+}
+
 // List returns all payee locations of the plan.
 //
 // YNAB operationId: getPayeeLocations
 func (s *PayeeLocationsService) List(ctx context.Context) ([]PayeeLocation, error) {
-	data, err := do[struct {
-		PayeeLocations []PayeeLocation `json:"payee_locations"`
-	}](ctx, s.plan.client, http.MethodGet, s.plan.path("payee_locations"), nil, nil)
+	data, err := do[payeeLocationsResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("payee_locations"), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +67,8 @@ func (s *PayeeLocationsService) Get(ctx context.Context, payeeLocationID string)
 //
 // YNAB operationId: getPayeeLocationsByPayee
 func (s *PayeeLocationsService) ListByPayee(ctx context.Context, payeeID string) ([]PayeeLocation, error) {
-	data, err := do[struct {
-		PayeeLocations []PayeeLocation `json:"payee_locations"`
-	}](ctx, s.plan.client, http.MethodGet, s.plan.path("payees", payeeID, "payee_locations"), nil, nil)
+	data, err := do[payeeLocationsResult](ctx, s.plan.client,
+		http.MethodGet, s.plan.path("payees", payeeID, "payee_locations"), nil, nil)
 	if err != nil {
 		return nil, err
 	}
