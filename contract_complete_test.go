@@ -29,7 +29,7 @@ func init() {
 		registerReadCase(rc)
 	}
 
-	registerNullFixture(ynab.BatchResult{}, "transactions/create_batch_null.json", "")
+	registerNullFixture(ynab.BatchResult{}, "transactions/batch_null.json", "")
 }
 
 // writeOpReadCases returns the read cases for the sixteen non-GET
@@ -125,7 +125,7 @@ func writeOpReadCases() []readCase {
 			},
 		},
 		{
-			op: "updateTransactions", fixture: "transactions/create_batch.json", model: ynab.BatchResult{},
+			op: "updateTransactions", fixture: "transactions/batch.json", model: ynab.BatchResult{},
 			call: func(t *testing.T, c *ynab.Client) (any, error) {
 				t.Helper()
 				return c.Plan("p-1").Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{

@@ -148,7 +148,7 @@ func TestTransactionsCreate(t *testing.T) {
 	t.Run("batch duplicates fill DuplicateImportIDs with nil error", func(t *testing.T) {
 		t.Parallel()
 
-		client, _ := serveFixture(t, "transactions/create_batch_dups.json", http.StatusCreated)
+		client, _ := serveFixture(t, "transactions/batch_dups.json", http.StatusCreated)
 		batch, err := client.Plan("p-1").Transactions.CreateBatch(t.Context(), []ynab.TransactionSpec{
 			{AccountID: "ac1", Date: ynab.NewDate(2026, time.July, 10), Amount: -1},
 		})

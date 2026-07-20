@@ -168,7 +168,7 @@ func TestFixtureHonesty(t *testing.T) {
 			},
 		},
 		{
-			name: "month category get", fixture: "categories/month_get.json",
+			name: "month category get", fixture: "categories/get_for_month.json",
 			call: func(t *testing.T, c *ynab.Client) any {
 				t.Helper()
 				category, err := c.Plan("p-1").Categories.GetForMonth(t.Context(), ynab.CurrentMonth(), "ca1")

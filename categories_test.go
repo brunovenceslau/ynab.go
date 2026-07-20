@@ -49,7 +49,7 @@ func init() {
 	})
 	registerReadCase(readCase{
 		op:      "getMonthCategoryById",
-		fixture: "categories/month_get.json",
+		fixture: "categories/get_for_month.json",
 		model:   ynab.Category{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
@@ -201,7 +201,7 @@ func TestCategoriesGetForMonth(t *testing.T) {
 	t.Run("concrete month in path", func(t *testing.T) {
 		t.Parallel()
 
-		client, rec := serveFixture(t, "categories/month_get.json", 0)
+		client, rec := serveFixture(t, "categories/get_for_month.json", 0)
 		m := ynab.NewMonth(2026, time.June)
 		got, err := client.Plan("p-1").Categories.GetForMonth(t.Context(), m, "ca111111-1111-1111-1111-111111111111")
 		require.NoError(t, err)
@@ -212,7 +212,7 @@ func TestCategoriesGetForMonth(t *testing.T) {
 	t.Run("current month literal in path", func(t *testing.T) {
 		t.Parallel()
 
-		client, rec := serveFixture(t, "categories/month_get.json", 0)
+		client, rec := serveFixture(t, "categories/get_for_month.json", 0)
 		_, err := client.Plan("p-1").Categories.GetForMonth(t.Context(), ynab.CurrentMonth(), "ca1")
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/months/current/categories/ca1", rec.URL.Path)
@@ -221,7 +221,7 @@ func TestCategoriesGetForMonth(t *testing.T) {
 	t.Run("zero month is a pre-flight error", func(t *testing.T) {
 		t.Parallel()
 
-		client, rec := serveFixture(t, "categories/month_get.json", 0)
+		client, rec := serveFixture(t, "categories/get_for_month.json", 0)
 		_, err := client.Plan("p-1").Categories.GetForMonth(t.Context(), ynab.Month{}, "ca1")
 
 		var argErr *ynab.ArgumentError

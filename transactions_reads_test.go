@@ -86,7 +86,7 @@ func init() {
 	})
 	registerReadCase(readCase{
 		op:      "getTransactionsByPayee",
-		fixture: "transactions/hybrid_no_sk.json",
+		fixture: "transactions/hybrid_no_server_knowledge.json",
 		model:   []ynab.HybridTransaction{},
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
@@ -225,7 +225,7 @@ func TestTransactionsHybridLists(t *testing.T) {
 
 		// The hybrid wire shape declares server_knowledge optional: a
 		// response without the key must yield 0, never an error.
-		client, rec := serveFixture(t, "transactions/hybrid_no_sk.json", 0)
+		client, rec := serveFixture(t, "transactions/hybrid_no_server_knowledge.json", 0)
 		rows, sk, err := client.Plan("p-1").Transactions.ListByPayee(
 			t.Context(), "pa1", ynab.TransactionFilter{})
 		require.NoError(t, err)

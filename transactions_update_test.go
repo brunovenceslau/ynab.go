@@ -196,7 +196,7 @@ func TestTransactionsUpdate(t *testing.T) {
 func TestTransactionsUpdateBatch(t *testing.T) {
 	t.Parallel()
 
-	client, rec := serveFixture(t, "transactions/create_batch.json", 0)
+	client, rec := serveFixture(t, "transactions/batch.json", 0)
 	batch, err := client.Plan("p-1").Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{
 		ynab.PatchByID("tr1", ynab.TransactionUpdate{Memo: ynab.Set("m")}),
 	})

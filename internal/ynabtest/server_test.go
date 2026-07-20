@@ -120,7 +120,7 @@ func TestServerBodyKeyDisambiguation(t *testing.T) {
 	require.Equal(t, ynabtest.Fixture(t, "transactions/create.json"), single)
 
 	batch := post(`{"transactions":[{"amount":1}]}`)
-	require.Equal(t, ynabtest.Fixture(t, "transactions/create_batch.json"), batch)
+	require.Equal(t, ynabtest.Fixture(t, "transactions/batch.json"), batch)
 
 	// Neither wrapper key: the fake has no route for it — a loud 404
 	// instead of silently picking a shape.
