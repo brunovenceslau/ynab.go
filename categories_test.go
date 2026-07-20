@@ -234,5 +234,5 @@ func TestCategoriesGetForMonth(t *testing.T) {
 func TestCategoriesExtremeNumerics(t *testing.T) {
 	t.Parallel()
 
-	runOutOfRangeCase(t, ynab.Category{}, "categories/extreme.json", "category")
+	runExtremeNumericsCase(t, ynab.Category{}, "categories/extreme.json", "category")
 }

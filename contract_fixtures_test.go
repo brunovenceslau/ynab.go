@@ -249,9 +249,9 @@ func collectNullPaths(doc any, prefix string, nulls, present map[string]struct{}
 	}
 }
 
-// runOutOfRangeCase asserts extreme numeric magnitudes decode cleanly
+// runExtremeNumericsCase asserts extreme numeric magnitudes decode cleanly
 // into a model — the uint8-overflow class of the pr-era regressions.
-func runOutOfRangeCase(t *testing.T, model any, fixture, wrapper string) {
+func runExtremeNumericsCase(t *testing.T, model any, fixture, wrapper string) {
 	t.Helper()
 
 	raw := modelDocument(t, loadFixture(t, fixture), wrapper)
@@ -325,6 +325,6 @@ func TestContractNullFixturesSelfCheck(t *testing.T) {
 
 	t.Run("out of range numerics decode", func(t *testing.T) {
 		t.Parallel()
-		runOutOfRangeCase(t, syntheticThing{}, "selftest/thing_extreme.json", "thing")
+		runExtremeNumericsCase(t, syntheticThing{}, "selftest/thing_extreme.json", "thing")
 	})
 }

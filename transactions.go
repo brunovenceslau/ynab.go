@@ -373,7 +373,7 @@ type SubtransactionSpec struct {
 // the transaction field's 200, distinct from the payee entity's 500.)
 const (
 	importIDMax     = 36
-	txnPayeeNameMax = 200
+	transactionPayeeNameMax = 200
 	memoMax         = 500
 )
 
@@ -382,7 +382,7 @@ const (
 func (s TransactionSpec) validate(op string) error {
 	if err := errFirst(
 		checkOptRuneMax(op, "import_id", s.ImportID, importIDMax),
-		checkOptRuneMax(op, "payee_name", s.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "payee_name", s.PayeeName, transactionPayeeNameMax),
 		checkOptRuneMax(op, "memo", s.Memo, memoMax),
 	); err != nil {
 		return err
@@ -394,7 +394,7 @@ func (s TransactionSpec) validate(op string) error {
 	var sum Milliunits
 	for i, leg := range s.Splits {
 		if err := errFirst(
-			checkOptRuneMax(op, "payee_name", leg.PayeeName, txnPayeeNameMax),
+			checkOptRuneMax(op, "payee_name", leg.PayeeName, transactionPayeeNameMax),
 			checkOptRuneMax(op, "memo", leg.Memo, memoMax),
 		); err != nil {
 			var argErr *ArgumentError
@@ -425,7 +425,7 @@ func errFirst(errs ...error) error {
 // maxLengths the create spec declares.
 func (u TransactionUpdate) validate(op string) error {
 	return errFirst(
-		checkOptRuneMax(op, "payee_name", u.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "payee_name", u.PayeeName, transactionPayeeNameMax),
 		checkOptRuneMax(op, "memo", u.Memo, memoMax),
 	)
 }

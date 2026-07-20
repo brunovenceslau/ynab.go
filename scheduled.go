@@ -148,7 +148,7 @@ func checkScheduledDate(op string, d Date) error {
 func (s ScheduledTransactionSpec) validate(op string) error {
 	return errFirst(
 		checkScheduledDate(op, s.Date),
-		checkOptRuneMax(op, "payee_name", s.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "payee_name", s.PayeeName, transactionPayeeNameMax),
 		checkOptRuneMax(op, "memo", s.Memo, memoMax),
 	)
 }
@@ -251,7 +251,7 @@ func (u ScheduledTransactionUpdate) validate(op string) error {
 		}
 	}
 	return errFirst(
-		checkOptRuneMax(op, "payee_name", u.PayeeName, txnPayeeNameMax),
+		checkOptRuneMax(op, "payee_name", u.PayeeName, transactionPayeeNameMax),
 		checkOptRuneMax(op, "memo", u.Memo, memoMax),
 	)
 }

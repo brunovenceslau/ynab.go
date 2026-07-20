@@ -199,7 +199,7 @@ func TestAccountsGet(t *testing.T) {
 func TestAccountsExtremeNumerics(t *testing.T) {
 	t.Parallel()
 
-	runOutOfRangeCase(t, ynab.Account{}, "accounts/extreme.json", "account")
+	runExtremeNumericsCase(t, ynab.Account{}, "accounts/extreme.json", "account")
 }
 
 func TestPlansIncludeAccounts(t *testing.T) {

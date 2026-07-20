@@ -108,7 +108,7 @@ func TestTransactionModels(t *testing.T) {
 
 	t.Run("extreme numerics decode", func(t *testing.T) {
 		t.Parallel()
-		runOutOfRangeCase(t, ynab.Transaction{}, "transactions/extreme.json", "transaction")
+		runExtremeNumericsCase(t, ynab.Transaction{}, "transactions/extreme.json", "transaction")
 	})
 }
 

@@ -9,11 +9,11 @@ import (
 	"slices"
 )
 
-// Diff compares the coverage table against the scanned spec both ways and
+// DiffSpec compares the coverage table against the scanned spec both ways and
 // returns every discrepancy in human-readable form. An empty result means
 // the contract holds: same operation set, same verb and path per
 // operation, same query-parameter set per operation.
-func Diff(table []Operation, spec *Spec) []string {
+func DiffSpec(table []Operation, spec *Spec) []string {
 	var problems []string
 
 	byIDTable := make(map[string]Operation, len(table))

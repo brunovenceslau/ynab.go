@@ -58,7 +58,7 @@ func TestContractDiffHolds(t *testing.T) {
 
 	spec, err := contract.ScanSpec(specPath)
 	require.NoError(t, err)
-	require.Empty(t, contract.Diff(contract.Table(), spec))
+	require.Empty(t, contract.DiffSpec(contract.Table(), spec))
 }
 
 func TestContractDiffCatchesMutations(t *testing.T) {
@@ -76,7 +76,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		mutated := table[1:]
-		problems := contract.Diff(mutated, spec)
+		problems := contract.DiffSpec(mutated, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "unimplemented operation")
 	})
@@ -86,7 +86,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		mutated := append(slices.Clone(table), contract.Operation{ID: "getBudgetsLegacy", Method: "GET", Path: "/budgets"})
-		problems := contract.Diff(mutated, spec)
+		problems := contract.DiffSpec(mutated, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "phantom operation")
 	})
@@ -96,7 +96,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		table[0].Method = "POST"
-		problems := contract.Diff(table, spec)
+		problems := contract.DiffSpec(table, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "verb")
 	})
@@ -106,7 +106,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		table[2].Path = "/budgets/{plan_id}"
-		problems := contract.Diff(table, spec)
+		problems := contract.DiffSpec(table, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "path")
 	})
@@ -116,7 +116,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		table[0].QueryParams = append(table[0].QueryParams, "page")
-		problems := contract.Diff(table, spec)
+		problems := contract.DiffSpec(table, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "illegal query param")
 	})
@@ -130,7 +130,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 				table[i].QueryParams = table[i].QueryParams[:1]
 			}
 		}
-		problems := contract.Diff(table, spec)
+		problems := contract.DiffSpec(table, spec)
 		require.NotEmpty(t, problems)
 		require.Contains(t, problems[0], "missing query param")
 	})
@@ -140,7 +140,7 @@ func TestContractDiffCatchesMutations(t *testing.T) {
 
 		spec, table := scan(t)
 		spec.Ops[0].Method = "POST"
-		require.NotEmpty(t, contract.Diff(table, spec))
+		require.NotEmpty(t, contract.DiffSpec(table, spec))
 	})
 }
 

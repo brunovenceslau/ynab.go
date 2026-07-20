@@ -30,7 +30,7 @@ func TestContractSpecDiff(t *testing.T) {
 	require.Len(t, spec.Ops, 44)
 	require.Len(t, contract.Table(), 44)
 
-	require.Empty(t, contract.Diff(contract.Table(), spec))
+	require.Empty(t, contract.DiffSpec(contract.Table(), spec))
 }
 
 // TestContractDocLines scans the root package for `// YNAB operationId:`
