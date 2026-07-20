@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// Month is a budget month in the YNAB wire form YYYY-MM-01 — deliberately
+// Month is a plan month in the YNAB wire form YYYY-MM-01 — deliberately
 // distinct from Date so a day-precision value cannot compile into a month
 // slot. Two sentinels exist besides concrete months: the zero value ("no
-// month"; IsZero, renders empty, JSON null) and CurrentMonth (the
+// month"; IsZero, renders empty, JSON null) and [CurrentMonth] (the
 // server-resolved "current" literal; IsCurrent, renders "current").
 //
 // All methods use value receivers except UnmarshalJSON, so the type is
@@ -24,13 +24,13 @@ type Month struct {
 }
 
 // NewMonth returns the Month for the given year and month, normalizing
-// out-of-range values the way time.Date does (month 13 → January next year).
+// out-of-range values the way [time.Date] does (month 13 → January next year).
 func NewMonth(year int, month time.Month) Month {
 	y, m, _ := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC).Date()
 	return Month{year: y, month: m}
 }
 
-// MonthOf returns the budget month containing the calendar day t shows in
+// MonthOf returns the plan month containing the calendar day t shows in
 // its own location.
 func MonthOf(t time.Time) Month {
 	y, m, _ := t.Date()
@@ -54,8 +54,8 @@ func ParseMonth(s string) (Month, error) {
 }
 
 // CurrentMonth returns the "current" sentinel — the literal the server
-// resolves to its own current budget month. It is not a clock read: use
-// MonthOf(time.Now()) for the client's local notion of this month.
+// resolves to its own current plan month. It is not a clock read: use
+// [MonthOf](time.Now()) for the client's local notion of this month.
 func CurrentMonth() Month {
 	return Month{current: true}
 }
@@ -109,14 +109,14 @@ func (m Month) FirstDay() Date {
 	return Date{year: m.year, month: m.month, day: 1}
 }
 
-// IsCurrent reports whether m is the CurrentMonth sentinel.
+// IsCurrent reports whether m is the [CurrentMonth] sentinel.
 func (m Month) IsCurrent() bool { return m.current }
 
 // IsZero reports whether m is the zero "no month" value.
 func (m Month) IsZero() bool { return m == Month{} }
 
 // String renders the wire form YYYY-MM-01, the literal "current" for the
-// CurrentMonth sentinel, or the empty string for the zero value.
+// [CurrentMonth] sentinel, or the empty string for the zero value.
 func (m Month) String() string {
 	switch {
 	case m.current:
@@ -129,7 +129,7 @@ func (m Month) String() string {
 }
 
 // MarshalJSON encodes the wire form "YYYY-MM-01", "current" for the
-// CurrentMonth sentinel, and null for the zero value.
+// [CurrentMonth] sentinel, and null for the zero value.
 func (m Month) MarshalJSON() ([]byte, error) {
 	if m.IsZero() {
 		return []byte("null"), nil

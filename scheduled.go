@@ -11,7 +11,8 @@ import (
 )
 
 // Frequency is a scheduled transaction's repetition cadence (camelCase on
-// the wire).
+// the wire). Unknown future values decode losslessly with
+// [Frequency.Valid] false.
 type Frequency string
 
 // The thirteen wire frequencies.
@@ -110,10 +111,10 @@ func (s ScheduledSubtransactionBase) SyncID() string { return s.ID }
 // IsDeleted reports a delta tombstone.
 func (s ScheduledSubtransactionBase) IsDeleted() bool { return s.Deleted }
 
-// ScheduledTransactionSpec is the payload for Create. AccountID and
-// Date are required; the date must not be in the past and at most five
-// years out. Split scheduled transactions cannot be created through
-// the API.
+// ScheduledTransactionSpec is the payload for
+// [ScheduledTransactionsService.Create]. AccountID and Date are
+// required; the date must not be in the past and at most five years
+// out. Split scheduled transactions cannot be created through the API.
 type ScheduledTransactionSpec struct {
 	AccountID string     `json:"account_id"`
 	Date      Date       `json:"date"`
@@ -154,7 +155,9 @@ func (s ScheduledTransactionSpec) validate(op string) error {
 }
 
 // ScheduledTransactionsService reads and writes the plan's scheduled
-// transactions.
+// transactions. Wire asymmetry, documented rather than papered over:
+// the scheduled writes (Create, Update, and Delete) return no server
+// knowledge — advance your cursor with the next List.
 type ScheduledTransactionsService struct {
 	plan *Plan
 }
@@ -164,14 +167,16 @@ type scheduledResult struct {
 	ScheduledTransaction *ScheduledTransaction `json:"scheduled_transaction"`
 }
 
-// List returns the plan's scheduled transactions.
+// List returns the plan's scheduled transactions. With [Since], only
+// scheduled transactions changed after the cursor are returned,
+// deletions arriving as tombstones.
 //
 // Surgical wire normalization: a plan with no scheduled transactions
 // answers 404 instead of an empty list — this method, and only this
 // method, folds that 404 into ([], 0, nil). The fold cannot distinguish
 // an empty plan from a mistyped plan id (both are 404.2 on the wire), so
 // a wrong id also yields an empty list here. Every other operation's 404
-// still means ErrResourceNotFound (see API_NOTES.md).
+// still means [ErrResourceNotFound] (see API_NOTES.md).
 //
 // YNAB operationId: getScheduledTransactions
 func (s *ScheduledTransactionsService) List(
@@ -191,7 +196,7 @@ func (s *ScheduledTransactionsService) List(
 }
 
 // Get returns a single scheduled transaction by id. A missing id answers
-// ErrResourceNotFound — the List-only 404 normalization does not apply.
+// [ErrResourceNotFound] — the List-only 404 normalization does not apply.
 //
 // YNAB operationId: getScheduledTransactionById
 func (s *ScheduledTransactionsService) Get(
@@ -225,7 +230,7 @@ func (s *ScheduledTransactionsService) Create(
 // ScheduledTransactionUpdate is the partial payload for Update. Despite
 // the PUT verb on the wire, the server treats omitted fields as
 // unchanged (probed live, 2026-07-18) — so unset Optionals really mean
-// "keep", exactly like TransactionUpdate.
+// "keep", exactly like [TransactionUpdate].
 type ScheduledTransactionUpdate struct {
 	AccountID Optional[string]     `json:"account_id,omitzero"`
 	Date      Optional[Date]       `json:"date,omitzero"`
@@ -257,7 +262,7 @@ func (u ScheduledTransactionUpdate) validate(op string) error {
 }
 
 // Update changes a scheduled transaction. Unset fields stay unchanged
-// on the server; SetNull clears.
+// on the server; [SetNull] clears.
 //
 // YNAB operationId: updateScheduledTransaction
 func (s *ScheduledTransactionsService) Update(

@@ -11,7 +11,8 @@ import (
 )
 
 // AccountType is an account's read-side type. Thirteen values exist on
-// the wire; unknown future values decode losslessly with Valid() false.
+// the wire; unknown future values decode losslessly with
+// [AccountType.Valid] false.
 type AccountType string
 
 // The thirteen wire account types.
@@ -113,15 +114,15 @@ type Account struct {
 	UnclearedBalanceCurrency  float64 `json:"uncleared_balance_currency"`
 }
 
-// SyncID keys the account for MergeByID. Account inherits the adapters
+// SyncID keys the account for [MergeByID]. Account inherits the adapters
 // by embedding.
 func (a AccountBase) SyncID() string { return a.ID }
 
 // IsDeleted reports a delta tombstone.
 func (a AccountBase) IsDeleted() bool { return a.Deleted }
 
-// AccountSpec is the payload for AccountsService.Create. All three fields
-// are required by the API.
+// AccountSpec is the payload for [AccountsService.Create]. All three
+// fields are required by the API.
 type AccountSpec struct {
 	Name    string          `json:"name"`
 	Type    AccountSpecType `json:"type"`
@@ -133,7 +134,7 @@ type AccountsService struct {
 	plan *Plan
 }
 
-// List returns the plan's accounts. With Since, only accounts changed
+// List returns the plan's accounts. With [Since], only accounts changed
 // after the cursor are returned, deletions arriving as tombstones.
 //
 // YNAB operationId: getAccounts
@@ -163,9 +164,10 @@ func (s *AccountsService) Get(ctx context.Context, accountID string) (*Account, 
 }
 
 // Create adds an unlinked account to the plan and returns it (HTTP 201).
-// Wire asymmetry, documented rather than papered over: unlike other
-// creates, createAccount returns no server knowledge — advance your
-// cursor with the next List.
+// Wire asymmetry, documented rather than papered over: like the
+// scheduled-transaction writes and unlike every other create,
+// createAccount returns no server knowledge — advance your cursor with
+// the next List.
 //
 // YNAB operationId: createAccount
 func (s *AccountsService) Create(ctx context.Context, spec AccountSpec) (*Account, error) {

@@ -36,7 +36,7 @@ type MonthSummary struct {
 	ToBeBudgetedCurrency  float64 `json:"to_be_budgeted_currency"`
 }
 
-// SyncID keys the month for MergeByID. MonthSummary and MonthDetailBase
+// SyncID keys the month for [MergeByID]. MonthSummary and MonthDetailBase
 // inherit the adapters by embedding.
 func (m MonthSummaryBase) SyncID() string { return m.Month.String() }
 
@@ -62,7 +62,9 @@ type MonthsService struct {
 	plan *Plan
 }
 
-// List returns the plan's month summaries.
+// List returns the plan's month summaries. With [Since], only months
+// changed after the cursor are returned, deletions arriving as
+// tombstones.
 //
 // YNAB operationId: getPlanMonths
 func (s *MonthsService) List(ctx context.Context, opts ...ListOption) ([]MonthSummary, ServerKnowledge, error) {
@@ -77,7 +79,7 @@ func (s *MonthsService) List(ctx context.Context, opts ...ListOption) ([]MonthSu
 }
 
 // Get returns a single month with its categories. Month accepts
-// CurrentMonth — the server resolves its own current month. A month
+// [CurrentMonth] — the server resolves its own current month. A month
 // outside the plan's range answers [ErrResourceNotFound]; a zero Month
 // is a pre-flight [*ArgumentError].
 //

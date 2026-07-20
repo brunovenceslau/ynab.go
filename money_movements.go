@@ -66,7 +66,7 @@ func (s *MoneyMovementsService) List(ctx context.Context) ([]MoneyMovement, Serv
 }
 
 // ListByMonth returns the money movements of one month. Month accepts
-// CurrentMonth.
+// [CurrentMonth]; a zero Month is a pre-flight [*ArgumentError].
 //
 // YNAB operationId: getMoneyMovementsByMonth
 func (s *MoneyMovementsService) ListByMonth(ctx context.Context, m Month) ([]MoneyMovement, ServerKnowledge, error) {
@@ -94,7 +94,8 @@ func (s *MoneyMovementsService) ListGroups(ctx context.Context) ([]MoneyMovement
 }
 
 // ListGroupsByMonth returns the money movement groups of one month.
-// Month accepts CurrentMonth.
+// Month accepts [CurrentMonth]; a zero Month is a pre-flight
+// [*ArgumentError].
 //
 // YNAB operationId: getMoneyMovementGroupsByMonth
 func (s *MoneyMovementsService) ListGroupsByMonth(

@@ -74,7 +74,7 @@ func (e *Error) Is(target error) bool {
 
 // ArgumentError reports a client-side pre-flight validation failure: the
 // request was never sent. Only spec-stated invariants are validated (length
-// bounds, zero Month, split-sum equality, scheduled-date window) — never
+// bounds, zero [Month], split-sum equality, scheduled-date window) — never
 // guessed business rules. Field is empty for cross-field violations.
 // Construction failures report the constructor in Op and the failing
 // option in Field. Op and Reason are for humans and logs — do not parse
@@ -207,7 +207,7 @@ func decodeWireError(status int, body []byte, hdr http.Header) error {
 // IsRetryable reports whether retrying the operation may succeed, per the
 // API's error semantics: true for 429 (wait first — see Error.RetryAfter),
 // 500, 503, and transport timeouts/connection failures; false for every
-// other 4xx, for *ArgumentError (the request was never sent), and for
+// other 4xx, for [*ArgumentError] (the request was never sent), and for
 // context cancellation. A bare context.DeadlineExceeded is the caller's own
 // deadline and is not retryable; a transport timeout — a wrapped net.Error
 // whose Timeout() is true — is. It understands wrapped errors.

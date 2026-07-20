@@ -28,7 +28,7 @@ const (
 
 // Plan is the handle every plan-scoped operation hangs off:
 // client.Plan(id).Accounts.List(ctx), and so on for each service field.
-// Client.Plan performs no I/O. The zero Plan is unusable by design —
+// [Client.Plan] performs no I/O. The zero Plan is unusable by design —
 // handles come only from Client.Plan, so the bound id can never drift
 // from its services.
 type Plan struct {
@@ -103,12 +103,12 @@ type PlanSummary struct {
 	DateFormat     *DateFormat     `json:"date_format"`
 	CurrencyFormat *CurrencyFormat `json:"currency_format"`
 
-	// Accounts is populated only when Plans is called with
-	// IncludeAccounts; otherwise the key is absent and the slice nil.
+	// Accounts is populated only when [Client.Plans] is called with
+	// [IncludeAccounts]; otherwise the key is absent and the slice nil.
 	Accounts []Account `json:"accounts"`
 }
 
-// PlanDetail is the full-plan export Plan.Export returns: every
+// PlanDetail is the full-plan export [Plan.Export] returns: every
 // collection at once, entities in their export *Base shapes. Category
 // groups arrive flat here — their Categories slices stay nil because the
 // categories collection carries every category directly.
@@ -133,7 +133,7 @@ type PlanDetail struct {
 	ScheduledSubtransactions []ScheduledSubtransactionBase `json:"scheduled_subtransactions"`
 }
 
-// PlanList is the result of Client.Plans. DefaultPlan is null unless the
+// PlanList is the result of [Client.Plans]. DefaultPlan is null unless the
 // token's OAuth grant selected a default plan.
 type PlanList struct {
 	Plans       []PlanSummary `json:"plans"`
@@ -147,7 +147,7 @@ type PlanSettings struct {
 	CurrencyFormat *CurrencyFormat `json:"currency_format"`
 }
 
-// PlansOption tunes Client.Plans.
+// PlansOption tunes [Client.Plans].
 type PlansOption struct {
 	apply func(url.Values)
 }
@@ -196,7 +196,7 @@ func (c *Client) Plans(ctx context.Context, opts ...PlansOption) (*PlanList, err
 }
 
 // Export returns the full plan — every collection in one request. With
-// Since, only entities changed after the cursor are returned, deletions
+// [Since], only entities changed after the cursor are returned, deletions
 // arriving as tombstones inside their collections.
 //
 // YNAB operationId: getPlanById
@@ -211,7 +211,7 @@ func (p *Plan) Export(ctx context.Context, opts ...ListOption) (*PlanDetail, Ser
 	return data.Plan, data.ServerKnowledge, nil
 }
 
-// Delta is the one-request full-plan delta: an Export since st's plan
+// Delta is the one-request full-plan delta: [Plan.Export] since st's plan
 // cursor, advancing *st in place on success (st.Plan moves to the new
 // server knowledge; the per-service cursors are separate spaces and stay
 // untouched). A zero st.Plan performs the initial full read. st must

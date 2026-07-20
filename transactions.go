@@ -13,7 +13,8 @@ import (
 	"strconv"
 )
 
-// ClearedStatus is a transaction's cleared state.
+// ClearedStatus is a transaction's cleared state. Unknown future values
+// decode losslessly with [ClearedStatus.Valid] false.
 type ClearedStatus string
 
 // The three wire cleared states.
@@ -35,10 +36,12 @@ func (s ClearedStatus) Valid() bool {
 
 // FlagColor is a transaction flag. FlagColorNone ("") is the one enum
 // whose zero value is valid — "no flag" on writes. Read models use
-// *FlagColor because the wire distinguishes null from a value.
+// *FlagColor because the wire distinguishes null from a value. Unknown
+// future values decode losslessly with [FlagColor.Valid] false.
 type FlagColor string
 
-// The wire flag colors. FlagColorNone clears the flag on writes.
+// The six wire flag colors and the valid zero FlagColorNone, which
+// clears the flag on writes.
 const (
 	FlagColorNone   FlagColor = ""
 	FlagColorRed    FlagColor = "red"
@@ -76,7 +79,8 @@ func (t TransactionType) Valid() bool {
 }
 
 // HybridType tells whether a hybrid row is a transaction or one leg of a
-// split.
+// split. Unknown future values decode losslessly with [HybridType.Valid]
+// false.
 type HybridType string
 
 // The two wire hybrid types.
@@ -91,7 +95,8 @@ func (t HybridType) Valid() bool {
 }
 
 // DebtTransactionType is the read-only kind of a debt/loan account
-// transaction; null off debt accounts.
+// transaction; null off debt accounts. Unknown future values decode
+// losslessly with [DebtTransactionType.Valid] false.
 type DebtTransactionType string
 
 // The eight wire debt transaction types.
@@ -156,7 +161,7 @@ type Transaction struct {
 	Subtransactions []Subtransaction `json:"subtransactions"`
 }
 
-// SyncID keys the transaction for MergeByID. Transaction and
+// SyncID keys the transaction for [MergeByID]. Transaction and
 // HybridTransaction inherit the adapters by embedding.
 func (t TransactionBase) SyncID() string { return t.ID }
 
@@ -186,7 +191,7 @@ type Subtransaction struct {
 	AmountCurrency  float64 `json:"amount_currency"`
 }
 
-// SyncID keys the subtransaction for MergeByID. Subtransaction inherits
+// SyncID keys the subtransaction for [MergeByID]. Subtransaction inherits
 // the adapters by embedding.
 func (s SubtransactionBase) SyncID() string { return s.ID }
 
@@ -296,7 +301,7 @@ func (s *TransactionsService) ListByPayee(
 }
 
 // ListByMonth returns one month's transactions. Month accepts
-// CurrentMonth.
+// [CurrentMonth]; a zero Month is a pre-flight [*ArgumentError].
 //
 // YNAB operationId: getTransactionsByMonth
 func (s *TransactionsService) ListByMonth(
@@ -332,11 +337,11 @@ func (s *TransactionsService) Get(ctx context.Context, transactionID string) (*T
 	return data.Transaction, data.ServerKnowledge, nil
 }
 
-// TransactionSpec is the payload for TransactionsService.Create and
-// CreateBatch. AccountID, Date, and Amount are required. A split
-// transaction sets CategoryID to SetNull and lists its legs in Splits —
-// the legs' amounts must sum exactly to Amount (SplitEven always
-// satisfies this).
+// TransactionSpec is the payload for [TransactionsService.Create] and
+// [TransactionsService.CreateBatch]. AccountID, Date, and Amount are
+// required. A split transaction sets CategoryID to [SetNull] and lists
+// its legs in Splits — the legs' amounts must sum exactly to Amount
+// ([Milliunits.SplitEven] always satisfies this).
 type TransactionSpec struct {
 	AccountID string     `json:"account_id"`
 	Date      Date       `json:"date"`
@@ -362,11 +367,13 @@ type TransactionSpec struct {
 
 // SubtransactionSpec is one leg of a split in TransactionSpec.
 type SubtransactionSpec struct {
-	Amount     Milliunits       `json:"amount"`
-	PayeeID    Optional[string] `json:"payee_id,omitzero"`
+	Amount  Milliunits       `json:"amount"`
+	PayeeID Optional[string] `json:"payee_id,omitzero"`
+	// PayeeName is bounded at 200 characters.
 	PayeeName  Optional[string] `json:"payee_name,omitzero"`
 	CategoryID Optional[string] `json:"category_id,omitzero"`
-	Memo       Optional[string] `json:"memo,omitzero"`
+	// Memo is bounded at 500 characters.
+	Memo Optional[string] `json:"memo,omitzero"`
 }
 
 // Spec-declared transaction write bounds. (The payee-name bound here is
@@ -420,8 +427,8 @@ func (u TransactionUpdate) validate(op string) error {
 	)
 }
 
-// BatchResult is what CreateBatch and UpdateBatch return.
-// DuplicateImportIDs lists the
+// BatchResult is what [TransactionsService.CreateBatch] and
+// [TransactionsService.UpdateBatch] return. DuplicateImportIDs lists the
 // import_ids skipped because the same (account, import_id) already
 // existed — a batch-level answer where the single Create returns 409.
 type BatchResult struct {
@@ -432,8 +439,9 @@ type BatchResult struct {
 }
 
 // Create adds one transaction (HTTP 201). A duplicate import_id on the
-// account answers 409 — errors.Is(err, ErrConflict) — unlike CreateBatch,
-// which reports duplicates in BatchResult.DuplicateImportIDs.
+// account answers 409 — errors.Is(err, [ErrConflict]) — unlike
+// [TransactionsService.CreateBatch], which reports duplicates in
+// [BatchResult].DuplicateImportIDs.
 //
 // YNAB operationId: createTransaction
 func (s *TransactionsService) Create(
@@ -452,7 +460,7 @@ func (s *TransactionsService) Create(
 
 // CreateBatch adds several transactions in one request (HTTP 201).
 // Duplicate import_ids do not fail the call: they come back in
-// BatchResult.DuplicateImportIDs with a nil error.
+// [BatchResult].DuplicateImportIDs with a nil error.
 //
 // YNAB operationId: createTransaction
 func (s *TransactionsService) CreateBatch(ctx context.Context, specs []TransactionSpec) (*BatchResult, error) {
@@ -473,26 +481,30 @@ func (s *TransactionsService) CreateBatch(ctx context.Context, specs []Transacti
 	return &data, nil
 }
 
-// TransactionUpdate is the partial payload for TransactionsService.Update
-// and the patches built by PatchByID/PatchByImportID. Unset fields stay
-// unchanged on the server; SetNull clears.
+// TransactionUpdate is the partial payload for
+// [TransactionsService.Update] and the patches built by
+// [PatchByID]/[PatchByImportID]. Unset fields stay unchanged on the
+// server; [SetNull] clears.
 type TransactionUpdate struct {
-	AccountID  Optional[string]     `json:"account_id,omitzero"`
-	Date       Optional[Date]       `json:"date,omitzero"`
-	Amount     Optional[Milliunits] `json:"amount,omitzero"`
-	PayeeID    Optional[string]     `json:"payee_id,omitzero"`
-	PayeeName  Optional[string]     `json:"payee_name,omitzero"`
-	CategoryID Optional[string]     `json:"category_id,omitzero"`
-	Memo       Optional[string]     `json:"memo,omitzero"`
-	Cleared    ClearedStatus        `json:"cleared,omitzero"`
-	Approved   Optional[bool]       `json:"approved,omitzero"`
-	FlagColor  Optional[FlagColor]  `json:"flag_color,omitzero"`
+	AccountID Optional[string]     `json:"account_id,omitzero"`
+	Date      Optional[Date]       `json:"date,omitzero"`
+	Amount    Optional[Milliunits] `json:"amount,omitzero"`
+	PayeeID   Optional[string]     `json:"payee_id,omitzero"`
+	// PayeeName resolves or creates a payee by name when PayeeID is not
+	// set; bounded at 200 characters.
+	PayeeName  Optional[string] `json:"payee_name,omitzero"`
+	CategoryID Optional[string] `json:"category_id,omitzero"`
+	// Memo is bounded at 500 characters.
+	Memo      Optional[string]    `json:"memo,omitzero"`
+	Cleared   ClearedStatus       `json:"cleared,omitzero"`
+	Approved  Optional[bool]      `json:"approved,omitzero"`
+	FlagColor Optional[FlagColor] `json:"flag_color,omitzero"`
 }
 
 // TransactionPatch is one element of an UpdateBatch. Its identity is
 // exactly one of transaction id or import id — both unexported, so the
-// XOR holds by construction: build patches only with PatchByID or
-// PatchByImportID.
+// XOR holds by construction: build patches only with [PatchByID] or
+// [PatchByImportID].
 type TransactionPatch struct {
 	id       string
 	importID string

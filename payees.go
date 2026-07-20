@@ -17,7 +17,7 @@ type Payee struct {
 	Deleted           bool    `json:"deleted"`
 }
 
-// SyncID keys the payee for MergeByID.
+// SyncID keys the payee for [MergeByID].
 func (p Payee) SyncID() string { return p.ID }
 
 // IsDeleted reports a delta tombstone.
@@ -31,7 +31,8 @@ type PayeesService struct {
 	plan *Plan
 }
 
-// List returns the plan's payees.
+// List returns the plan's payees. With [Since], only payees changed
+// after the cursor are returned, deletions arriving as tombstones.
 //
 // YNAB operationId: getPayees
 func (s *PayeesService) List(ctx context.Context, opts ...ListOption) ([]Payee, ServerKnowledge, error) {
@@ -61,7 +62,7 @@ func (s *PayeesService) Get(ctx context.Context, payeeID string) (*Payee, error)
 
 // Create adds a payee (HTTP 201) and returns it with the new server
 // knowledge. Names are bounded at 500 characters by the API; longer
-// names fail pre-flight as *ArgumentError.
+// names fail pre-flight as [*ArgumentError].
 //
 // YNAB operationId: createPayee
 func (s *PayeesService) Create(ctx context.Context, name string) (*Payee, ServerKnowledge, error) {

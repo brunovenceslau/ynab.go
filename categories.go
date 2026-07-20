@@ -11,7 +11,8 @@ import (
 )
 
 // GoalType is a category goal's read-side type. Null on the wire means
-// "no goal", modeled as *GoalType.
+// "no goal", modeled as *GoalType. Unknown future values decode
+// losslessly with [GoalType.Valid] false.
 type GoalType string
 
 // The five wire goal types.
@@ -56,7 +57,7 @@ func (f GoalFrequency) Valid() bool {
 
 // CategoryBase is the category shape shared by the categories endpoints
 // and the full-plan export collections. Amounts are specific to the
-// current plan month unless read through GetForMonth.
+// current plan month unless read through [CategoriesService.GetForMonth].
 type CategoryBase struct {
 	ID                string `json:"id"`
 	CategoryGroupID   string `json:"category_group_id"`
@@ -138,7 +139,7 @@ func (g CategoryGroup) SyncID() string { return g.ID }
 // IsDeleted reports a delta tombstone.
 func (g CategoryGroup) IsDeleted() bool { return g.Deleted }
 
-// CategorySpec is the payload for CategoriesService.Create. Name and
+// CategorySpec is the payload for [CategoriesService.Create]. Name and
 // GroupID are required; an internal category group may not be specified.
 type CategorySpec struct {
 	Name    string           `json:"name"`
@@ -157,8 +158,8 @@ type CategorySpec struct {
 	GoalFrequency GoalFrequency `json:"goal_frequency,omitzero"`
 }
 
-// CategoryUpdate is the partial payload for CategoriesService.Update.
-// Unset fields stay unchanged on the server; SetNull clears — for
+// CategoryUpdate is the partial payload for [CategoriesService.Update].
+// Unset fields stay unchanged on the server; [SetNull] clears — for
 // GoalTarget, SetNull removes an existing target (omit ≠ clear!).
 type CategoryUpdate struct {
 	Name                 Optional[string]     `json:"name,omitzero"`
@@ -196,7 +197,7 @@ func (s *CategoriesService) List(ctx context.Context, opts ...ListOption) ([]Cat
 }
 
 // Get returns a single category by id, with amounts for the current
-// plan month.
+// plan month. A missing id answers [ErrResourceNotFound].
 //
 // YNAB operationId: getCategoryById
 func (s *CategoriesService) Get(ctx context.Context, categoryID string) (*Category, error) {
@@ -210,7 +211,8 @@ func (s *CategoriesService) Get(ctx context.Context, categoryID string) (*Catego
 }
 
 // GetForMonth returns a single category with amounts specific to month.
-// Month accepts CurrentMonth.
+// Month accepts [CurrentMonth]. A missing id answers
+// [ErrResourceNotFound]; a zero Month is a pre-flight [*ArgumentError].
 //
 // YNAB operationId: getMonthCategoryById
 func (s *CategoriesService) GetForMonth(ctx context.Context, m Month, categoryID string) (*Category, error) {
@@ -245,7 +247,7 @@ func (s *CategoriesService) Create(ctx context.Context, spec CategorySpec) (*Cat
 	return data.Category, data.ServerKnowledge, nil
 }
 
-// Update patches a category. Unset fields stay unchanged; SetNull on
+// Update patches a category. Unset fields stay unchanged; [SetNull] on
 // GoalTarget clears an existing target.
 //
 // YNAB operationId: updateCategory
@@ -263,7 +265,8 @@ func (s *CategoriesService) Update(
 // Assign sets the budgeted amount for a category in the given month.
 //
 // Only the assigned amount can change through this operation; YNAB
-// computes activity and available from it. Month accepts CurrentMonth.
+// computes activity and available from it. Month accepts [CurrentMonth];
+// a zero Month is a pre-flight [*ArgumentError].
 //
 // YNAB operationId: updateMonthCategory
 func (s *CategoriesService) Assign(
@@ -288,7 +291,7 @@ type categoryGroupResult struct {
 }
 
 // CreateGroup adds a category group (HTTP 201). The name is bounded at 50
-// characters by the API; longer names fail pre-flight as *ArgumentError.
+// characters by the API; longer names fail pre-flight as [*ArgumentError].
 //
 // YNAB operationId: createCategoryGroup
 func (s *CategoriesService) CreateGroup(ctx context.Context, name string) (*CategoryGroup, ServerKnowledge, error) {

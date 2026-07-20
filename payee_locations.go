@@ -19,7 +19,7 @@ type PayeeLocation struct {
 	Deleted   bool   `json:"deleted"`
 }
 
-// SyncID keys the location for MergeByID.
+// SyncID keys the location for [MergeByID].
 func (l PayeeLocation) SyncID() string { return l.ID }
 
 // IsDeleted reports a delta tombstone.

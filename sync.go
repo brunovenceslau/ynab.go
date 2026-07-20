@@ -10,11 +10,12 @@ import (
 )
 
 // ServerKnowledge is the API's opaque, monotonically increasing delta
-// cursor, scoped per (plan, stream). Pass it back with Since to receive
+// cursor, scoped per (plan, stream). Pass it back with [Since] to receive
 // only entities changed after it.
 type ServerKnowledge int64
 
-// ListOption tunes a delta-capable list call. Since is the only spelling.
+// ListOption tunes a delta-capable list call. [Since] is the only
+// spelling.
 type ListOption struct {
 	apply func(url.Values)
 }
@@ -56,7 +57,7 @@ type Syncable interface {
 // SyncState is a JSON-persistable bundle of delta cursors for one plan —
 // save it between runs and hand it back to keep reads incremental. Each
 // field is its own (plan, stream) cursor space: Plan belongs to
-// Plan.Delta / Plan.Export, the others to their service's list. Zero
+// [Plan.Delta] / [Plan.Export], the others to their service's list. Zero
 // cursors are omitted from the JSON. Like [MergeByID]'s maps, a SyncState
 // is caller-synchronized — guard it yourself if goroutines share it.
 type SyncState struct {
