@@ -4,7 +4,7 @@
 
 package ynab_test
 
-// Task 31: the strict completeness flip. Every table row must be
+// The strict completeness flip. Every table row must be
 // implemented with doc-line-bearing methods (1:N), every write op G2-
 // registered, every op G4-covered, every pointer-bearing model G5-
 // covered. The G4 read cases for the sixteen non-GET operations live

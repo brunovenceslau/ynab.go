@@ -5,6 +5,7 @@
 package ynab
 
 import (
+	"cmp"
 	"fmt"
 	"time"
 )
@@ -87,11 +88,11 @@ func (d Date) Compare(o Date) int {
 	case d == o:
 		return 0
 	case d.year != o.year:
-		return compareInt(d.year, o.year)
+		return cmp.Compare(d.year, o.year)
 	case d.month != o.month:
-		return compareInt(int(d.month), int(o.month))
+		return cmp.Compare(d.month, o.month)
 	default:
-		return compareInt(d.day, o.day)
+		return cmp.Compare(d.day, o.day)
 	}
 }
 
@@ -147,16 +148,4 @@ func (d *Date) UnmarshalJSON(data []byte) error {
 	}
 	*d = parsed
 	return nil
-}
-
-// compareInt is the three-way integer comparison Compare builds on.
-func compareInt(a, b int) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	default:
-		return 0
-	}
 }

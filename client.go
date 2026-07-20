@@ -270,8 +270,9 @@ func WithLogger(l *slog.Logger) Option {
 // limiter/token/retry pipeline and non-2xx responses map to *Error, but
 // no envelope semantics apply on either side.
 //
-// EXPERIMENTAL: RawDo exists as the escape hatch for endpoints this
-// library does not cover yet. It is outside the compatibility promise —
+// EXPERIMENTAL: RawDo is the escape hatch for API surface this library
+// does not cover — future endpoints, undocumented parameters, or beta
+// features. It is outside the compatibility promise —
 // its signature and behavior may change in any release.
 //
 // Escape dynamic path segments yourself and beware the trap:

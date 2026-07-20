@@ -5,7 +5,7 @@
 package ynab_test
 
 // Live-integration machinery. Cases are declared here — untagged, so the
-// tokenless completeness gate (Task 40) can enumerate them — while the
+// tokenless completeness gate can enumerate them — while the
 // runner that actually hits the API lives behind //go:build integration
 // and skips cleanly without YNAB_TEST_TOKEN. Suite discipline: sequential
 // (never concurrent with itself), well under 200 requests/hour, writes

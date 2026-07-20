@@ -52,10 +52,6 @@ func registerWriteModel(v any) {
 func init() {
 	// Standing wire value types in scope from day one.
 	registerReadModel(ynab.CurrencyFormat{})
-
-	// Synthetic write model keeping the round-trip machinery exercised
-	// until the first real write slice lands (Task 16+), then removed.
-	registerWriteModel(goodWireModel{Name: "n", Note: ynab.Set("m"), Approved: ynab.Set(false)})
 }
 
 // TestContractStructs is gate G3.

@@ -252,7 +252,8 @@ func collectNullPaths(doc any, prefix string, nulls, present map[string]struct{}
 }
 
 // runExtremeNumericsCase asserts extreme numeric magnitudes decode cleanly
-// into a model — the uint8-overflow class of the pr-era regressions.
+// into a model — the uint8-overflow regression class this library's
+// predecessor shipped.
 func runExtremeNumericsCase(t *testing.T, model any, fixture, wrapper string) {
 	t.Helper()
 
@@ -262,7 +263,7 @@ func runExtremeNumericsCase(t *testing.T, model any, fixture, wrapper string) {
 }
 
 // Self-checks with a synthetic model + fixtures, kept until real slices
-// land their own (Task 16+).
+// land their own.
 
 type syntheticThing struct {
 	Name    string           `json:"name"`

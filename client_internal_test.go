@@ -5,8 +5,9 @@
 package ynab
 
 // White-box tests for construction defaults and the config-error contract.
-// No public I/O method exists yet to observe these through; Task 16's User
-// endpoint re-proves the contract through the public surface.
+// The public surface re-proves the contract end to end (see
+// TestConfigErrorsSurfaceBeforeIO in plan_test.go); these stay white-box
+// to pin the stored state itself.
 
 import (
 	"context"

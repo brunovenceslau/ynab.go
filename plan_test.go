@@ -100,7 +100,7 @@ func TestUser(t *testing.T) {
 func TestUserConfigErrorBeforeIO(t *testing.T) {
 	t.Parallel()
 
-	// Re-proves Task 8's contract through a real method: the stored option
+	// Re-proves the construction contract through a real method: the stored option
 	// failure surfaces before any I/O.
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("no request must be sent on a config error")

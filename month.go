@@ -5,6 +5,7 @@
 package ynab
 
 import (
+	"cmp"
 	"fmt"
 	"time"
 )
@@ -95,9 +96,9 @@ func (m Month) AddMonths(n int) Month {
 // every concrete month (and equal to each other).
 func (m Month) Compare(o Month) int {
 	if m.year != o.year {
-		return compareInt(m.year, o.year)
+		return cmp.Compare(m.year, o.year)
 	}
-	return compareInt(int(m.month), int(o.month))
+	return cmp.Compare(m.month, o.month)
 }
 
 // FirstDay returns the first calendar day of m, or the zero Date for the

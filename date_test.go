@@ -111,7 +111,7 @@ func TestDateJSON(t *testing.T) {
 	t.Run("value receiver marshal through non-pointer field", func(t *testing.T) {
 		t.Parallel()
 
-		// The pr-era regression: a pointer-receiver MarshalJSON silently
+		// The predecessor's regression: a pointer-receiver MarshalJSON silently
 		// vanishes for non-addressable values. Prove the value receiver.
 		in := struct {
 			D ynab.Date `json:"d"`

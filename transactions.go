@@ -75,7 +75,12 @@ const (
 
 // Valid reports whether t is one of the documented wire values.
 func (t TransactionType) Valid() bool {
-	return t == TransactionTypeUncategorized || t == TransactionTypeUnapproved
+	switch t {
+	case TransactionTypeUncategorized, TransactionTypeUnapproved:
+		return true
+	default:
+		return false
+	}
 }
 
 // HybridType tells whether a hybrid row is a transaction or one leg of a
@@ -91,7 +96,12 @@ const (
 
 // Valid reports whether t is one of the documented wire values.
 func (t HybridType) Valid() bool {
-	return t == HybridTypeTransaction || t == HybridTypeSubtransaction
+	switch t {
+	case HybridTypeTransaction, HybridTypeSubtransaction:
+		return true
+	default:
+		return false
+	}
 }
 
 // DebtTransactionType is the read-only kind of a debt/loan account
