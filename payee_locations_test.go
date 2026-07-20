@@ -16,7 +16,7 @@ import (
 func init() {
 	contract.MarkImplemented("getPayeeLocations", "getPayeeLocationById", "getPayeeLocationsByPayee")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayeeLocations",
 		fixture: "payee_locations/list.json",
 		model:   []ynab.PayeeLocation{},
@@ -25,7 +25,7 @@ func init() {
 			return c.Plan("p-1").PayeeLocations.List(t.Context())
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayeeLocationById",
 		fixture: "payee_locations/get.json",
 		model:   ynab.PayeeLocation{},
@@ -34,7 +34,7 @@ func init() {
 			return c.Plan("p-1").PayeeLocations.Get(t.Context(), "pl111111-1111-1111-1111-111111111111")
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayeeLocationsByPayee",
 		fixture: "payee_locations/by_payee.json",
 		model:   []ynab.PayeeLocation{},

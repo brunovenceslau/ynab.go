@@ -21,7 +21,7 @@ import (
 func init() {
 	contract.MarkImplemented("getAccounts", "createAccount", "getAccountById")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getAccounts",
 		fixture: "accounts/list.json",
 		model:   []ynab.Account{},
@@ -31,7 +31,7 @@ func init() {
 			return accounts, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getAccounts",
 		variant: "null",
 		fixture: "accounts/list_null.json",
@@ -42,7 +42,7 @@ func init() {
 			return accounts, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getAccountById",
 		fixture: "accounts/get.json",
 		model:   ynab.Account{},
@@ -51,7 +51,7 @@ func init() {
 			return c.Plan("p-1").Accounts.Get(t.Context(), "ac111111-1111-1111-1111-111111111111")
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlans",
 		variant: "include_accounts",
 		fixture: "plans/list_accounts.json",

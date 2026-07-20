@@ -20,7 +20,7 @@ import (
 func init() {
 	contract.MarkImplemented("getPayees", "createPayee", "getPayeeById", "updatePayee")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayees",
 		fixture: "payees/list.json",
 		model:   []ynab.Payee{},
@@ -30,7 +30,7 @@ func init() {
 			return payees, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayees",
 		variant: "null",
 		fixture: "payees/list_null.json",
@@ -41,7 +41,7 @@ func init() {
 			return payees, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPayeeById",
 		fixture: "payees/get.json",
 		model:   ynab.Payee{},

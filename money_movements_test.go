@@ -20,7 +20,7 @@ func init() {
 		"getMoneyMovementGroups", "getMoneyMovementGroupsByMonth",
 	)
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getMoneyMovements",
 		fixture: "money_movements/list.json",
 		model:   []ynab.MoneyMovement{},
@@ -30,7 +30,7 @@ func init() {
 			return movements, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getMoneyMovementsByMonth",
 		fixture: "money_movements/by_month.json",
 		model:   []ynab.MoneyMovement{},
@@ -40,7 +40,7 @@ func init() {
 			return movements, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getMoneyMovementGroups",
 		fixture: "money_movements/groups.json",
 		model:   []ynab.MoneyMovementGroup{},
@@ -50,7 +50,7 @@ func init() {
 			return groups, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getMoneyMovementGroupsByMonth",
 		fixture: "money_movements/groups_by_month.json",
 		model:   []ynab.MoneyMovementGroup{},

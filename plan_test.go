@@ -19,7 +19,7 @@ import (
 func init() {
 	contract.MarkImplemented("getUser", "getPlans", "getPlanSettingsById")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getUser",
 		fixture: "user/get.json",
 		model:   ynab.User{},
@@ -28,7 +28,7 @@ func init() {
 			return c.User(t.Context())
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlans",
 		fixture: "plans/list.json",
 		model:   ynab.PlanList{},
@@ -37,7 +37,7 @@ func init() {
 			return c.Plans(t.Context())
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlans",
 		variant: "null",
 		fixture: "plans/list_null.json",
@@ -47,7 +47,7 @@ func init() {
 			return c.Plans(t.Context())
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanSettingsById",
 		fixture: "plans/settings.json",
 		model:   ynab.PlanSettings{},
@@ -56,7 +56,7 @@ func init() {
 			return c.Plan("aa111111-1111-1111-1111-111111111111").Settings(t.Context())
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanSettingsById",
 		variant: "null",
 		fixture: "plans/settings_null.json",

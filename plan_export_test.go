@@ -16,7 +16,7 @@ import (
 func init() {
 	contract.MarkImplemented("getPlanById")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanById",
 		fixture: "plans/export.json",
 		model:   ynab.PlanDetail{},
@@ -26,7 +26,7 @@ func init() {
 			return detail, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanById",
 		variant: "null",
 		fixture: "plans/export_null.json",

@@ -25,19 +25,20 @@ import (
 )
 
 func init() {
-	for _, ec := range writeEndpointCases() {
-		registerEndpointCase(ec)
+	for _, ec := range writeOpReadCases() {
+		registerReadCase(ec)
 	}
 
 	registerNullFixture(ynab.BatchResult{}, "transactions/create_batch_null.json", "")
 }
 
-// writeEndpointCases returns the G4 cases for the sixteen non-GET
-// operations — their success responses run header-stripped like reads.
-func writeEndpointCases() []endpointCase {
+// writeOpReadCases returns the read cases for the sixteen non-GET
+// operations — their success responses run header-stripped like any
+// read (G4).
+func writeOpReadCases() []readCase {
 	sched := ynab.Today().AddDays(30)
 
-	return []endpointCase{
+	return []readCase{
 		{
 			op: "createAccount", fixture: "accounts/create.json", model: ynab.Account{},
 			call: func(t *testing.T, c *ynab.Client) (any, error) {
@@ -202,14 +203,14 @@ func TestContractComplete(t *testing.T) {
 
 	// G4 completeness over the whole table: every operation — reads and
 	// writes alike — has at least one header-stripped endpoint case.
-	endpointRegistryMu.Lock()
+	readRegistryMu.Lock()
 	covered := map[string]int{}
-	for _, ec := range endpointRegistry {
+	for _, ec := range readRegistry {
 		covered[ec.op]++
 	}
-	endpointRegistryMu.Unlock()
+	readRegistryMu.Unlock()
 	for _, op := range table {
-		require.Positive(t, covered[op.ID], "operation %s has no G4 endpoint case", op.ID)
+		require.Positive(t, covered[op.ID], "operation %s has no G4 read case", op.ID)
 	}
 }
 

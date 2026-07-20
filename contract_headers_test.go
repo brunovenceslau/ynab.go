@@ -9,7 +9,7 @@ package ynab_test
 // Slices register cases like:
 //
 //	func init() {
-//		registerEndpointCase(endpointCase{
+//		registerReadCase(readCase{
 //			op: "getPayees", fixture: "payees/list.json",
 //			call: func(t *testing.T, c *ynab.Client) (any, error) {
 //				payees, _, err := c.Plan("p-1").Payees.List(t.Context())
@@ -37,9 +37,11 @@ import (
 	"pkg.venceslau.dev/ynab/internal/transport"
 )
 
-// endpointCase is one registered G4 endpoint case: a golden fixture served
-// as the response, and a call decoding it through the public client.
-type endpointCase struct {
+// readCase is one registered G4 case for an operation's read (decode)
+// direction: a golden fixture served as the response, and a call
+// decoding it through the public client. Write operations register one
+// too — their success responses decode like any read.
+type readCase struct {
 	op      string // operationId (table row)
 	variant string // optional: distinguishes fixtures per op
 	fixture string // path under testdata/, e.g. "payees/list.json"
@@ -49,17 +51,17 @@ type endpointCase struct {
 }
 
 var (
-	endpointRegistryMu sync.Mutex
-	endpointRegistry   []endpointCase
+	readRegistryMu sync.Mutex
+	readRegistry   []readCase
 )
 
-// registerEndpointCase is called from slice test files' init functions.
+// registerReadCase is called from slice test files' init functions.
 // The case's model feeds the G3 struct lint at registration time —
 // statically, so gate coverage can never depend on test scheduling.
-func registerEndpointCase(ec endpointCase) {
-	endpointRegistryMu.Lock()
-	endpointRegistry = append(endpointRegistry, ec)
-	endpointRegistryMu.Unlock()
+func registerReadCase(ec readCase) {
+	readRegistryMu.Lock()
+	readRegistry = append(readRegistry, ec)
+	readRegistryMu.Unlock()
 
 	if ec.model != nil {
 		registerReadModel(ec.model)
@@ -101,7 +103,7 @@ func fixtureServer(t *testing.T, status int, body []byte, stripped bool) *httpte
 // runEndpointTest executes one case twice — verbatim and header-stripped —
 // requires both to succeed, and requires identical decoded results. The
 // verbatim result feeds the G3 wire-model walk.
-func runEndpointTest(t *testing.T, ec endpointCase) {
+func runEndpointTest(t *testing.T, ec readCase) {
 	t.Helper()
 
 	body := loadFixture(t, ec.fixture)
@@ -164,10 +166,10 @@ func TestContractHeadersDetectsDependence(t *testing.T) {
 func TestContractHeaders(t *testing.T) {
 	t.Parallel()
 
-	endpointRegistryMu.Lock()
-	cases := make([]endpointCase, len(endpointRegistry))
-	copy(cases, endpointRegistry)
-	endpointRegistryMu.Unlock()
+	readRegistryMu.Lock()
+	cases := make([]readCase, len(readRegistry))
+	copy(cases, readRegistry)
+	readRegistryMu.Unlock()
 
 	infos := make([]contract.ReadCaseInfo, 0, len(cases))
 	for _, ec := range cases {

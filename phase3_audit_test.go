@@ -160,10 +160,10 @@ func TestEnumValidTables(t *testing.T) {
 func TestContractEndpointErrorPropagation(t *testing.T) {
 	t.Parallel()
 
-	endpointRegistryMu.Lock()
-	cases := make([]endpointCase, len(endpointRegistry))
-	copy(cases, endpointRegistry)
-	endpointRegistryMu.Unlock()
+	readRegistryMu.Lock()
+	cases := make([]readCase, len(readRegistry))
+	copy(cases, readRegistry)
+	readRegistryMu.Unlock()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

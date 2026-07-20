@@ -17,7 +17,7 @@ import (
 func init() {
 	contract.MarkImplemented("getPlanMonths", "getPlanMonth")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanMonths",
 		fixture: "months/list.json",
 		model:   []ynab.MonthSummary{},
@@ -27,7 +27,7 @@ func init() {
 			return months, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanMonths",
 		variant: "null",
 		fixture: "months/list_null.json",
@@ -38,7 +38,7 @@ func init() {
 			return months, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanMonth",
 		fixture: "months/get.json",
 		model:   ynab.MonthDetail{},
@@ -47,7 +47,7 @@ func init() {
 			return c.Plan("p-1").Months.Get(t.Context(), ynab.NewMonth(2026, time.July))
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getPlanMonth",
 		variant: "null",
 		fixture: "months/get_null.json",

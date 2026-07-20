@@ -17,7 +17,7 @@ import (
 func init() {
 	contract.MarkImplemented("getCategories", "getCategoryById", "getMonthCategoryById")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getCategories",
 		fixture: "categories/list.json",
 		model:   []ynab.CategoryGroup{},
@@ -27,7 +27,7 @@ func init() {
 			return groups, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getCategories",
 		variant: "null",
 		fixture: "categories/list_null.json",
@@ -38,7 +38,7 @@ func init() {
 			return groups, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getCategoryById",
 		fixture: "categories/get.json",
 		model:   ynab.Category{},
@@ -47,7 +47,7 @@ func init() {
 			return c.Plan("p-1").Categories.Get(t.Context(), "ca111111-1111-1111-1111-111111111111")
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getMonthCategoryById",
 		fixture: "categories/month_get.json",
 		model:   ynab.Category{},
@@ -61,7 +61,7 @@ func init() {
 	registerNullFixture([]ynab.CategoryGroup{}, "categories/list_null.json", "category_groups")
 	registerNullFixture(ynab.Category{}, "categories/get_null.json", "category")
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getCategoryById",
 		variant: "null",
 		fixture: "categories/get_null.json",

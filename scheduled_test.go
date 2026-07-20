@@ -25,7 +25,7 @@ func init() {
 		"deleteScheduledTransaction",
 	)
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getScheduledTransactions",
 		fixture: "scheduled/list.json",
 		model:   []ynab.ScheduledTransaction{},
@@ -35,7 +35,7 @@ func init() {
 			return scheduled, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getScheduledTransactionById",
 		fixture: "scheduled/get.json",
 		model:   ynab.ScheduledTransaction{},

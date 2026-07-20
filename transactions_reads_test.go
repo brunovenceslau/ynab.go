@@ -20,7 +20,7 @@ func init() {
 		"getTransactionsByCategory", "getTransactionsByPayee", "getTransactionsByMonth",
 	)
 
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactions",
 		fixture: "transactions/list.json",
 		model:   []ynab.Transaction{},
@@ -30,7 +30,7 @@ func init() {
 			return txns, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactions",
 		variant: "null",
 		fixture: "transactions/list_null.json",
@@ -41,7 +41,7 @@ func init() {
 			return txns, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionById",
 		fixture: "transactions/get.json",
 		model:   ynab.Transaction{},
@@ -51,7 +51,7 @@ func init() {
 			return tx, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionById",
 		variant: "null",
 		fixture: "transactions/get_null.json",
@@ -62,7 +62,7 @@ func init() {
 			return tx, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionsByAccount",
 		fixture: "transactions/list.json",
 		model:   []ynab.Transaction{},
@@ -73,7 +73,7 @@ func init() {
 			return txns, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionsByCategory",
 		fixture: "transactions/hybrid.json",
 		model:   []ynab.HybridTransaction{},
@@ -84,7 +84,7 @@ func init() {
 			return rows, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionsByPayee",
 		fixture: "transactions/hybrid_no_sk.json",
 		model:   []ynab.HybridTransaction{},
@@ -95,7 +95,7 @@ func init() {
 			return rows, err
 		},
 	})
-	registerEndpointCase(endpointCase{
+	registerReadCase(readCase{
 		op:      "getTransactionsByMonth",
 		fixture: "transactions/list.json",
 		model:   []ynab.Transaction{},
