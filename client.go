@@ -29,7 +29,7 @@ const defaultTimeout = 30 * time.Second
 // fields passed to WithRetryPolicy fall back to it field by field.
 var defaultRetry = RetryPolicy{
 	MaxAttempts: 3,
-	MinBackoff:  time.Second,
+	MinBackoff:  300 * time.Millisecond,
 	MaxBackoff:  30 * time.Second,
 	RetryWrites: false,
 }
@@ -51,7 +51,7 @@ type Limiter interface {
 // RetryPolicy configures the retry pipeline.
 type RetryPolicy struct {
 	MaxAttempts int           // default 3
-	MinBackoff  time.Duration // default 1s
+	MinBackoff  time.Duration // default 300ms: first retries stay close, outliers do not stall the call
 	MaxBackoff  time.Duration // default 30s; backoff uses full jitter
 	RetryWrites bool          // default false: 500/503/transport retried only for GET/DELETE
 }
@@ -207,8 +207,8 @@ func WithTimeout(d time.Duration) Option {
 }
 
 // WithRetryPolicy replaces the retry policy. Zero fields keep their
-// defaults (MaxAttempts 3, MinBackoff 1s, MaxBackoff 30s, RetryWrites
-// false), so setting a single field is safe.
+// defaults (MaxAttempts 3, MinBackoff 300ms, MaxBackoff 30s,
+// RetryWrites false), so setting a single field is safe.
 func WithRetryPolicy(p RetryPolicy) Option {
 	return Option{apply: func(c *Client) {
 		if p.MaxAttempts == 0 {

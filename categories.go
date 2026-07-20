@@ -28,8 +28,9 @@ func (t GoalType) Valid() bool {
 	switch t {
 	case GoalTypeTB, GoalTypeTBD, GoalTypeMF, GoalTypeNEED, GoalTypeDEBT:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // GoalFrequency configures a recurring NEED target on category writes
@@ -48,8 +49,9 @@ func (f GoalFrequency) Valid() bool {
 	switch f {
 	case GoalFrequencyMonthly, GoalFrequencyWeekly, GoalFrequencyYearly:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // CategoryBase is the category shape shared by the categories endpoints

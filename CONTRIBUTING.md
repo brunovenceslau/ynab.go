@@ -57,8 +57,37 @@ are missing.
   vendored spec. If you did: `git checkout -- openapi.yaml`. Re-vendoring is
   ask-first.
 
+## Which tests does my change need?
+
+Every kind of test here exists to kill a specific class of bug — pick by
+what your change touches:
+
+- **Unit tests** (plain `_test.go`): the behavior of what you wrote,
+  through the public surface. Always.
+- **Endpoint cases** (`registerEndpointCase`, gate G4/G5): any operation
+  that decodes a response. They run every decode twice with optional
+  headers stripped and prove every nullable field against a null-variant
+  fixture — the class of bug they kill is "works on my fixture".
+- **Write cases** (`registerWriteCase`, gate G2): any operation that
+  sends a body. Byte-exact bodies including the emitted key set — the
+  bug they kill is a stray or missing JSON key the server silently
+  accepts today and rejects tomorrow.
+- **Wire-model registration** (`registerWriteModel`/`registerReadModel`,
+  gate G3): any new request/response struct. A reflection lint over
+  tags and Optional/omitzero discipline.
+- **Live-integration case** (`registerIntegrationCase`, tokenless
+  completeness gate + `make integration`): any new operation. The only
+  layer that catches the server disagreeing with the vendored spec.
+- **Fuzz targets**: any hand-written parser. No-panic plus round-trip.
+- **Examples**: any new user-facing concept — they are documentation
+  that cannot rot, and `go test` runs them.
+
+The gates will list exactly which registrations are missing if you
+forget one.
+
 ## Triage promise
 
-Issues are acknowledged within 14 days and receive an accept/decline decision
-within 60. Small, well-gated PRs get the fastest reviews. This is a
-one-person project; the numbers are deliberately modest so they can be kept.
+Issues are acknowledged within 14 days and resolved — an accept/decline
+decision, and the fix when accepted — within 30 days of acknowledgement.
+Small, well-gated PRs get the fastest reviews. This is a one-person
+project; the numbers are deliberately modest so they can be kept.

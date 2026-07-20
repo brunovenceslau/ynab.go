@@ -1,4 +1,4 @@
-# ynab
+# YNAB for Go
 
 [![Go Reference](https://pkg.go.dev/badge/pkg.venceslau.dev/ynab.svg)](https://pkg.go.dev/pkg.venceslau.dev/ynab)
 [![CI](https://img.shields.io/github/actions/workflow/status/brunovenceslau/ynab.go/ci.yaml?branch=main&label=ci)](https://github.com/brunovenceslau/ynab.go/actions/workflows/ci.yaml)
@@ -36,7 +36,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"pkg.venceslau.dev/ynab"
@@ -48,7 +48,8 @@ func main() {
 
 	accounts, _, err := plan.Accounts.List(context.Background())
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("listing accounts", "err", err)
+		os.Exit(1)
 	}
 	for _, a := range accounts {
 		fmt.Printf("%s  %s\n", a.Name, a.BalanceFormatted)
@@ -56,6 +57,11 @@ func main() {
 	// Checking  $1,282.23   (your accounts will differ)
 }
 ```
+
+> [!TIP]
+> The [package examples](https://pkg.go.dev/pkg.venceslau.dev/ynab#pkg-examples)
+> are the fastest tour: 26 runnable programs covering every service — the full
+> delta-sync loop, split transactions, tri-state PATCH writes, both test seams.
 
 ## The plan handle
 
@@ -127,16 +133,20 @@ Observed-vs-documented API divergences live in [API_NOTES.md](API_NOTES.md).
 
 ## Upgrading from the archived v1.x line
 
-The archived `github.com/brunovenceslau/ynab.go` releases are replaced by this
-module at `pkg.venceslau.dev/ynab`. It is a clean break — budget → plan, one
-package, no source compatibility; the old tags remain available. See the
-[CHANGELOG](CHANGELOG.md) for the migration summary.
+This module replaces the archived v1.x releases. It is a clean break —
+budget → plan, one package, no source compatibility. The old versions stay
+installable forever from the Go module proxy under their original path:
+`go get github.com/brunomvsouza/ynab.go@v1.5.0`. They cannot be fetched
+through `pkg.venceslau.dev/ynab` (their `go.mod` declares the old module
+path); the `archive/*` tags in this repository exist for browsing that
+history. See the [CHANGELOG](CHANGELOG.md) for the migration summary.
 
 ## Support
 
-Issues are acknowledged within **14 days** and receive an accept/decline
-decision within **60 days**. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-gate workflow before opening a PR.
+Issues are acknowledged within **14 days** and resolved — an accept/decline
+decision, and the fix when accepted — within **30 days** of acknowledgement.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the gate workflow before opening
+a PR.
 
 ## License
 

@@ -67,12 +67,13 @@ func TestErrorTaxonomy(t *testing.T) {
 			// Wrapped once, as transport will surface it.
 			err := fmt.Errorf("get user: %w", &ynab.Error{StatusCode: tt.status, ID: tt.id, Name: tt.name, Detail: "d"})
 
-			want := map[string]bool{}
+			want := map[string]struct{}{}
 			for _, n := range tt.want {
-				want[n] = true
+				want[n] = struct{}{}
 			}
 			for name, sentinel := range allSentinels() {
-				require.Equal(t, want[name], errors.Is(err, sentinel),
+				_, wanted := want[name]
+				require.Equal(t, wanted, errors.Is(err, sentinel),
 					"%s (%s) vs %s", tt.id, tt.name, name)
 			}
 		})

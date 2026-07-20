@@ -18,10 +18,16 @@ type WriteCaseInfo struct {
 
 // bodilessOps are the three non-GET operations that carry no request body
 // (wire truth from the vendored spec).
-var bodilessOps = map[string]bool{
-	"deleteTransaction":          true,
-	"deleteScheduledTransaction": true,
-	"importTransactions":         true,
+var bodilessOps = map[string]struct{}{
+	"deleteTransaction":          {},
+	"deleteScheduledTransaction": {},
+	"importTransactions":         {},
+}
+
+// isBodiless reports whether id ships no request body.
+func isBodiless(id string) bool {
+	_, ok := bodilessOps[id]
+	return ok
 }
 
 // DiffWriteCoverage checks the G2 registry against the G1 implemented
@@ -61,7 +67,7 @@ func DiffWriteCoverage(table []Operation, implemented []string, cases []WriteCas
 				problems = append(problems, fmt.Sprintf(
 					"createTransaction needs exactly 2 body cases (single+batch), has %d", bodies[id]))
 			}
-		case bodilessOps[id]:
+		case isBodiless(id):
 			if bodies[id] != 0 {
 				problems = append(problems, id+" is bodiless on the wire but has a body case")
 			}

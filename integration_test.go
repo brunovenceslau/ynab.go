@@ -66,16 +66,16 @@ func TestIntegrationCoverage(t *testing.T) {
 	copy(cases, integrationCases)
 	integrationMu.Unlock()
 
-	covered := map[string]bool{}
+	covered := map[string]struct{}{}
 	for _, c := range cases {
 		for _, op := range c.ops {
-			covered[op] = true
+			covered[op] = struct{}{}
 		}
 	}
 
 	table := contract.Table()
 	for _, op := range table {
-		require.True(t, covered[op.ID], "operation %s has no live-integration case", op.ID)
+		require.Contains(t, covered, op.ID, "operation %s has no live-integration case", op.ID)
 	}
 	for op := range covered {
 		found := false

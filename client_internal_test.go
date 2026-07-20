@@ -28,7 +28,7 @@ func TestNewDefaults(t *testing.T) {
 	require.Equal(t, "pkg.venceslau.dev/ynab/"+Version, c.userAgent)
 	require.Equal(t, 30*time.Second, c.timeout)
 	require.Equal(t,
-		RetryPolicy{MaxAttempts: 3, MinBackoff: time.Second, MaxBackoff: 30 * time.Second, RetryWrites: false},
+		RetryPolicy{MaxAttempts: 3, MinBackoff: 300 * time.Millisecond, MaxBackoff: 30 * time.Second, RetryWrites: false},
 		c.retry)
 	require.False(t, c.retryOff)
 	require.Same(t, http.DefaultClient, c.httpClient)

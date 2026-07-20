@@ -263,6 +263,9 @@ func (p *Plan) Settings(ctx context.Context) (*PlanSettings, error) {
 	return data.Settings, nil
 }
 
+// body is the wrapper shape every write endpoint nests its payload in.
+type body map[string]any
+
 // nameOnlyBody builds the {"<wrapper>":{"name":...}} payload the group
 // and payee writes share.
 func nameOnlyBody(wrapper, name string) body {

@@ -7,7 +7,8 @@ GOLANGCI_LINT := CGO_ENABLED=0 go run github.com/golangci/golangci-lint/v2/cmd/g
 GOVULNCHECK := CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
-.PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint
+.PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
+	check-version-selftest local-ci
 
 test:
 	go test -race -shuffle=on ./...
@@ -54,3 +55,15 @@ tidy-check:
 
 actionlint:
 	$(ACTIONLINT) .github/workflows/*.yaml
+
+# The network-free half of the release gate, plus its expected failures.
+check-version-selftest:
+	CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh "v$$(sed -n 's/^const Version = "\(.*\)"$$/\1/p' client.go)"
+	@if CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v1.0.0-rc1 >/dev/null 2>&1; then \
+		echo 'error: the gate accepted a prerelease tag'; exit 1; fi
+	@if CHECK_VERSION_SKIP_NET=1 scripts/check-version.sh v0.0.0 >/dev/null 2>&1; then \
+		echo 'error: the gate accepted a tag that mismatches Version'; exit 1; fi
+	@echo 'ok: expected failures failed'
+
+# Everything the CI's full leg runs, locally — burn zero Actions minutes.
+local-ci: lint test contract vulncheck tidy-check actionlint check-version-selftest coverage

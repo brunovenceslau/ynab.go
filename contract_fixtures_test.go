@@ -145,8 +145,8 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 
 	type modelGroup struct {
 		paths   []string
-		nulls   map[string]bool
-		present map[string]bool
+		nulls   map[string]struct{}
+		present map[string]struct{}
 	}
 	groups := map[reflect.Type]*modelGroup{}
 	for _, e := range entries {
@@ -155,8 +155,8 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 		if !ok {
 			g = &modelGroup{
 				paths:   pointerFieldPaths(mt),
-				nulls:   map[string]bool{},
-				present: map[string]bool{},
+				nulls:   map[string]struct{}{},
+				present: map[string]struct{}{},
 			}
 			groups[mt] = g
 		}
@@ -170,7 +170,9 @@ func nullCoverageProblems(entries []loadedNullFixture) []string {
 
 	for mt, g := range groups {
 		for _, p := range g.paths {
-			if g.present[p] && !g.nulls[p] {
+			_, present := g.present[p]
+			_, null := g.nulls[p]
+			if present && !null {
 				problems = append(problems, mt.String()+": nullable field "+p+" is never null in any registered fixture")
 			}
 		}
@@ -229,14 +231,14 @@ func pointerFieldPaths(t reflect.Type) []string {
 // collectNullPaths records every JSON path present in the document and
 // which of them carry a literal null, collapsing array indices so
 // fixtures and models align.
-func collectNullPaths(doc any, prefix string, nulls, present map[string]bool) {
+func collectNullPaths(doc any, prefix string, nulls, present map[string]struct{}) {
 	switch v := doc.(type) {
 	case map[string]any:
 		for k, child := range v {
 			p := prefix + "." + k
-			present[p] = true
+			present[p] = struct{}{}
 			if child == nil {
-				nulls[p] = true
+				nulls[p] = struct{}{}
 			}
 			collectNullPaths(child, p, nulls, present)
 		}

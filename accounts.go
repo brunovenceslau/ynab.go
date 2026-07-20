@@ -40,8 +40,9 @@ func (t AccountType) Valid() bool {
 		AccountTypeStudentLoan, AccountTypePersonalLoan,
 		AccountTypeMedicalDebt, AccountTypeOtherDebt:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // SaveAccountType is an account type accepted by Create — deliberately a
@@ -65,8 +66,9 @@ func (t SaveAccountType) Valid() bool {
 	case SaveAccountTypeChecking, SaveAccountTypeSavings, SaveAccountTypeCash,
 		SaveAccountTypeCreditCard, SaveAccountTypeOtherAsset, SaveAccountTypeOtherLiability:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // LoanAccountPeriodicValue maps effective dates to milliunit values for
@@ -162,7 +164,8 @@ func (s *AccountsService) Create(ctx context.Context, spec AccountSpec) (*Accoun
 	return data.Account, nil
 }
 
-// Get returns a single account by id.
+// Get returns a single account by id. A missing id answers
+// [ErrResourceNotFound].
 //
 // YNAB operationId: getAccountById
 func (s *AccountsService) Get(ctx context.Context, accountID string) (*Account, error) {
@@ -174,6 +177,3 @@ func (s *AccountsService) Get(ctx context.Context, accountID string) (*Account, 
 	}
 	return data.Account, nil
 }
-
-// body is the wrapper shape every write endpoint nests its payload in.
-type body map[string]any

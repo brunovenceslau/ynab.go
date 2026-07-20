@@ -16,7 +16,7 @@ import (
 // the strict 44/44 assertion once the last slice lands.
 var (
 	implementedMu sync.Mutex
-	implemented   = map[string]bool{}
+	implemented   = map[string]struct{}{}
 )
 
 // MarkImplemented registers operationIds as implemented.
@@ -24,7 +24,7 @@ func MarkImplemented(ids ...string) {
 	implementedMu.Lock()
 	defer implementedMu.Unlock()
 	for _, id := range ids {
-		implemented[id] = true
+		implemented[id] = struct{}{}
 	}
 }
 

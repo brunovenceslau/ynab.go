@@ -45,7 +45,8 @@ func (s *PayeeLocationsService) List(ctx context.Context) ([]PayeeLocation, erro
 	return data.PayeeLocations, nil
 }
 
-// Get returns a single payee location by id.
+// Get returns a single payee location by id. A missing id answers
+// [ErrResourceNotFound].
 //
 // YNAB operationId: getPayeeLocationById
 func (s *PayeeLocationsService) Get(ctx context.Context, payeeLocationID string) (*PayeeLocation, error) {

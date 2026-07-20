@@ -185,19 +185,19 @@ func TestContractComplete(t *testing.T) {
 	table := contract.Table()
 	require.Len(t, table, 44)
 
-	implemented := map[string]bool{}
+	implemented := map[string]struct{}{}
 	for _, id := range contract.ImplementedIDs() {
-		implemented[id] = true
+		implemented[id] = struct{}{}
 	}
 	require.Len(t, implemented, 44, "all 44 operations registered as implemented")
 
-	byID := map[string]bool{}
+	byID := map[string]struct{}{}
 	for _, op := range table {
-		byID[op.ID] = true
-		require.True(t, implemented[op.ID], "table row %s not implemented", op.ID)
+		byID[op.ID] = struct{}{}
+		require.Contains(t, implemented, op.ID, "table row %s not implemented", op.ID)
 	}
 	for id := range implemented {
-		require.True(t, byID[id], "phantom implemented operation %s", id)
+		require.Contains(t, byID, id, "phantom implemented operation %s", id)
 	}
 
 	// G4 completeness over the whole table: every operation — reads and

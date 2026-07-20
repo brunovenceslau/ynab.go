@@ -28,8 +28,9 @@ func (s ClearedStatus) Valid() bool {
 	switch s {
 	case ClearedStatusUncleared, ClearedStatusCleared, ClearedStatusReconciled:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // FlagColor is a transaction flag. FlagColorNone ("") is the one enum
@@ -55,8 +56,9 @@ func (c FlagColor) Valid() bool {
 	case FlagColorNone, FlagColorRed, FlagColorOrange, FlagColorYellow,
 		FlagColorGreen, FlagColorBlue, FlagColorPurple:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // TransactionType filters transaction lists server-side.
@@ -112,8 +114,9 @@ func (t DebtTransactionType) Valid() bool {
 		DebtTransactionTypeEscrow, DebtTransactionTypeBalanceAdjustment,
 		DebtTransactionTypeCredit, DebtTransactionTypeCharge:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // TransactionBase is the transaction shape shared by the
@@ -316,7 +319,8 @@ type transactionResult struct {
 	ServerKnowledge ServerKnowledge `json:"server_knowledge"`
 }
 
-// Get returns a single transaction by id.
+// Get returns a single transaction by id. A missing id answers
+// [ErrResourceNotFound].
 //
 // YNAB operationId: getTransactionById
 func (s *TransactionsService) Get(ctx context.Context, transactionID string) (*Transaction, ServerKnowledge, error) {

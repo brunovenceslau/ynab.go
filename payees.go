@@ -54,7 +54,8 @@ func (s *PayeesService) Create(ctx context.Context, name string) (*Payee, Server
 	return s.save(ctx, "Payees.Create", http.MethodPost, s.plan.path("payees"), name)
 }
 
-// Get returns a single payee by id.
+// Get returns a single payee by id. A missing id answers
+// [ErrResourceNotFound].
 //
 // YNAB operationId: getPayeeById
 func (s *PayeesService) Get(ctx context.Context, payeeID string) (*Payee, error) {

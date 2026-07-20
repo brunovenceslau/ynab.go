@@ -22,7 +22,7 @@ func decodeData[T any](body []byte) (T, error) {
 		return zero, err
 	}
 	if env.Data == nil {
-		return zero, errors.New("success envelope has no data key")
+		return zero, errors.New("transport: success envelope has no data key")
 	}
 	return *env.Data, nil
 }

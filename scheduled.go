@@ -39,8 +39,9 @@ func (f Frequency) Valid() bool {
 		FrequencyEveryOtherMonth, FrequencyEvery3Months, FrequencyEvery4Months,
 		FrequencyTwiceAYear, FrequencyYearly, FrequencyEveryOtherYear:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // ScheduledTransactionBase is the scheduled-transaction shape

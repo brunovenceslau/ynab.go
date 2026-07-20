@@ -229,12 +229,12 @@ func Fixture(tb testing.TB, name string) []byte {
 
 // FixtureNames lists every fixture the fake server can serve.
 func FixtureNames() []string {
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	var names []string
 	for _, rt := range routes() {
 		for _, f := range []string{rt.fixture, rt.deltaFixture} {
-			if f != "" && !seen[f] {
-				seen[f] = true
+			if _, dup := seen[f]; f != "" && !dup {
+				seen[f] = struct{}{}
 				names = append(names, f)
 			}
 		}
