@@ -154,10 +154,10 @@ func TestEnumValidTables(t *testing.T) {
 	})
 }
 
-// TestContractEndpointErrorPropagation drives every registered endpoint
+// TestContractReadErrorPropagation drives every registered endpoint
 // case against a 500 and requires the error to surface — closing the
 // transport-error branch of every service method mechanically.
-func TestContractEndpointErrorPropagation(t *testing.T) {
+func TestContractReadErrorPropagation(t *testing.T) {
 	t.Parallel()
 
 	readRegistryMu.Lock()
@@ -171,16 +171,16 @@ func TestContractEndpointErrorPropagation(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	for _, ec := range cases {
-		name := ec.op
-		if ec.variant != "" {
-			name += "/" + ec.variant
+	for _, rc := range cases {
+		name := rc.op
+		if rc.variant != "" {
+			name += "/" + rc.variant
 		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
-			_, err := ec.call(t, client)
+			_, err := rc.call(t, client)
 			require.ErrorIs(t, err, ynab.ErrServerError, "the 500 must propagate through the method")
 		})
 	}

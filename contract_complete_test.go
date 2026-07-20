@@ -7,7 +7,7 @@ package ynab_test
 // Task 31: the strict completeness flip. Every table row must be
 // implemented with doc-line-bearing methods (1:N), every write op G2-
 // registered, every op G4-covered, every pointer-bearing model G5-
-// covered. The G4 endpoint cases for the sixteen non-GET operations live
+// covered. The G4 read cases for the sixteen non-GET operations live
 // here: their success responses run through the header-stripped
 // double-run like every read.
 
@@ -25,8 +25,8 @@ import (
 )
 
 func init() {
-	for _, ec := range writeOpReadCases() {
-		registerReadCase(ec)
+	for _, rc := range writeOpReadCases() {
+		registerReadCase(rc)
 	}
 
 	registerNullFixture(ynab.BatchResult{}, "transactions/create_batch_null.json", "")
@@ -202,11 +202,11 @@ func TestContractComplete(t *testing.T) {
 	}
 
 	// G4 completeness over the whole table: every operation — reads and
-	// writes alike — has at least one header-stripped endpoint case.
+	// writes alike — has at least one header-stripped read case.
 	readRegistryMu.Lock()
 	covered := map[string]int{}
-	for _, ec := range readRegistry {
-		covered[ec.op]++
+	for _, rc := range readRegistry {
+		covered[rc.op]++
 	}
 	readRegistryMu.Unlock()
 	for _, op := range table {

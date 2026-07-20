@@ -4,7 +4,7 @@
 
 package ynab_test
 
-// Gate G4: every registered endpoint case runs twice — verbatim, and with
+// Gate G4: every registered read case runs twice — verbatim, and with
 // every optional response header deleted — and must decode identically.
 // Slices register cases like:
 //
@@ -58,13 +58,13 @@ var (
 // registerReadCase is called from slice test files' init functions.
 // The case's model feeds the G3 struct lint at registration time —
 // statically, so gate coverage can never depend on test scheduling.
-func registerReadCase(ec readCase) {
+func registerReadCase(rc readCase) {
 	readRegistryMu.Lock()
-	readRegistry = append(readRegistry, ec)
+	readRegistry = append(readRegistry, rc)
 	readRegistryMu.Unlock()
 
-	if ec.model != nil {
-		registerReadModel(ec.model)
+	if rc.model != nil {
+		registerReadModel(rc.model)
 	}
 }
 
@@ -100,18 +100,18 @@ func fixtureServer(t *testing.T, status int, body []byte, stripped bool) *httpte
 	return srv
 }
 
-// runEndpointTest executes one case twice — verbatim and header-stripped —
+// runReadCase executes one case twice — verbatim and header-stripped —
 // requires both to succeed, and requires identical decoded results. The
 // verbatim result feeds the G3 wire-model walk.
-func runEndpointTest(t *testing.T, ec readCase) {
+func runReadCase(t *testing.T, rc readCase) {
 	t.Helper()
 
-	body := loadFixture(t, ec.fixture)
+	body := loadFixture(t, rc.fixture)
 
 	decode := func(stripped bool) any {
-		srv := fixtureServer(t, ec.status, body, stripped)
+		srv := fixtureServer(t, rc.status, body, stripped)
 		client := ynab.New("test-token", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
-		got, err := ec.call(t, client)
+		got, err := rc.call(t, client)
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		return got
@@ -141,7 +141,7 @@ func TestContractHeadersStrippedServer(t *testing.T) {
 
 // TestContractHeadersDetectsDependence proves G4's teeth: a decode that
 // depends on a response header yields different results between the
-// verbatim and stripped runs — exactly what runEndpointTest's equality
+// verbatim and stripped runs — exactly what runReadCase's equality
 // assertion turns into a failure.
 func TestContractHeadersDetectsDependence(t *testing.T) {
 	t.Parallel()
@@ -172,19 +172,19 @@ func TestContractHeaders(t *testing.T) {
 	readRegistryMu.Unlock()
 
 	infos := make([]contract.ReadCaseInfo, 0, len(cases))
-	for _, ec := range cases {
-		infos = append(infos, contract.ReadCaseInfo{OpID: ec.op})
+	for _, rc := range cases {
+		infos = append(infos, contract.ReadCaseInfo{OpID: rc.op})
 	}
 	require.Empty(t, contract.DiffReadCoverage(contract.Table(), contract.ImplementedIDs(), infos))
 
-	for _, ec := range cases {
-		name := ec.op
-		if ec.variant != "" {
-			name += "/" + ec.variant
+	for _, rc := range cases {
+		name := rc.op
+		if rc.variant != "" {
+			name += "/" + rc.variant
 		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runEndpointTest(t, ec)
+			runReadCase(t, rc)
 		})
 	}
 }

@@ -6,7 +6,7 @@ package contract
 
 import "net/http"
 
-// ReadCaseInfo summarizes one registered G4 endpoint case for the
+// ReadCaseInfo summarizes one registered G4 read case for the
 // read-side completeness check.
 type ReadCaseInfo struct {
 	OpID string
@@ -34,7 +34,7 @@ func DiffReadCoverage(table []Operation, implemented []string, cases []ReadCaseI
 			continue
 		}
 		if count[id] == 0 {
-			problems = append(problems, "implemented read operation "+id+" has no G4 endpoint case")
+			problems = append(problems, "implemented read operation "+id+" has no G4 read case")
 		}
 	}
 	return problems

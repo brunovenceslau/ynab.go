@@ -34,7 +34,7 @@ var (
 )
 
 // registerReadModel adds a decode target to the G3 walk. The G4 endpoint
-// harness calls it for every registered endpoint case.
+// harness calls it for every registered read case.
 func registerReadModel(v any) {
 	wireModelsMu.Lock()
 	defer wireModelsMu.Unlock()

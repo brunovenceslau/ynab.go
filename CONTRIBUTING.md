@@ -47,7 +47,7 @@ are missing.
   frozen per release. Propose surface changes in an issue first; PRs that
   grow the surface without prior agreement will be declined regardless of
   quality.
-- **Tests ship with the change**, in the same PR: unit/endpoint tests through
+- **Tests ship with the change**, in the same PR: unit and read-case tests through
   the public surface plus a live-integration case (`//go:build integration`)
   registering its operation ids. `-race` and `t.Parallel` discipline apply;
   the integration suite stays sequential.
@@ -64,7 +64,7 @@ what your change touches:
 
 - **Unit tests** (plain `_test.go`): the behavior of what you wrote,
   through the public surface. Always.
-- **Endpoint cases** (`registerEndpointCase`, gate G4/G5): any operation
+- **Read cases** (`registerReadCase`, gate G4/G5): any operation
   that decodes a response. They run every decode twice with optional
   headers stripped and prove every nullable field against a null-variant
   fixture — the class of bug they kill is "works on my fixture".

@@ -5,9 +5,9 @@
 package ynab_test
 
 // The fixture-honesty test: the ynabtest fake server serves the exact
-// golden fixture bytes the endpoint tests assert against, and the real
+// golden fixture bytes the read cases assert against, and the real
 // client decodes them identically through both. Fixtures therefore
-// cannot diverge between the fake and the endpoint harness.
+// cannot diverge between the fake and the read harness.
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ func TestFixtureHonesty(t *testing.T) {
 	srv := ynabtest.NewServer(t)
 	viaFake := ynab.New("test-token", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
 
-	// Each probe decodes through the fake AND through the endpoint
+	// Each probe decodes through the fake AND through the read
 	// harness's fixture server; the results must be identical.
 	probes := []struct {
 		name    string
