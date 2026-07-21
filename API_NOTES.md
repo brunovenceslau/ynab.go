@@ -88,10 +88,13 @@ Entry template:
   last-used otherwise".
 - **Reality shows:** live probe 2026-07-20 (GET `/v1/plans/default/settings`,
   personal access token): the server answers 404.2 `resource_not_found` —
-  under a PAT the sentinel does not fall back to last-used.
-- **Impact:** documented on the `PlanIDDefault` constant. The live suite
-  does not exercise the sentinel: under its PAT no assertion could predict
-  a resolution, and the observed behavior is captured here instead.
+  under a PAT the sentinel does not fall back to last-used. Same day,
+  under an OAuth grant whose consent selected a default plan, the
+  sentinel RESOLVED (200, settings returned) — both branches are now
+  live-proven, and a write under `scope=read-only` answered exactly
+  `403.3 unauthorized_scope`, confirming the documented taxonomy.
+- **Impact:** documented on the `PlanIDDefault` constant; TestLiveOAuth
+  pins the positive path, the PAT 404.2 branch, and the 403.3 sentinel.
 - **Status:** open
 
 ## import_id — uniqueness survives transaction deletion
@@ -129,4 +132,23 @@ Entry template:
   an API-managed test plan); it is on the known-unprovable list. The G2
   byte-exact encoding case remains — the wire shape is correct per
   spec.
+- **Status:** open
+
+## OAuth refresh tokens — rotated on every exchange, old ones stay valid
+
+- **Date:** 2026-07-20
+- **Docs say:** the OAuth docs describe `grant_type=refresh_token`
+  exchanges returning a new access token; nothing is said about
+  refresh-token rotation or invalidation.
+- **Reality shows:** live, in sequence: every exchange returns a NEW
+  refresh_token; the superseded one still works while the new one is
+  UNUSED (probed back-to-back); but once the chain advances — the new
+  token is exchanged in turn — ancestors are invalidated (a token two
+  generations behind answered 400 `invalid_grant` minutes after
+  working). Rotation with use-triggered ancestor invalidation.
+- **Impact:** a static refresh-token secret does NOT survive: any run
+  that refreshes strands every stored ancestor. TokenSource consumers
+  must persist the newest refresh token on every rotation —
+  oauth_live_test does (YNAB_OAUTH_TOKEN_FILE), and the CI workflow
+  must update its secret after each run.
 - **Status:** open

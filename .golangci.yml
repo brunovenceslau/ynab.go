@@ -102,6 +102,13 @@ linters:
         text: "G304"
         linters:
           - gosec
+      # The OAuth live test persists rotated refresh tokens to the file
+      # the OPERATOR names via YNAB_OAUTH_TOKEN_FILE — their own
+      # credential store, not user input (G703 taint on the env path).
+      - path: oauth_live_test\.go
+        text: "G703"
+        linters:
+          - gosec
 
   settings:
     dupl:

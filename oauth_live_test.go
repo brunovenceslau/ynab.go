@@ -36,17 +36,47 @@ import (
 const oauthEndpointURL = "https://app.ynab.com/oauth/token"
 
 // refreshingTokenSource is the consumer-side OAuth seam: it exchanges a
-// refresh token for access tokens on demand. The library is
-// deliberately not an OAuth flow — this is what a real consumer writes.
+// refresh token for access tokens on demand and PERSISTS the newest
+// refresh token — YNAB invalidates ancestors once the chain advances
+// (probed live 2026-07-20; see API_NOTES.md), so an unpersisted
+// rotation strands the stored credential. The library is deliberately
+// not an OAuth flow — this is what a real consumer writes.
 type refreshingTokenSource struct {
 	clientID     string
 	clientSecret string
+	persistKey   string // e.g. "REFRESH_TOKEN": the line to rewrite in persistFile
+	persistFile  string // path of the KEY=value env file; empty disables persistence
 
 	mu           sync.Mutex
 	refreshToken string
 	accessToken  string
 	refreshes    int
 	forceRefresh bool // test hook: the next Token call must hit the token endpoint
+}
+
+// persist rewrites persistKey's line in persistFile with the newest
+// refresh token, so the on-disk credential always tracks the head of
+// the rotation chain. Called under s.mu.
+func (s *refreshingTokenSource) persist() error {
+	if s.persistFile == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(s.persistFile)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	replaced := false
+	for i, l := range lines {
+		if strings.HasPrefix(l, s.persistKey+"=") {
+			lines[i] = s.persistKey + "=" + s.refreshToken
+			replaced = true
+		}
+	}
+	if !replaced {
+		lines = append(lines, s.persistKey+"="+s.refreshToken)
+	}
+	return os.WriteFile(s.persistFile, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
 }
 
 // Token implements ynab.TokenSource; consulted before every attempt.
@@ -86,8 +116,11 @@ func (s *refreshingTokenSource) Token(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("oauth_live_test: decode token response: %w", err)
 	}
 	s.accessToken = tok.AccessToken
-	if tok.RefreshToken != "" {
-		s.refreshToken = tok.RefreshToken // YNAB may rotate; always keep the newest
+	if tok.RefreshToken != "" && tok.RefreshToken != s.refreshToken {
+		s.refreshToken = tok.RefreshToken // rotated: ancestors die once this is used
+		if err := s.persist(); err != nil {
+			return "", fmt.Errorf("oauth_live_test: persist rotated refresh token: %w", err)
+		}
 	}
 	s.refreshes++
 	return s.accessToken, nil
@@ -103,8 +136,10 @@ func TestLiveOAuth(t *testing.T) {
 		skipOrFail(t, "YNAB_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN not set — OAuth probes need a one-time consent grant")
 	}
 
+	persistFile := os.Getenv("YNAB_OAUTH_TOKEN_FILE") // empty disables persistence
 	src := &refreshingTokenSource{
 		clientID: clientID, clientSecret: clientSecret, refreshToken: refresh,
+		persistKey: "REFRESH_TOKEN", persistFile: persistFile,
 	}
 	client := ynab.NewWithTokenSource(src)
 
@@ -143,7 +178,10 @@ func TestLiveOAuth(t *testing.T) {
 		skipOrFail(t, "YNAB_OAUTH_RO_REFRESH_TOKEN not set — the read-only-scope 403 probe needs the second grant")
 		return
 	}
-	roSrc := &refreshingTokenSource{clientID: clientID, clientSecret: clientSecret, refreshToken: roRefresh}
+	roSrc := &refreshingTokenSource{
+		clientID: clientID, clientSecret: clientSecret, refreshToken: roRefresh,
+		persistKey: "RO_REFRESH_TOKEN", persistFile: persistFile,
+	}
 	roClient := ynab.NewWithTokenSource(roSrc)
 
 	planID := ynab.PlanIDLastUsed
@@ -159,8 +197,10 @@ func TestLiveOAuth(t *testing.T) {
 	_, _, err = roPlan.Payees.Rename(t.Context(), payees[0].ID, payees[0].Name)
 	require.ErrorIs(t, err, ynab.ErrForbidden,
 		"a write under scope=read-only must answer 403 through the class sentinel")
+	require.ErrorIs(t, err, ynab.ErrUnauthorizedScope,
+		"the scope 403 is sub-code 403.3 (proven live 2026-07-20)")
 	var apiErr *ynab.Error
 	require.ErrorAs(t, err, &apiErr)
 	require.Equal(t, http.StatusForbidden, apiErr.StatusCode)
-	t.Logf("read-only-scope 403 payload: id=%q name=%q (ledger the sub-code)", apiErr.ID, apiErr.Name)
+	require.Equal(t, "403.3", apiErr.ID)
 }

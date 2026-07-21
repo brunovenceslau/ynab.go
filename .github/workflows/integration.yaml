@@ -37,4 +37,25 @@ jobs:
           YNAB_OAUTH_CLIENT_SECRET: ${{ secrets.YNAB_OAUTH_CLIENT_SECRET }}
           YNAB_OAUTH_REFRESH_TOKEN: ${{ secrets.YNAB_OAUTH_REFRESH_TOKEN }}
           YNAB_OAUTH_RO_REFRESH_TOKEN: ${{ secrets.YNAB_OAUTH_RO_REFRESH_TOKEN }}
-        run: make integration
+          YNAB_OAUTH_TOKEN_FILE: /tmp/ynab_oauth_rotated
+        run: |
+          printf 'REFRESH_TOKEN=%s\nRO_REFRESH_TOKEN=%s\n' \
+            "$YNAB_OAUTH_REFRESH_TOKEN" "$YNAB_OAUTH_RO_REFRESH_TOKEN" > /tmp/ynab_oauth_rotated
+          make integration
+
+      # YNAB invalidates refresh-token ancestors once the chain advances
+      # (API_NOTES.md), so the rotated tokens MUST replace the secrets or
+      # the next run starts from a dead credential. Runs even when the
+      # suite fails — a partial run may already have rotated.
+      - name: persist rotated refresh tokens
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo '::error::GH_SECRETS_PAT missing — rotated tokens cannot be persisted; next run WILL fail'
+            exit 1
+          fi
+          . /tmp/ynab_oauth_rotated
+          gh secret set YNAB_OAUTH_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$REFRESH_TOKEN"
+          gh secret set YNAB_OAUTH_RO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$RO_REFRESH_TOKEN"
