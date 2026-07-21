@@ -174,7 +174,20 @@ func init() {
 
 			imported, err := plan.Transactions.Import(t.Context())
 			require.NoError(t, err, "an empty import result is a nil-error answer")
-			t.Logf("importTransactions returned %d ids", len(imported))
+			// Status/result coherence for the fold the client performs:
+			// 200 must mean no ids, 201 must mean ids — proving the
+			// 200-empty vs 201-with-ids fold is lossless. On the unlinked
+			// test plan the 200-empty branch runs; the 201 arm stands
+			// ready if a linked account ever appears.
+			st, ok := env.LastStatus("importTransactions")
+			require.True(t, ok, "the import request must be recorded")
+			if st == http.StatusCreated {
+				require.NotEmpty(t, imported, "a 201 import must carry ids")
+			} else {
+				require.Equal(t, http.StatusOK, st)
+				require.Empty(t, imported, "a 200 import means nothing was waiting")
+			}
+			t.Logf("importTransactions answered %d with %d ids", st, len(imported))
 		},
 	})
 }

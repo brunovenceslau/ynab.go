@@ -5,6 +5,7 @@
 package ynab_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -68,10 +69,19 @@ func init() {
 
 				// By-id against a well-formed unknown id: the suite's single
 				// 404 probe — the real 404.2 payload must map through BOTH
-				// the class and the specific sentinel.
+				// the class and the specific sentinel. The sentinels alone
+				// would still pass via the status-class fallback if the
+				// sub-code drifted, so the payload itself is pinned too:
+				// the only live error payload the suite ever sees.
 				_, err = plan.PayeeLocations.Get(t.Context(), "00000000-0000-0000-0000-000000000000")
 				require.ErrorIs(t, err, ynab.ErrNotFound)
 				require.ErrorIs(t, err, ynab.ErrResourceNotFound)
+				var apiErr *ynab.Error
+				require.ErrorAs(t, err, &apiErr)
+				require.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+				require.Equal(t, "404.2", apiErr.ID, "the ID-keyed sentinel table depends on this exact sub-code")
+				require.Equal(t, "resource_not_found", apiErr.Name)
+				require.NotEmpty(t, apiErr.Detail)
 				return
 			}
 			got, err := plan.PayeeLocations.Get(t.Context(), locations[0].ID)

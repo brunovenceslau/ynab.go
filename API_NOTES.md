@@ -75,3 +75,17 @@ Entry template:
   values for any key matching `rate|limit|quota`) and logs them at suite
   end, so a renamed or returning header would be spotted in one run.
 - **Status:** open
+
+## plan_id `default` — resolves only for OAuth grants, 404.2 under a PAT
+
+- **Date:** 2026-07-20
+- **Docs say:** OpenAPI 1.86.0 describes `"default"` as resolving to the
+  default plan when the OAuth authorization selected one, "equivalent to
+  last-used otherwise".
+- **Reality shows:** live probe 2026-07-20 (GET `/v1/plans/default/settings`,
+  personal access token): the server answers 404.2 `resource_not_found` —
+  under a PAT the sentinel does not fall back to last-used.
+- **Impact:** documented on the `PlanIDDefault` constant. The live suite
+  does not exercise the sentinel: under its PAT no assertion could predict
+  a resolution, and the observed behavior is captured here instead.
+- **Status:** open

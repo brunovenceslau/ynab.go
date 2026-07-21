@@ -366,6 +366,15 @@ func TestLiveIntegration(t *testing.T) {
 			ynab.WithLogger(logger),
 		),
 		PlanID: ynab.PlanID(planID),
+		// The backward scan picks the FINAL attempt of a retried request.
+		LastStatus: func(opID string) (int, bool) {
+			for _, rc := range slices.Backward(transport.recorded()) {
+				if id, ok := matchOperation(rc); ok && id == opID {
+					return rc.status, true
+				}
+			}
+			return 0, false
+		},
 	}
 
 	integrationMu.Lock()

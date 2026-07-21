@@ -21,8 +21,11 @@ type PlanID string
 const (
 	// PlanIDLastUsed resolves server-side to the last used plan.
 	PlanIDLastUsed PlanID = "last-used"
-	// PlanIDDefault resolves server-side to the default plan (OAuth
-	// default-plan selection; equivalent to last-used otherwise).
+	// PlanIDDefault resolves server-side to the default plan. It works
+	// only for OAuth grants whose authorization selected a default plan:
+	// under a personal access token the server answers 404.2
+	// resource_not_found (probed live 2026-07-20, API 1.86.0; see
+	// API_NOTES.md) — for PATs it is NOT equivalent to PlanIDLastUsed.
 	PlanIDDefault PlanID = "default"
 )
 

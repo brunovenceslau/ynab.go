@@ -10,6 +10,20 @@ package ynab_test
 // and skips cleanly without YNAB_TEST_TOKEN. Suite discipline: sequential
 // (never concurrent with itself), well under 200 requests/hour, writes
 // create→verify→cleanup on a dedicated test plan only.
+//
+// Live-unprovable variants, enumerated so the next audit does not
+// re-derive them:
+//   - importTransactions' 201 branch needs a linked account, which a
+//     test plan cannot have — the live case pins the 200-empty branch
+//     and its status/result coherence via LastStatus, and stands ready
+//     to verify the 201 branch if a linked account ever appears.
+//   - payee locations cannot be created through the API (mobile-app
+//     writes only), so the populated branch of the payee-locations case
+//     is dead on an API-only test plan; the empty branch carries the
+//     suite's single 404 probe instead.
+//   - the scheduled empty-plan 404 fold is caller-indistinguishable
+//     from a plain 200-empty by design; the scheduled case logs which
+//     branch really ran via LastStatus.
 
 import (
 	"net/http"
@@ -27,6 +41,13 @@ import (
 type integrationEnv struct {
 	Client *ynab.Client
 	PlanID ynab.PlanID
+
+	// LastStatus reports the raw HTTP status of the most recent recorded
+	// request matching opID — the harness hook that lets a case see the
+	// wire's status split the client deliberately folds (import's
+	// 200-vs-201, scheduled's 404 fold). Wired by the live runner only;
+	// case bodies run nowhere else, so it is never called while nil.
+	LastStatus func(opID string) (int, bool)
 }
 
 // integrationCase declares one live case and the operationIds it covers.

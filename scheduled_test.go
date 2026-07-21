@@ -142,6 +142,12 @@ func init() {
 			initial, _, err := plan.Scheduled.List(t.Context())
 			require.NoError(t, err, "empty-plan 404 must fold into an empty list")
 			require.NotNil(t, initial, "the fold must answer an empty slice, never nil")
+			// The fold makes 404 and 200-empty caller-indistinguishable by
+			// design; the transport's recorded status settles which branch
+			// this run actually proved.
+			if st, ok := env.LastStatus("getScheduledTransactions"); ok {
+				t.Logf("first scheduled List answered %d (404 = empty-plan fold proven, 200 = plain list)", st)
+			}
 
 			accounts, _, err := plan.Accounts.List(t.Context())
 			require.NoError(t, err)
