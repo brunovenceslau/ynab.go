@@ -46,6 +46,9 @@ jobs:
         if: matrix.go != '1.25.x'
         run: make lint
 
+      - name: make examples
+        run: make examples
+
       - name: make test
         run: make test
 

@@ -10,7 +10,7 @@ ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(
 GORELEASE := CGO_ENABLED=0 go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
-	check-version-selftest local-ci go-latest-check apidiff
+	check-version-selftest local-ci go-latest-check apidiff examples
 
 test:
 	go test -race -shuffle=on ./...
@@ -22,14 +22,23 @@ vet:
 lint: vet
 	$(GOLANGCI_LINT) run
 
+# examples/ are real programs (hit the live API); CI compiles them but
+# never runs them (no token). Kept building so the docs cannot rot.
+# CGO_ENABLED=0: no cgo needed, and the host toolchain lacks it.
+examples:
+	CGO_ENABLED=0 go build ./examples/...
+
 contract:
 	go test -run 'TestContract' ./...
 
 # -coverpkg=./... merges cross-package coverage: without it, code covered
 # only from another package's tests (transport.DoRaw via root tests, e.g.)
 # reads 0% and the gate lies.
+# -coverpkg excludes examples/ — they are runnable main programs, not
+# library code, and would silently dilute the tracked coverage number.
 coverage:
-	go test -race -coverpkg=./... -coverprofile=cover.out ./... && go tool cover -func=cover.out
+	go test -race -coverpkg=$$(go list ./... | grep -v /examples/ | paste -sd,) \
+		-coverprofile=cover.out ./... && go tool cover -func=cover.out
 
 vulncheck:
 	$(GOVULNCHECK) ./...
@@ -86,7 +95,7 @@ apidiff:
 	fi
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
-local-ci: lint test contract vulncheck tidy-check actionlint check-version-selftest apidiff coverage
+local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff coverage
 
 # The toolchain twin of the spec-drift watch: fails when go.dev lists a
 # newer stable Go than the newest one pinned in the workflows, so the

@@ -59,9 +59,10 @@ func main() {
 ```
 
 > [!TIP]
-> The [package examples](https://pkg.go.dev/pkg.venceslau.dev/ynab#pkg-examples)
-> are the fastest tour: 26 runnable programs covering every service — the full
-> delta-sync loop, split transactions, tri-state PATCH writes, both test seams.
+> Two flavors of examples: the [`examples/`](examples) directory holds runnable
+> programs that hit the real API (quickstart, delta-sync, splits, mock testing),
+> and the [package examples](https://pkg.go.dev/pkg.venceslau.dev/ynab#pkg-examples)
+> on pkg.go.dev cover every service offline — 26 runnable, `httptest`-backed.
 
 ## The plan handle
 

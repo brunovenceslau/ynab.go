@@ -19,7 +19,9 @@ import (
 // Example is the flagship vignette: construct a client, take the plan
 // handle, and read through it.
 func Example() {
-	// The httptest server stands in for api.ynab.com.
+	// The httptest server stands in for api.ynab.com so this runs offline
+	// and verifiably. For real programs against your own YNAB, see the
+	// examples/ directory in the repository.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"accounts":[
 			{"name":"Checking","balance_formatted":"$123.93"},

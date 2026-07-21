@@ -6,6 +6,15 @@ All notable changes to this module are documented here, in
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-07-21
+
+### Added
+
+- `examples/` directory with runnable programs, most of which call the live API —
+  quickstart, delta-sync (with a persisted cursor), split transactions,
+  and mock-based testing. Complements the offline godoc examples on
+  pkg.go.dev, which stay `httptest`-backed so they run and verify in CI.
+
 ## [1.6.0] - 2026-07-21
 
 Version numbering note: this is the first release of the rewrite, and
@@ -58,5 +67,6 @@ history for humans. (Under `pkg.venceslau.dev/ynab` the old versions
 are retracted: `@latest` and version ranges never pick them, though an
 explicit pin still resolves with a warning.)
 
-[Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.6.1
 [1.6.0]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.6.0
