@@ -82,7 +82,7 @@ linters:
           - funlen
       # The live suites are sequential BY CONTRACT: one real API, shared
       # rate budget, writes that must never interleave (paralleltest).
-      - path: (smoke|integration_live)_test\.go
+      - path: (smoke|integration_live|oauth_live)_test\.go
         linters:
           - paralleltest
       # The contract spec scanner and the ynabtest fake server read

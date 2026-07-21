@@ -46,7 +46,7 @@ smoke:
 
 # -p 1: the live suite is never concurrent with itself.
 integration:
-	CGO_ENABLED=0 go test -tags=integration -count=1 -p 1 -run 'TestLiveIntegration' ./...
+	CGO_ENABLED=0 go test -tags=integration -count=1 -p 1 -run 'TestLive' ./...
 
 # Fails if go.mod/go.sum are untidy; running it locally is also the fix.
 tidy-check:
