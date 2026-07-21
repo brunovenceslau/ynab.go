@@ -56,6 +56,12 @@ func checkSpecConformance(t *testing.T, calls []recordedCall) {
 		if rc.status == 0 || len(rc.body) == 0 {
 			continue
 		}
+		// Organic throttles and server errors may ride edge layers that
+		// answer outside the spec — the response-invariant checks exempt
+		// them for the same reason.
+		if rc.status == http.StatusTooManyRequests || rc.status >= 500 {
+			continue
+		}
 		req, rerr := http.NewRequestWithContext(ctx, rc.method,
 			"https://api.ynab.com"+rc.path, nil)
 		if rerr != nil {

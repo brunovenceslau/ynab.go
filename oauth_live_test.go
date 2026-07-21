@@ -18,10 +18,12 @@ package ynab_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -35,6 +37,11 @@ import (
 // api.ynab.com).
 const oauthEndpointURL = "https://app.ynab.com/oauth/token"
 
+// safeTokenRe bounds a refresh token to characters safe in a sourced
+// KEY=value file — YNAB's are URL-safe base64ish; anything else is
+// refused rather than persisted.
+var safeTokenRe = regexp.MustCompile(`^[A-Za-z0-9._~/+=-]+$`)
+
 // refreshingTokenSource is the consumer-side OAuth seam: it exchanges a
 // refresh token for access tokens on demand and PERSISTS the newest
 // refresh token — YNAB invalidates ancestors once the chain advances
@@ -44,8 +51,12 @@ const oauthEndpointURL = "https://app.ynab.com/oauth/token"
 type refreshingTokenSource struct {
 	clientID     string
 	clientSecret string
-	persistKey   string // e.g. "REFRESH_TOKEN": the line to rewrite in persistFile
-	persistFile  string // path of the KEY=value env file; empty disables persistence
+	// persistKey/persistFile: the KEY=value line and file each rotation
+	// rewrites. Two sources may share one file; persist()'s
+	// read-modify-write is safe only because the suite is sequential by
+	// contract (paralleltest is exempted for the live files).
+	persistKey  string
+	persistFile string
 
 	mu           sync.Mutex
 	refreshToken string
@@ -117,6 +128,13 @@ func (s *refreshingTokenSource) Token(ctx context.Context) (string, error) {
 	}
 	s.accessToken = tok.AccessToken
 	if tok.RefreshToken != "" && tok.RefreshToken != s.refreshToken {
+		// The rotated token is written to a KEY=value file the CI later
+		// sources; refuse anything outside a safe charset so a hostile
+		// token-endpoint response can never smuggle shell metacharacters
+		// into a step holding the secrets PAT.
+		if !safeTokenRe.MatchString(tok.RefreshToken) {
+			return "", errors.New("oauth_live_test: refresh token has unexpected characters — refusing to persist")
+		}
 		s.refreshToken = tok.RefreshToken // rotated: ancestors die once this is used
 		if err := s.persist(); err != nil {
 			return "", fmt.Errorf("oauth_live_test: persist rotated refresh token: %w", err)

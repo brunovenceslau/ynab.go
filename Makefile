@@ -71,15 +71,18 @@ check-version-selftest:
 	@echo 'ok: expected failures failed'
 
 # Our own contract with users, gated: gorelease (x/exp; its engine is
-# x/exp/apidiff) diffs the public surface against the latest released
-# version and fails on undeclared breaking changes. Before the first
-# release there is no base to diff — the target says so and passes;
-# after v1.0.0 it bites on every run.
+# x/exp/apidiff) diffs the public surface against the latest release of
+# THIS module's family (v1.6.0 and up — v0.1.0 still exists upstream
+# and belongs to the archived predecessor's module path, so an implicit
+# base would produce a garbage cross-module diff). Before the first
+# family release the target says so and passes; after v1.6.0 it bites
+# on every run, against an explicit base.
 apidiff:
-	@if [ -z "$$(git tag -l 'v[0-9]*' 2>/dev/null)" ]; then \
-		echo 'apidiff: no released tag yet — activates after the first release'; \
+	@base=$$(git tag -l 'v1.[6-9]*' 'v1.[1-9][0-9]*' 'v[2-9]*' | sort -V | tail -1); \
+	if [ -z "$$base" ]; then \
+		echo 'apidiff: no released tag in this module family yet — activates after v1.6.0'; \
 	else \
-		$(GORELEASE); \
+		$(GORELEASE) -base=$$base; \
 	fi
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.

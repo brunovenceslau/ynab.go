@@ -1,7 +1,7 @@
 # The full live-integration suite — every operation against the real
 # API, writes create→verify→cleanup on the dedicated test plan, plus
 # the OAuth probes. Secrets exist only in this repository's own
-# contexts (schedule/dispatch/push to main — never fork PRs), and
+# contexts (schedule and workflow_dispatch — never fork PRs), and
 # YNAB_LIVE_REQUIRED=1 turns any missing-credential skip into a loud
 # failure: live coverage cannot silently erode here.
 # Actions are SHA-pinned (tag in the comment); bump deliberately.
@@ -14,6 +14,14 @@ on:
 
 permissions:
   contents: read
+
+# One live run at a time: overlapping runs race a single OAuth refresh
+# chain, and two persist steps can write a dead token into the secrets.
+# cancel-in-progress stays false — cancelling mid-refresh is itself a
+# stranding hazard.
+concurrency:
+  group: ynab-live-integration
+  cancel-in-progress: false
 
 jobs:
   live:
@@ -39,6 +47,7 @@ jobs:
           YNAB_OAUTH_RO_REFRESH_TOKEN: ${{ secrets.YNAB_OAUTH_RO_REFRESH_TOKEN }}
           YNAB_OAUTH_TOKEN_FILE: /tmp/ynab_oauth_rotated
         run: |
+          umask 077 # the credential file must not be world-readable
           printf 'REFRESH_TOKEN=%s\nRO_REFRESH_TOKEN=%s\n' \
             "$YNAB_OAUTH_REFRESH_TOKEN" "$YNAB_OAUTH_RO_REFRESH_TOKEN" > /tmp/ynab_oauth_rotated
           make integration
@@ -56,6 +65,16 @@ jobs:
             echo '::error::GH_SECRETS_PAT missing — rotated tokens cannot be persisted; next run WILL fail'
             exit 1
           fi
-          . /tmp/ynab_oauth_rotated
-          gh secret set YNAB_OAUTH_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$REFRESH_TOKEN"
-          gh secret set YNAB_OAUTH_RO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$RO_REFRESH_TOKEN"
+          # Parse, never source — the values are data, not shell. Guard
+          # against an empty/partial value overwriting a still-valid
+          # secret (the old refresh token stays valid until its
+          # successor is exchanged, so keeping it is safe).
+          rt=$(grep '^REFRESH_TOKEN=' /tmp/ynab_oauth_rotated | cut -d= -f2-)
+          rot=$(grep '^RO_REFRESH_TOKEN=' /tmp/ynab_oauth_rotated | cut -d= -f2-)
+          echo "::add-mask::$rt"
+          echo "::add-mask::$rot"
+          if [ -z "$rt" ] || [ -z "$rot" ]; then
+            echo '::error::rotated token empty — keeping the existing secret'; exit 1
+          fi
+          gh secret set YNAB_OAUTH_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$rt"
+          gh secret set YNAB_OAUTH_RO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" --body "$rot"
