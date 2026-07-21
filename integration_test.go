@@ -24,6 +24,11 @@ package ynab_test
 //   - the scheduled empty-plan 404 fold is caller-indistinguishable
 //     from a plain 200-empty by design; the scheduled case logs which
 //     branch really ran via LastStatus.
+//   - updateTransactions keyed by import_id resolves only for rows
+//     that entered through the import pipeline (linked accounts) — an
+//     API-created transaction carrying the import_id answers 400
+//     (probed live 2026-07-20, see API_NOTES.md). Uncreatable here;
+//     the G2 case still pins the wire shape.
 
 import (
 	"net/http"

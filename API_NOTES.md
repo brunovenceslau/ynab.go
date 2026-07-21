@@ -93,3 +93,40 @@ Entry template:
   does not exercise the sentinel: under its PAT no assertion could predict
   a resolution, and the observed behavior is captured here instead.
 - **Status:** open
+
+## import_id — uniqueness survives transaction deletion
+
+- **Date:** 2026-07-20
+- **Docs say:** OpenAPI 1.86.0 describes `import_id` uniqueness as scoped
+  to `(account_id, import_id)` with a 409 on duplicates; nothing is said
+  about deleted transactions.
+- **Reality shows:** live, twice in one day: run 1 created a transaction
+  with a date-deterministic import_id and deleted it (create→verify→
+  cleanup); run 2's create with the same import_id on the same account
+  answered 409 `conflict` — the tombstoned transaction still occupies
+  the id. Deletion does not release an import_id.
+- **Impact:** the live suite generates run-unique import_ids
+  (nanosecond stamp). Consumers doing bank-import flows should know a
+  re-import after deletion needs the occurrence suffix bumped, not the
+  same id retried.
+- **Status:** open
+
+## updateTransactions by import_id — reaches only import-pipeline rows
+
+- **Date:** 2026-07-20
+- **Docs say:** OpenAPI 1.86.0's updateTransactions accepts transactions
+  keyed by either `id` or `import_id`, with no stated restriction on how
+  the target transaction was created.
+- **Reality shows:** live, isolated single-element probe: create a
+  transaction via the API with `import_id` set (echo confirmed), then
+  PATCH `/transactions` with `[{"import_id": <same>, "memo": ...}]` —
+  the server answers 400 `bad_request` "transaction does not exist in
+  this budget (index: 0)". The import_id-keyed lookup does not match
+  API-created transactions; it appears reserved for rows that entered
+  through the import pipeline (linked accounts).
+- **Impact:** PatchByImportID's godoc carries the caveat. The live
+  suite cannot prove the positive path (linked accounts cannot exist on
+  an API-managed test plan); it is on the known-unprovable list. The G2
+  byte-exact encoding case remains — the wire shape is correct per
+  spec.
+- **Status:** open

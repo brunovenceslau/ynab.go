@@ -125,8 +125,11 @@ func init() {
 			// subject to the server's match-to-user-entered rule (same
 			// account, same amount, date ±10 days), and no other row ever
 			// carries -1037 — so a leftover from a failed prior cleanup can
-			// never auto-match.
-			importID := fmt.Sprintf("YNAB:-1037:%s:1", date)
+			// never auto-match. The id must be unique PER RUN, not per day:
+			// import_id uniqueness survives transaction deletion server-side
+			// (probed live 2026-07-20 — see API_NOTES.md), so a
+			// date-deterministic id 409s on the very next same-day run.
+			importID := fmt.Sprintf("itest:%d", time.Now().UnixNano())
 			created, _, err := plan.Transactions.Create(t.Context(), ynab.TransactionSpec{
 				AccountID: accounts[0].ID,
 				Date:      date,
@@ -240,20 +243,21 @@ func init() {
 			require.NotNil(t, got.ImportID)
 			require.Equal(t, importID, *got.ImportID, "import_id must persist to a read-back")
 
+			// PatchByImportID is deliberately absent: the live server
+			// answers 400 "transaction does not exist" for API-created
+			// transactions carrying the import_id — the lookup reaches only
+			// import-pipeline rows, uncreatable on this plan (probed live
+			// 2026-07-20; see API_NOTES.md and the known-unprovable list).
 			patched, err := plan.Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{
 				ynab.PatchByID(batch.TransactionIDs[0],
 					ynab.TransactionUpdate{Approved: ynab.Set(true)}),
-				ynab.PatchByImportID(importID,
-					ynab.TransactionUpdate{Memo: ynab.Set(memo + "-byimport")}),
 			})
 			require.NoError(t, err)
-			require.Len(t, patched.TransactionIDs, 2)
-			require.Contains(t, patched.TransactionIDs, created.ID,
-				"import_id lookup must resolve to the created row")
+			require.Len(t, patched.TransactionIDs, 1)
 			// The returned rows prove the batch PATCH applied the set field
 			// and left the unset ones untouched — the batch-path
 			// unset-means-unchanged proof, distinct from the single PUT's.
-			require.Len(t, patched.Transactions, 2)
+			require.Len(t, patched.Transactions, 1)
 			rows := map[string]ynab.Transaction{}
 			for _, row := range patched.Transactions {
 				rows[row.ID] = row
@@ -264,10 +268,6 @@ func init() {
 			require.NotNil(t, batchRow.Memo)
 			require.Equal(t, memo+"-batch", *batchRow.Memo, "unset memo must survive the batch PATCH")
 			require.Equal(t, ynab.Milliunits(-2000), batchRow.Amount, "unset amount must survive the batch PATCH")
-			byImportRow, ok := rows[created.ID]
-			require.True(t, ok)
-			require.NotNil(t, byImportRow.Memo)
-			require.Equal(t, memo+"-byimport", *byImportRow.Memo)
 
 			// Split create: leg id minting, leg↔parent linkage, and
 			// end-to-end sum acceptance are server-only truths.
