@@ -106,6 +106,12 @@ Budget discipline: YNAB's quota is ~200 requests/hour per token; a
 full `make integration` run costs ~85 and logs its per-case counts.
 Token-endpoint calls (app.ynab.com) do not count against it.
 
+One refresh chain per environment: YNAB invalidates a refresh token's
+ancestors once its successor is used, so CI and a local checkout must
+NEVER share a grant — whichever runs second inherits a dead credential.
+The repo secrets own their chain (the workflow re-persists it every
+run); for local runs, mint your own pair of consent grants.
+
 ## Triage promise
 
 Issues are acknowledged within 14 days and resolved — an accept/decline
