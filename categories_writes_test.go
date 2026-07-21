@@ -121,9 +121,11 @@ func init() {
 		// Runs before the money-movements reads, which need a movement this
 		// case's Assign creates to assert non-vacuously.
 		order: -1,
+		// getCategories: the post-rename delta read pinning the NESTED
+		// delta envelope — changed categories inside group wrappers.
 		ops: []string{
 			"createCategory", "updateCategory", "updateMonthCategory",
-			"createCategoryGroup", "updateCategoryGroup",
+			"createCategoryGroup", "updateCategoryGroup", "getCategories",
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -133,33 +135,81 @@ func init() {
 
 			// Categories and groups cannot be deleted through the API: the
 			// artifacts stay on the dedicated test plan, uniquely named.
-			group, sk, err := plan.Categories.CreateGroup(t.Context(), fmt.Sprintf("itest-%d", stamp))
+			groupName := fmt.Sprintf("itest-%d", stamp)
+			group, sk, err := plan.Categories.CreateGroup(t.Context(), groupName)
 			require.NoError(t, err)
 			require.Positive(t, int64(sk))
+			require.Equal(t, groupName, group.Name)
 
+			// GoalTarget alone — no frequency — pins the DOCUMENTED default:
+			// the server must materialize a NEED goal from the bare target.
+			catName := fmt.Sprintf("itest-cat-%d", stamp)
 			created, _, err := plan.Categories.Create(t.Context(), ynab.CategorySpec{
-				Name:    fmt.Sprintf("itest-cat-%d", stamp),
-				GroupID: group.ID,
+				Name:       catName,
+				GroupID:    group.ID,
+				Note:       ynab.Set("itest note"),
+				GoalTarget: ynab.Set(ynab.Milliunits(50000)),
 			})
 			require.NoError(t, err)
+			require.Equal(t, catName, created.Name)
+			require.Equal(t, group.ID, created.CategoryGroupID)
+			require.NotNil(t, created.Note)
+			require.Equal(t, "itest note", *created.Note)
+			require.NotNil(t, created.GoalTarget)
+			require.Equal(t, ynab.Milliunits(50000), *created.GoalTarget)
+			require.NotNil(t, created.GoalType, "goal_target alone must materialize a goal")
+			require.Equal(t, ynab.GoalTypeNEED, *created.GoalType, "the documented default goal type")
 
 			renamedName := fmt.Sprintf("itest-cat-upd-%d", stamp)
 			updated, _, err := plan.Categories.Update(t.Context(), created.ID,
 				ynab.CategoryUpdate{Name: ynab.Set(renamedName)})
 			require.NoError(t, err)
 			require.Equal(t, renamedName, updated.Name)
+			// The rename-only PATCH must leave unset fields unchanged —
+			// updateCategory's partial-update semantics, live.
+			require.NotNil(t, updated.Note)
+			require.Equal(t, "itest note", *updated.Note, "unset note must survive the PATCH")
+			require.NotNil(t, updated.GoalTarget)
+			require.Equal(t, ynab.Milliunits(50000), *updated.GoalTarget,
+				"unset goal_target must survive the PATCH")
 
 			cleanupCtx := context.WithoutCancel(t.Context())
 			t.Cleanup(func() {
-				_, _, err := plan.Categories.Assign(cleanupCtx, ynab.CurrentMonth(), created.ID, 0)
+				restored, _, err := plan.Categories.Assign(cleanupCtx, ynab.CurrentMonth(), created.ID, 0)
 				require.NoError(t, err, "assignment back to zero restores the plan")
+				require.Equal(t, ynab.Milliunits(0), restored.Budgeted, "restoration must be verified")
 			})
 			assigned, _, err := plan.Categories.Assign(t.Context(), ynab.CurrentMonth(), created.ID, 1000)
 			require.NoError(t, err)
 			require.Equal(t, ynab.Milliunits(1000), assigned.Budgeted)
 
-			_, _, err = plan.Categories.RenameGroup(t.Context(), group.ID, fmt.Sprintf("itest-done-%d", stamp))
+			doneName := fmt.Sprintf("itest-done-%d", stamp)
+			renamedGroup, _, err := plan.Categories.RenameGroup(t.Context(), group.ID, doneName)
 			require.NoError(t, err)
+			require.Equal(t, doneName, renamedGroup.Name)
+
+			// The categories delta's NESTED envelope — changed categories
+			// arriving inside their group wrappers — is a server shape no
+			// other live delta read covers (accounts/payees deltas are flat
+			// arrays). The four writes above guarantee a non-empty diff.
+			changed, skAfter, err := plan.Categories.List(t.Context(), ynab.Since(sk))
+			require.NoError(t, err)
+			require.Greater(t, skAfter, sk)
+			var wrapper *ynab.CategoryGroup
+			for i := range changed {
+				if changed[i].ID == group.ID {
+					wrapper = &changed[i]
+					break
+				}
+			}
+			require.NotNil(t, wrapper, "the delta must include the changed group")
+			require.Equal(t, doneName, wrapper.Name, "the wrapper must carry the renamed group")
+			ids := make([]string, 0, len(wrapper.Categories))
+			for _, c := range wrapper.Categories {
+				ids = append(ids, c.ID)
+			}
+			require.Contains(t, ids, created.ID,
+				"the changed category must arrive nested inside its group wrapper")
 		},
 	})
 }

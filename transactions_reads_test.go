@@ -121,12 +121,14 @@ func init() {
 
 			plan := env.Client.Plan(env.PlanID)
 			today := ynab.Today()
-			since := ynab.TransactionFilter{SinceDate: today.AddDays(-30), UntilDate: today}
+			floor := today.AddDays(-30)
+			since := ynab.TransactionFilter{SinceDate: floor, UntilDate: today}
 			txns, sk, err := plan.Transactions.List(t.Context(), since)
 			require.NoError(t, err)
 			require.Positive(t, int64(sk))
 			for _, tx := range txns {
 				require.LessOrEqual(t, tx.Date.Compare(today), 0, "until_date must be honored server-side")
+				require.GreaterOrEqual(t, tx.Date.Compare(floor), 0, "since_date must be honored server-side")
 			}
 
 			// Each scoped list must answer rows scoped to the argument, not
@@ -138,6 +140,7 @@ func init() {
 			require.NoError(t, err)
 			for _, tx := range byAccount {
 				require.Equal(t, accounts[0].ID, tx.AccountID, "rows must be scoped to the requested account")
+				require.GreaterOrEqual(t, tx.Date.Compare(floor), 0, "since_date must be honored server-side")
 			}
 
 			groups, _, err := plan.Categories.List(t.Context())
@@ -151,6 +154,7 @@ func init() {
 				if row.CategoryID != nil {
 					require.Equal(t, categoryID, *row.CategoryID, "rows must be scoped to the requested category")
 				}
+				require.GreaterOrEqual(t, row.Date.Compare(floor), 0, "since_date must be honored server-side")
 			}
 
 			payees, _, err := plan.Payees.List(t.Context())
@@ -162,6 +166,7 @@ func init() {
 				if row.PayeeID != nil {
 					require.Equal(t, payees[0].ID, *row.PayeeID, "rows must be scoped to the requested payee")
 				}
+				require.GreaterOrEqual(t, row.Date.Compare(floor), 0, "since_date must be honored server-side")
 			}
 
 			// The month window is asserted against the SERVER's resolved

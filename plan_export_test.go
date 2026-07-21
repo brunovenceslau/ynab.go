@@ -51,6 +51,7 @@ func init() {
 			require.NotEmpty(t, detail.Accounts)
 			require.NotEmpty(t, detail.Categories)
 			require.NotEmpty(t, detail.Months)
+			assertExportIntegrity(t, detail)
 
 			// The flagship incremental-sync path, live: Delta must accept the
 			// cursor, answer a small/empty diff, and advance st.Plan in place.
@@ -61,6 +62,68 @@ func init() {
 			require.Empty(t, delta.Accounts, "nothing changed since the cursor")
 		},
 	})
+}
+
+// liveIDs collects the ids of the collection's non-deleted rows and
+// requires them unique — the MergeByID keying assumption. Tombstones are
+// excluded: they may legitimately shadow an id.
+func liveIDs[T ynab.Syncable](t *testing.T, name string, rows []T) map[string]bool {
+	t.Helper()
+	ids := map[string]bool{}
+	for _, row := range rows {
+		if row.IsDeleted() {
+			continue
+		}
+		require.False(t, ids[row.SyncID()], "%s: duplicate id %s in a full export", name, row.SyncID())
+		ids[row.SyncID()] = true
+	}
+	return ids
+}
+
+// assertExportIntegrity proves the referential integrity of a REAL full
+// export — every child's foreign key resolves to an exported parent —
+// which fixtures (one golden element per collection) can never establish.
+// Deleted rows are skipped on both sides: the server documents tombstones
+// only on delta responses, but that exclusion is itself server behavior
+// under observation here, so the checks must not silently depend on it.
+func assertExportIntegrity(t *testing.T, detail *ynab.PlanDetail) {
+	t.Helper()
+
+	accIDs := liveIDs(t, "accounts", detail.Accounts)
+	groupIDs := liveIDs(t, "category_groups", detail.CategoryGroups)
+	txIDs := liveIDs(t, "transactions", detail.Transactions)
+	schedIDs := liveIDs(t, "scheduled_transactions", detail.ScheduledTransactions)
+	liveIDs(t, "payees", detail.Payees)
+	liveIDs(t, "payee_locations", detail.PayeeLocations)
+	liveIDs(t, "categories", detail.Categories)
+	liveIDs(t, "subtransactions", detail.Subtransactions)
+	liveIDs(t, "scheduled_subtransactions", detail.ScheduledSubtransactions)
+
+	for _, tx := range detail.Transactions {
+		if !tx.IsDeleted() {
+			require.True(t, accIDs[tx.AccountID],
+				"transaction %s references unexported account %s", tx.ID, tx.AccountID)
+		}
+	}
+	for _, c := range detail.Categories {
+		if !c.IsDeleted() {
+			require.True(t, groupIDs[c.CategoryGroupID],
+				"category %s references unexported group %s", c.ID, c.CategoryGroupID)
+		}
+	}
+	for _, leg := range detail.Subtransactions {
+		if !leg.IsDeleted() {
+			require.True(t, txIDs[leg.TransactionID],
+				"subtransaction %s references unexported transaction %s", leg.ID, leg.TransactionID)
+		}
+	}
+	for _, leg := range detail.ScheduledSubtransactions {
+		if !leg.IsDeleted() {
+			require.True(t, schedIDs[leg.ScheduledTransactionID],
+				"scheduled leg %s references unexported scheduled transaction %s",
+				leg.ID, leg.ScheduledTransactionID)
+		}
+	}
 }
 
 func TestPlanExport(t *testing.T) {

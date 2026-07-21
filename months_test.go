@@ -77,6 +77,14 @@ func init() {
 			require.NoError(t, err)
 			require.False(t, current.Month.IsZero(), "the server resolves the current literal")
 			require.NotEmpty(t, current.Categories)
+
+			// A concrete in-range month literal — this route otherwise only
+			// ever sees the "current" sentinel live. A listed month is
+			// in-range by construction, so no 404 risk.
+			concrete := months[len(months)-1].Month
+			byLiteral, err := plan.Months.Get(t.Context(), concrete)
+			require.NoError(t, err)
+			require.Equal(t, concrete, byLiteral.Month, "the echoed month must match the requested literal")
 		},
 	})
 }

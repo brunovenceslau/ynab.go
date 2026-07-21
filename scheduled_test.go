@@ -154,9 +154,12 @@ func init() {
 			require.NotEmpty(t, accounts)
 
 			memo := fmt.Sprintf("itest-sched-%d", time.Now().UnixNano())
+			// Hoisted so the spec and the asserts share one value — a run
+			// straddling midnight must not flake.
+			want := ynab.Today().AddDays(30)
 			created, err := plan.Scheduled.Create(t.Context(), ynab.ScheduledTransactionSpec{
 				AccountID: accounts[0].ID,
-				Date:      ynab.Today().AddDays(30),
+				Date:      want,
 				Amount:    -1000,
 				Frequency: ynab.FrequencyMonthly,
 				PayeeName: ynab.Set("itest payee"),
@@ -177,13 +180,25 @@ func init() {
 			require.Equal(t, ynab.FlagColorRed, *created.FlagColor, "Set(flag) must round-trip the live wire")
 			require.NotNil(t, created.Memo)
 			require.Equal(t, memo, *created.Memo)
+			// How the server maps the sent date onto date_first/date_next is
+			// server semantics no fixture proves; 30 days out, date_next
+			// cannot roll during the run.
+			require.Equal(t, want, created.DateFirst, "the sent date must become date_first")
+			require.Equal(t, want, created.DateNext)
+			require.Equal(t, ynab.Milliunits(-1000), created.Amount)
+			require.Equal(t, accounts[0].ID, created.AccountID)
+			require.NotNil(t, created.PayeeName)
+			require.Equal(t, "itest payee", *created.PayeeName)
+			require.NotNil(t, created.PayeeID,
+				"payee_name must resolve or mint a payee id on the scheduled route")
+			require.NotEmpty(t, *created.PayeeID)
 
 			// A sentinel row keeps the plan non-empty during the post-delete
 			// delta read below: without it the empty-plan 404 fold could
 			// swallow the tombstone. LIFO cleanup deletes it first.
 			sentinel, err := plan.Scheduled.Create(t.Context(), ynab.ScheduledTransactionSpec{
 				AccountID: accounts[0].ID,
-				Date:      ynab.Today().AddDays(30),
+				Date:      want,
 				Amount:    -1000,
 				Frequency: ynab.FrequencyMonthly,
 				Memo:      ynab.Set(memo + "-sentinel"),
@@ -195,9 +210,13 @@ func init() {
 				require.True(t, gone.IsDeleted())
 			})
 
+			// Read-back persistence: the server stored what it echoed.
 			got, err := plan.Scheduled.Get(t.Context(), created.ID)
 			require.NoError(t, err)
 			require.Equal(t, created.ID, got.ID)
+			require.Equal(t, created.Memo, got.Memo)
+			require.Equal(t, created.Amount, got.Amount)
+			require.Equal(t, created.DateFirst, got.DateFirst)
 
 			// Partial update: only set fields travel; the server must keep
 			// the rest (the PUT's PATCH semantics, probed live).
@@ -208,9 +227,12 @@ func init() {
 			})
 			require.NoError(t, err)
 			require.Equal(t, ynab.Milliunits(-2000), updated.Amount)
+			require.NotNil(t, updated.Memo)
+			require.Equal(t, memo+"-upd", *updated.Memo)
 			require.Nil(t, updated.FlagColor, "SetNull must clear the flag on the real server")
 			require.Equal(t, ynab.FrequencyMonthly, updated.Frequency,
 				"unset fields must stay unchanged server-side")
+			require.Equal(t, created.DateNext, updated.DateNext, "unset date must stay unchanged")
 
 			// The success branch must carry a positive delta cursor and the
 			// row; a real delta read then observes the tombstone.

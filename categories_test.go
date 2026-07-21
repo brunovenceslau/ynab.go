@@ -100,7 +100,12 @@ func init() {
 			require.NoError(t, err)
 			require.Equal(t, firstCategory.ID, got.ID)
 
-			monthly, err := plan.Categories.GetForMonth(t.Context(), ynab.CurrentMonth(), firstCategory.ID)
+			// A concrete ISO month literal instead of the "current"
+			// sentinel — the literal grammar on this route is otherwise
+			// never sent live. A client-resolved month can differ from the
+			// server's at a boundary, but it stays inside
+			// [first_month, last_month] either way, so no 404 risk.
+			monthly, err := plan.Categories.GetForMonth(t.Context(), ynab.MonthOf(time.Now()), firstCategory.ID)
 			require.NoError(t, err)
 			require.Equal(t, firstCategory.ID, monthly.ID)
 		},

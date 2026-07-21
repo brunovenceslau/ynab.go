@@ -91,18 +91,32 @@ func init() {
 
 			// createAccount has no delete counterpart: the account stays on
 			// the dedicated test plan, named uniquely to stay identifiable.
+			// Type savings: the byte-exact G2 case already pins the savings
+			// encoding client-side, so this create proves the server-side
+			// half — acceptance and echo of a second enum member — at the
+			// same accumulation cost (still one account per run).
 			name := fmt.Sprintf("itest-account-%d", time.Now().UnixNano())
 			created, err := plan.Accounts.Create(t.Context(), ynab.AccountSpec{
 				Name:    name,
-				Type:    ynab.AccountSpecTypeChecking,
+				Type:    ynab.AccountSpecTypeSavings,
 				Balance: 0,
 			})
 			require.NoError(t, err)
 			require.Equal(t, name, created.Name)
+			require.Equal(t, ynab.AccountTypeSavings, created.Type, "sent type must round-trip")
+			require.Zero(t, created.Balance)
+			require.False(t, created.Closed)
+			require.True(t, created.OnBudget, "a savings account is a budget account")
+			require.NotNil(t, created.TransferPayeeID, "the server must mint a transfer payee")
+			require.False(t, created.Deleted)
 
+			// Read-back persistence — the server stored what it echoed.
 			got, err := plan.Accounts.Get(t.Context(), created.ID)
 			require.NoError(t, err)
 			require.Equal(t, created.ID, got.ID)
+			require.Equal(t, name, got.Name, "the created name must persist to a read-back")
+			require.Equal(t, created.Type, got.Type)
+			require.Equal(t, created.Balance, got.Balance)
 		},
 	})
 }

@@ -28,6 +28,7 @@ package ynab_test
 import (
 	"net/http"
 	"regexp"
+	"slices"
 	"sync"
 	"testing"
 
@@ -159,12 +160,23 @@ func init() {
 				require.NotEmpty(t, p.Name)
 				require.NotNil(t, p.Accounts, "IncludeAccounts must embed each plan's accounts")
 			}
+			// The suite's core precondition as its first assertion: a token
+			// that sees plans but not the configured one would otherwise
+			// surface as a confusing 404 in whichever case runs first.
+			i := slices.IndexFunc(plans.Plans, func(p ynab.PlanSummary) bool {
+				return p.ID == string(env.PlanID)
+			})
+			require.GreaterOrEqual(t, i, 0, "the token must see the dedicated test plan")
 
 			settings, err := env.Client.Plan(env.PlanID).Settings(t.Context())
 			require.NoError(t, err)
 			require.NotNil(t, settings.CurrencyFormat, "a real plan always carries a currency format")
 			require.NotEmpty(t, settings.CurrencyFormat.ISOCode)
 			require.NotNil(t, settings.DateFormat)
+			// Two endpoints describing one plan must cohere — a fact only
+			// the real server can attest.
+			require.Equal(t, plans.Plans[i].CurrencyFormat, settings.CurrencyFormat)
+			require.Equal(t, plans.Plans[i].DateFormat, settings.DateFormat)
 
 			// The last-used alias, pinned read-only: the dedicated-plan rule
 			// only forbids writes through it.

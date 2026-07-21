@@ -95,10 +95,24 @@ func init() {
 			got, err := plan.Payees.Get(t.Context(), created.ID)
 			require.NoError(t, err)
 			require.Equal(t, created.ID, got.ID)
+			require.Equal(t, name, got.Name, "the created name must persist to a read-back")
 
 			renamed, _, err := plan.Payees.Rename(t.Context(), created.ID, name+"-renamed")
 			require.NoError(t, err)
 			require.Equal(t, name+"-renamed", renamed.Name)
+
+			// The payees delta, keyed on the in-case rename: a
+			// deterministic non-empty diff carrying the renamed payee.
+			changed, _, err := plan.Payees.List(t.Context(), ynab.Since(sk))
+			require.NoError(t, err)
+			found := false
+			for _, p := range changed {
+				if p.ID == created.ID {
+					found = true
+					require.Equal(t, name+"-renamed", p.Name, "the delta must carry the renamed payee")
+				}
+			}
+			require.True(t, found, "delta read since %d must include the renamed payee", sk)
 		},
 	})
 }
