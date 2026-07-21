@@ -8,10 +8,15 @@ package ynab_test
 
 import (
 	"bytes"
+	"io"
 	"log/slog"
+	"maps"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,35 +28,95 @@ import (
 	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
-// countingTransport counts requests, remembers the server's last
-// rate-limit header, and records every (method, path) pair so the
-// runner can attribute live traffic to the case that produced it.
+// countingTransport counts requests and records every request/response
+// pair — method, path, query, status, content type, body, and any
+// server_knowledge the envelope carried — so the runner can attribute
+// live traffic to the case that produced it and assert wire invariants
+// once, at suite end.
+//
+// It also collects the union of response-header keys, with values for
+// any quota-shaped name: the api.ynab.com prose documents an X-Rate-Limit
+// header, but live traffic 2026-07-20 carried no rate-limit header at all
+// (see API_NOTES.md), so the suite logs what the server actually sends
+// instead of asserting a name it may never see.
 type countingTransport struct {
-	calls     atomic.Int64
-	rateLimit atomic.Value // string, e.g. "36/200"
+	calls atomic.Int64
 
-	mu   sync.Mutex
-	seen []recordedCall
+	mu          sync.Mutex
+	seen        []recordedCall
+	headerKeys  map[string]struct{}
+	rateHeaders []string // "Key: value" for names matching rate|limit|quota
 }
 
-// recordedCall is one live request as the transport saw it.
+// recordedCall is one live request/response as the transport saw it.
 type recordedCall struct {
-	method string
-	path   string // includes the client's /v1 base-path prefix
+	method      string
+	path        string // includes the client's /v1 base-path prefix
+	query       url.Values
+	status      int // 0 when the round trip itself failed
+	contentType string
+	body        []byte
+	sk          int64 // envelope server_knowledge; -1 when absent
 }
+
+// rateHeaderRe spots quota-shaped response-header names.
+var rateHeaderRe = regexp.MustCompile(`(?i)rate|limit|quota`)
+
+// skRe extracts the envelope's server_knowledge wherever it sits. The
+// extraction is skip-tolerant by construction: envelopes without the
+// field record -1, never a fake 0.
+var skRe = regexp.MustCompile(`"server_knowledge":\s*(\d+)`)
 
 func (ct *countingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ct.calls.Add(1)
-	ct.mu.Lock()
-	ct.seen = append(ct.seen, recordedCall{method: req.Method, path: req.URL.Path})
-	ct.mu.Unlock()
+	rc := recordedCall{method: req.Method, path: req.URL.Path, query: req.URL.Query(), sk: -1}
+
 	resp, err := http.DefaultTransport.RoundTrip(req)
-	if err == nil {
-		if v := resp.Header.Get("X-Rate-Limit"); v != "" {
-			ct.rateLimit.Store(v)
+	if err != nil {
+		ct.record(rc, nil)
+		return nil, err
+	}
+	rc.status = resp.StatusCode
+	rc.contentType = resp.Header.Get("Content-Type")
+
+	// Tee the body: read it fully, release the real connection, and hand
+	// the client a replayed reader (DefaultTransport has already
+	// transparently un-gzipped).
+	body, readErr := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if readErr != nil {
+		ct.record(rc, resp.Header)
+		return nil, readErr
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	rc.body = body
+	if m := skRe.FindSubmatch(body); m != nil {
+		if v, perr := strconv.ParseInt(string(m[1]), 10, 64); perr == nil {
+			rc.sk = v
 		}
 	}
-	return resp, err
+	ct.record(rc, resp.Header)
+	return resp, nil
+}
+
+// record appends rc and folds the response headers into the discovery
+// sets, all under the mutex.
+func (ct *countingTransport) record(rc recordedCall, header http.Header) {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ct.seen = append(ct.seen, rc)
+	if header == nil {
+		return
+	}
+	if ct.headerKeys == nil {
+		ct.headerKeys = map[string]struct{}{}
+	}
+	for key, values := range header {
+		ct.headerKeys[key] = struct{}{}
+		if rateHeaderRe.MatchString(key) {
+			ct.rateHeaders = append(ct.rateHeaders, key+": "+strings.Join(values, ","))
+		}
+	}
 }
 
 // recorded returns a snapshot of every call so far.
@@ -59,6 +124,22 @@ func (ct *countingTransport) recorded() []recordedCall {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
 	return slices.Clone(ct.seen)
+}
+
+// headerKeyUnion returns the sorted union of response-header keys seen.
+func (ct *countingTransport) headerKeyUnion() []string {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	return slices.Sorted(maps.Keys(ct.headerKeys))
+}
+
+// rateHeaderValues returns every quota-shaped header observed, with its
+// values — expected empty per the 2026-07-20 probe, logged so a renamed
+// or returning rate-limit header is spotted in one run.
+func (ct *countingTransport) rateHeaderValues() []string {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	return slices.Clone(ct.rateHeaders)
 }
 
 // matchOperation maps a recorded live request to its operationId by
@@ -139,8 +220,10 @@ func TestLiveIntegration(t *testing.T) {
 	}
 
 	calls := transport.calls.Load()
-	rate, _ := transport.rateLimit.Load().(string)
-	t.Logf("live suite made %d requests (server X-Rate-Limit: %s)", calls, rate)
+	t.Logf("live suite made %d requests", calls)
+	t.Logf("response header keys observed: %v", transport.headerKeyUnion())
+	t.Logf("quota-shaped headers observed (expected none per API_NOTES.md): %v",
+		transport.rateHeaderValues())
 	require.LessOrEqual(t, calls, int64(120), "the suite must stay well under the 200/h budget")
 	require.NotContains(t, logBuf.String(), token, "the token must never reach the logs")
 	require.NotZero(t, logBuf.Len(), "the redaction assertion must not pass vacuously")

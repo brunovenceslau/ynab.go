@@ -58,3 +58,20 @@ Entry template:
 - **Impact:** the spec is authoritative — the library exposes `Since` on all
   11 spec-declared delta operations, and its contract tests encode the same 11.
 - **Status:** open
+
+## response headers — no rate-limit header on live traffic
+
+- **Date:** 2026-07-20
+- **Docs say:** the api.ynab.com prose documents an `X-Rate-Limit` response
+  header carrying the hourly quota state (e.g. `36/200`); the vendored
+  OpenAPI 1.86.0 declares no response headers at all (zero `headers:` keys).
+- **Reality shows:** live probe 2026-07-20 (GET `/v1/user`, personal access
+  token): the full response-header set is `content-type`, `cache-control`,
+  `x-request-id`, `x-runtime`, `heroku-*` routing headers, and security
+  headers — nothing quota-shaped. Rate limiting is enforced (429s are real)
+  but not surfaced through any response header.
+- **Impact:** the live integration suite asserts no rate-limit header.
+  Instead its transport records the union of response-header keys (plus
+  values for any key matching `rate|limit|quota`) and logs them at suite
+  end, so a renamed or returning header would be spotted in one run.
+- **Status:** open

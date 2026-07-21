@@ -13,6 +13,7 @@ package ynab_test
 
 import (
 	"net/http"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -88,6 +89,34 @@ func TestIntegrationCoverage(t *testing.T) {
 		require.True(t, found, "integration case declares unknown operation %s", op)
 	}
 	require.Len(t, table, 44)
+}
+
+// templateParamRe matches one {param} placeholder in a table path.
+var templateParamRe = regexp.MustCompile(`\{[^}]+\}`)
+
+// TestMatchOperationUnambiguous freezes the uniqueness property the live
+// runner's first-match-wins matchOperation depends on: no operation's
+// path template may match a concrete instance of another same-method
+// operation's path. It passes today (verified by pairwise inspection) and
+// fails at the exact commit that adds a colliding row to the table —
+// e.g. a future GET /plans/{plan_id}/transactions/summary would silently
+// mis-attribute to getTransactionById without this gate.
+func TestMatchOperationUnambiguous(t *testing.T) {
+	t.Parallel()
+
+	table := contract.Table()
+	for _, a := range table {
+		re := contract.PathRegexp(a.Path)
+		for _, b := range table {
+			if a.ID == b.ID || a.Method != b.Method {
+				continue
+			}
+			concrete := templateParamRe.ReplaceAllString(b.Path, "x1")
+			require.False(t, re.MatchString(concrete),
+				"template %s (%s) matches %s's concrete path %s — matchOperation would mis-attribute",
+				a.Path, a.ID, b.ID, concrete)
+		}
+	}
 }
 
 func init() {
