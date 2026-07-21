@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -424,6 +425,182 @@ func checkCaseWindow(t *testing.T, c integrationCase, window []recordedCall) {
 	}
 }
 
+// liveFieldAllowlist names every wire field a live run is NOT expected
+// to observe with a non-trivial value, each with the reason it cannot
+// be seeded through the API. Anything else going unobserved fails the
+// suite: every reachable field must be exercised live.
+var liveFieldAllowlist = map[string]string{
+	"payee_locations": "payee locations cannot be created via the API (mobile-app writes only; API_NOTES.md)",
+	"flag_name": "flag names are user-defined color labels set only in the app; " +
+		"API-set colors carry a null name even on reads (probed live 2026-07-21)",
+	"last_reconciled_at": "stamped by the app's reconciliation flow only; " +
+		"a reconciled-status write does not touch it (probed live 2026-07-21)",
+	"latitude":  "payee-location field — see payee_locations",
+	"longitude": "payee-location field — see payee_locations",
+	"matched_transaction_id": "set only by the linked-account import pipeline; " +
+		"asserted nil on API-created rows",
+	"import_payee_name_original": "import-pipeline field — a linkless plan never carries it",
+	"original_category_group_id": "deprecated: the server always answers null (documented on the field)",
+	"debt_original_balance":      "deprecated: the server always answers null (documented on the field)",
+	"debt_interest_rates": "populated only for app-created debt accounts with terms; " +
+		"API account creation cannot set them",
+	"debt_minimum_payments": "populated only for app-created debt accounts with terms; " +
+		"API account creation cannot set them",
+	"debt_escrow_amounts": "populated only for app-created debt accounts with terms; " +
+		"API account creation cannot set them",
+	"debt_transaction_type":   "appears only on transactions of app-created debt accounts",
+	"goal_snoozed_at":         "goal snoozing is an app-only action",
+	"group_created_at":        "money-movement groups are created by app-side grouped moves only",
+	"money_movement_group_id": "money-movement groups are created by app-side grouped moves only",
+	"scheduled_subtransactions": "split scheduled transactions cannot be created through the API " +
+		"(documented on ScheduledTransactionSpec)",
+	"scheduled_transaction_id": "set when the schedule engine spawns a transaction on its date — " +
+		"not forceable within a test run",
+	"default_plan": "null under a PAT; the OAuth grant's consent-selected default is " +
+		"asserted live in TestLiveOAuth instead",
+}
+
+// modelFieldTags walks every registered read model and returns the set
+// of json tag names the wire can carry.
+func modelFieldTags() map[string]struct{} {
+	tags := map[string]struct{}{}
+	seen := map[reflect.Type]struct{}{}
+	var walk func(t reflect.Type)
+	walk = func(t reflect.Type) {
+		switch t.Kind() {
+		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+			walk(t.Elem())
+			return
+		case reflect.Struct:
+		default:
+			return
+		}
+		if _, done := seen[t]; done || !strings.HasPrefix(t.PkgPath(), "pkg.venceslau.dev/ynab") {
+			return
+		}
+		seen[t] = struct{}{}
+		for i := range t.NumField() {
+			f := t.Field(i)
+			if f.Anonymous {
+				walk(f.Type)
+				continue
+			}
+			tag, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			if tag != "" && tag != "-" {
+				tags[tag] = struct{}{}
+			}
+			walk(f.Type)
+		}
+	}
+	wireModelsMu.Lock()
+	models := slices.Clone(readModels)
+	wireModelsMu.Unlock()
+	for _, m := range models {
+		walk(reflect.TypeOf(m))
+	}
+	return tags
+}
+
+// observedKeys collects every JSON key that carried a non-trivial value
+// (not null, not "", not [], not {}) anywhere in the recorded bodies.
+func observedKeys(calls []recordedCall) map[string]struct{} {
+	got := map[string]struct{}{}
+	for _, rc := range calls {
+		if rc.status < 200 || rc.status > 299 || len(rc.body) == 0 {
+			continue
+		}
+		var doc any
+		if json.Unmarshal(rc.body, &doc) == nil {
+			walkObserved(doc, got)
+		}
+	}
+	return got
+}
+
+// nonTrivial reports whether a decoded JSON value counts as exercised:
+// null, "", [], and {} do not.
+func nonTrivial(v any) bool {
+	switch tv := v.(type) {
+	case nil:
+		return false
+	case string:
+		return tv != ""
+	case []any:
+		return len(tv) > 0
+	case map[string]any:
+		return len(tv) > 0
+	default:
+		return true
+	}
+}
+
+// walkObserved folds every non-trivially-valued key in doc into got.
+func walkObserved(v any, got map[string]struct{}) {
+	switch tv := v.(type) {
+	case map[string]any:
+		for k, child := range tv {
+			if nonTrivial(child) {
+				got[k] = struct{}{}
+			}
+			walkObserved(child, got)
+		}
+	case []any:
+		for _, child := range tv {
+			walkObserved(child, got)
+		}
+	}
+}
+
+// checkAllowlistFresh fails on allowlist rot in both directions: an
+// entry no wire model carries, or one the live traffic observed anyway.
+func checkAllowlistFresh(t *testing.T, tags, observed map[string]struct{}) {
+	t.Helper()
+	for tag, reason := range liveFieldAllowlist {
+		if _, inModels := tags[tag]; !inModels {
+			assert.Fail(t, "stale allowlist entry",
+				"%s is in no wire model (reason was: %s)", tag, reason)
+		}
+		if _, ok := observed[tag]; ok {
+			assert.Fail(t, "stale allowlist entry",
+				"%s WAS observed live — drop it (reason was: %s)", tag, reason)
+		}
+	}
+}
+
+// checkFieldCoverage is the every-field-live gate: each wire field must
+// be observed with a non-trivial value in this run's live traffic, or
+// carry an explicit allowlist reason. Both directions: stale allowlist
+// entries (field observed anyway, or tag no longer in any model) fail
+// too, so the list cannot rot.
+func checkFieldCoverage(t *testing.T, calls []recordedCall, casesRan, casesTotal int) {
+	t.Helper()
+	if casesRan < casesTotal {
+		t.Logf("field coverage skipped: partial run (%d/%d cases)", casesRan, casesTotal)
+		return
+	}
+	tags := modelFieldTags()
+	observed := observedKeys(calls)
+
+	var missing []string
+	for tag := range tags {
+		if _, ok := observed[tag]; ok {
+			continue
+		}
+		if _, allowed := liveFieldAllowlist[tag]; allowed {
+			continue
+		}
+		missing = append(missing, tag)
+	}
+	slices.Sort(missing)
+	assert.Empty(t, missing,
+		"wire fields never observed with a non-trivial value in live traffic — "+
+			"seed them or allowlist with a reason")
+
+	checkAllowlistFresh(t, tags, observed)
+	t.Logf("field coverage: %d wire fields, %d observed live, %d allowlisted",
+		len(tags), len(observed), len(liveFieldAllowlist))
+}
+
 // TestLiveIntegration runs every registered case against the real API,
 // sequentially — the suite is never concurrent with itself. It skips
 // cleanly without YNAB_TEST_TOKEN, and REQUIRES YNAB_TEST_PLAN_ID: the
@@ -506,6 +683,13 @@ func TestLiveIntegration(t *testing.T) {
 	for _, name := range slices.Sorted(maps.Keys(caseCounts)) {
 		t.Logf("  %3d  %s", caseCounts[name], name)
 	}
+	casesWithTraffic := 0
+	for _, n := range caseCounts {
+		if n > 0 {
+			casesWithTraffic++
+		}
+	}
+	checkFieldCoverage(t, transport.recorded(), casesWithTraffic, len(cases))
 	t.Logf("response header keys observed: %v", transport.headerKeyUnion())
 	t.Logf("quota-shaped headers observed (expected none per API_NOTES.md): %v",
 		transport.rateHeaderValues())

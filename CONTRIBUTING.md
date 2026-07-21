@@ -78,6 +78,10 @@ what your change touches:
 - **Live-integration case** (`registerIntegrationCase`, tokenless
   completeness gate + `make integration`): any new operation. The only
   layer that catches the server disagreeing with the vendored spec.
+  Full runs also enforce field coverage: every wire-model field must be
+  observed with a non-trivial value in the run's live traffic or carry
+  an explicit allowlist reason (`liveFieldAllowlist`) — a new field
+  nobody exercises turns the suite red naming it.
 - **Fuzz targets**: any hand-written parser. No-panic plus round-trip.
 - **Examples**: any new user-facing concept — they are documentation
   that cannot rot, and `go test` runs them.

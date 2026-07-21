@@ -156,6 +156,8 @@ func TestLiveOAuth(t *testing.T) {
 	plans, err := client.Plans(t.Context())
 	require.NoError(t, err, "the rotated access token must be picked up on the next attempt")
 	require.NotEmpty(t, plans.Plans)
+	require.NotNil(t, plans.DefaultPlan,
+		"the consent selected a default plan — PlanList.default_plan must carry it under this grant")
 	require.GreaterOrEqual(t, src.refreshes, 2, "the force-refresh hook must have hit the token endpoint again")
 
 	// PlanIDDefault's positive path exists only under an OAuth grant

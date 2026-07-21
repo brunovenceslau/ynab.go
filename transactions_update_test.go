@@ -97,6 +97,7 @@ func init() {
 			"createTransaction", "updateTransaction", "updateTransactions",
 			"deleteTransaction", "importTransactions",
 			"getAccounts", "getTransactions", "getTransactionById",
+			"getTransactionsByPayee", // the hybrid read while the split lives
 		},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -214,11 +215,15 @@ func init() {
 
 			updated, skAfterUpdate, err := plan.Transactions.Update(t.Context(), created.ID,
 				ynab.TransactionUpdate{
-					Memo:    ynab.Set(memo + "-upd"),
-					Cleared: ynab.ClearedStatusReconciled, // plain omitzero field, not Optional
+					Memo:      ynab.Set(memo + "-upd"),
+					Cleared:   ynab.ClearedStatusReconciled, // plain omitzero field, not Optional
+					FlagColor: ynab.Set(ynab.FlagColorGreen),
 				})
 			require.NoError(t, err)
 			require.Equal(t, memo+"-upd", *updated.Memo)
+			require.NotNil(t, updated.FlagColor)
+			require.Equal(t, ynab.FlagColorGreen, *updated.FlagColor)
+
 			require.Equal(t, ynab.ClearedStatusReconciled, updated.Cleared,
 				"the API must accept a direct write to reconciled")
 			// Partial-PUT semantics: unset fields must stay unchanged.
@@ -276,14 +281,35 @@ func init() {
 				Date:       date,
 				Amount:     -3000,
 				CategoryID: ynab.SetNull[string](),
+				PayeeName:  ynab.Set("itest payee"), // resolved id anchors the hybrid read below
 				Memo:       ynab.Set(memo + "-split"),
 				Splits: []ynab.SubtransactionSpec{
-					{Amount: -1500, Memo: ynab.Set("leg-a")},
-					{Amount: -1500},
+					// Legs carry their own payee: the by-payee hybrid list
+					// matches rows by THEIR payee, not the parent's.
+					{Amount: -1500, PayeeName: ynab.Set("itest payee"), Memo: ynab.Set("leg-a")},
+					{Amount: -1500, PayeeName: ynab.Set("itest payee")},
 				},
 			})
 			require.NoError(t, err)
 			deleteOnCleanup(split.ID)
+
+			// A hybrid read while the split exists: the by-payee list must
+			// surface the legs as subtransaction rows carrying
+			// parent_transaction_id — the only live moment splits are
+			// visible to the hybrid shape.
+			require.NotNil(t, split.PayeeID)
+			hybrid, _, err := plan.Transactions.ListByPayee(t.Context(), *split.PayeeID,
+				ynab.TransactionFilter{SinceDate: date})
+			require.NoError(t, err)
+			legs := 0
+			for _, h := range hybrid {
+				if h.Type == ynab.HybridTypeSubtransaction {
+					legs++
+					require.NotNil(t, h.ParentTransactionID)
+					require.Equal(t, split.ID, *h.ParentTransactionID)
+				}
+			}
+			require.Equal(t, 2, legs, "both split legs must surface as hybrid subtransaction rows")
 			require.Len(t, split.Subtransactions, 2)
 			for _, leg := range split.Subtransactions {
 				require.NotEmpty(t, leg.ID, "the server must mint leg ids")
