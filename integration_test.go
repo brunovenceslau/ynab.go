@@ -56,10 +56,18 @@ type integrationEnv struct {
 // registration order is init-order, i.e. file-name alphabetical — an
 // invariant a rename would silently break.
 type integrationCase struct {
-	name  string
-	ops   []string
-	order int
-	run   func(t *testing.T, env integrationEnv)
+	name string
+	// ops are required BOTH ways by the live runner: every recorded
+	// operation must be declared, and every declared operation must have
+	// been sent — a stale entry cannot keep the coverage gate green
+	// while live coverage silently vanishes.
+	ops []string
+	// condOps are operations the body sends only on some plan-state
+	// branch: the runner accepts them in recorded traffic but does not
+	// require them. The tokenless coverage gate counts them too.
+	condOps []string
+	order   int
+	run     func(t *testing.T, env integrationEnv)
 }
 
 var (
@@ -76,11 +84,12 @@ func registerIntegrationCase(c integrationCase) {
 
 // TestIntegrationCoverage is the tokenless completeness gate (G8's
 // second layer): every one of the 44 operations must be covered by at
-// least one registered live-integration case, and no case may claim an
-// operation the contract table doesn't know. It runs in the normal
-// suite — no tag, no token. Limit acknowledged: ops is self-declared
-// metadata, so the gate proves a case exists per operation, not that
-// the case body still calls it — that half is the live runner's job.
+// least one registered live-integration case (ops or condOps), and no
+// case may claim an operation the contract table doesn't know. It runs
+// in the normal suite — no tag, no token. The other half — that each
+// case body still sends what it declares — is the live runner's job,
+// which it does: ops are required on the wire per case, condOps merely
+// allowed.
 func TestIntegrationCoverage(t *testing.T) {
 	t.Parallel()
 
@@ -92,6 +101,9 @@ func TestIntegrationCoverage(t *testing.T) {
 	covered := map[string]struct{}{}
 	for _, c := range cases {
 		for _, op := range c.ops {
+			covered[op] = struct{}{}
+		}
+		for _, op := range c.condOps {
 			covered[op] = struct{}{}
 		}
 	}

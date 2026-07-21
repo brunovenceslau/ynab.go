@@ -44,8 +44,8 @@ func init() {
 
 	registerIntegrationCase(integrationCase{
 		name: "payee locations reads",
-		// getPayees: the empty-plan branch lists payees to drive the
-		// by-payee call against a real id.
+		// getPayees: listed unconditionally (hoisted above the branch) to
+		// drive the by-payee call against a real id on the empty arm.
 		ops: []string{"getPayeeLocations", "getPayeeLocationById", "getPayeeLocationsByPayee", "getPayees"},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
@@ -54,14 +54,18 @@ func init() {
 			locations, err := plan.PayeeLocations.List(t.Context())
 			require.NoError(t, err)
 
+			// Hoisted above the branch so getPayees is sent on both arms:
+			// the runner requires every declared op on the wire, and this
+			// call must not flap if the plan ever gains a location via the
+			// mobile app.
+			payees, _, err := plan.Payees.List(t.Context())
+			require.NoError(t, err)
+			require.NotEmpty(t, payees, "every plan has default payees")
+
 			// The API cannot create locations (mobile-app writes only), so
 			// a test plan is legitimately empty. Every op is still
 			// exercised over the real wire either way.
 			if len(locations) == 0 {
-				payees, _, err := plan.Payees.List(t.Context())
-				require.NoError(t, err)
-				require.NotEmpty(t, payees, "every plan has default payees")
-
 				// By-payee against a real payee: a 200 with an empty list.
 				byPayee, err := plan.PayeeLocations.ListByPayee(t.Context(), payees[0].ID)
 				require.NoError(t, err)

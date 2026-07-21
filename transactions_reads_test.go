@@ -110,12 +110,15 @@ func init() {
 		name: "transactions reads",
 		// The ops list carries the scoped-list targets AND the helper
 		// reads the body performs to find real ids — the live runner
-		// checks recorded traffic against this set.
+		// checks recorded traffic against this set. getTransactionById is
+		// conditional here (guarded on a non-empty 30-day window); its
+		// unconditional live coverage lives in the writes case.
 		ops: []string{
-			"getTransactions", "getTransactionById", "getTransactionsByAccount",
+			"getTransactions", "getTransactionsByAccount",
 			"getTransactionsByCategory", "getTransactionsByPayee", "getTransactionsByMonth",
 			"getAccounts", "getCategories", "getPayees", "getPlanMonth",
 		},
+		condOps: []string{"getTransactionById"},
 		run: func(t *testing.T, env integrationEnv) {
 			t.Helper()
 

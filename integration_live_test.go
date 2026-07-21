@@ -229,10 +229,11 @@ func assertResponseInvariants(t *testing.T, transport *countingTransport) {
 		if rc.status == 0 {
 			continue // transport error — the case itself reported it
 		}
-		opID, ok := matchOperation(rc)
+		op, ok := matchOperation(rc)
 		if !ok {
 			continue // the per-case window check already failed this
 		}
+		opID := op.ID
 		retryable := rc.status == 429 || rc.status == 500 || rc.status == 503
 		assert.True(t, slices.Contains(allowedStatuses(opID), rc.status) || retryable,
 			"%s answered undocumented status %d (%s %s)", opID, rc.status, rc.method, rc.path)
@@ -297,16 +298,16 @@ func assertServerKnowledgeMonotonic(t *testing.T, transport *countingTransport) 
 		if rc.sk < 0 || rc.status < 200 || rc.status > 299 {
 			continue // skip-tolerant: sk-less envelopes and error answers
 		}
-		opID, ok := matchOperation(rc)
+		op, ok := matchOperation(rc)
 		if !ok {
 			continue
 		}
-		if prev, seen := lastSK[opID]; seen {
+		if prev, seen := lastSK[op.ID]; seen {
 			assert.GreaterOrEqual(t, rc.sk, prev,
 				"server_knowledge regressed on %s: %s %s answered %d after %d",
-				opID, rc.method, rc.path, rc.sk, prev)
+				op.ID, rc.method, rc.path, rc.sk, prev)
 		}
-		lastSK[opID] = rc.sk
+		lastSK[op.ID] = rc.sk
 		merged = append(merged, rc.sk)
 	}
 	t.Logf("server_knowledge merged cross-stream sequence (%d samples): %v", len(merged), merged)
@@ -328,17 +329,59 @@ func assertPlanScopedWrites(t *testing.T, transport *countingTransport, planID s
 	}
 }
 
-// matchOperation maps a recorded live request to its operationId by
-// matching against the contract table's path templates, after stripping
-// the client's /v1 base-path prefix.
-func matchOperation(rc recordedCall) (string, bool) {
+// matchOperation maps a recorded live request to its contract row by
+// matching against the table's path templates, after stripping the
+// client's /v1 base-path prefix. First match wins — safe because
+// TestMatchOperationUnambiguous freezes template uniqueness per method.
+func matchOperation(rc recordedCall) (contract.Operation, bool) {
 	path := strings.TrimPrefix(rc.path, "/v1")
 	for _, op := range contract.Table() {
 		if op.Method == rc.method && contract.PathRegexp(op.Path).MatchString(path) {
-			return op.ID, true
+			return op, true
 		}
 	}
-	return "", false
+	return contract.Operation{}, false
+}
+
+// checkCaseWindow attributes one case's recorded window to its declared
+// operations, both ways: recorded ⊆ ops ∪ condOps AND ops ⊆ recorded —
+// a stale ops entry cannot keep the coverage gate green while live
+// coverage silently vanishes. Sent query parameters must be declared by
+// the matched table row. assert, not require: FailNow mid-cleanup would
+// report only the first drift and hide the rest, and each rerun costs a
+// full quota slice, so every drift must surface in one run.
+func checkCaseWindow(t *testing.T, c integrationCase, window []recordedCall) {
+	t.Helper()
+	allowed := map[string]bool{}
+	for _, op := range c.ops {
+		allowed[op] = true
+	}
+	for _, op := range c.condOps {
+		allowed[op] = true
+	}
+	hit := map[string]bool{}
+	for _, rc := range window {
+		op, ok := matchOperation(rc)
+		if !assert.True(t, ok, "case %q sent %s %s, which matches no contract operation",
+			c.name, rc.method, rc.path) {
+			continue
+		}
+		assert.True(t, allowed[op.ID],
+			"case %q hit %s but does not declare it — its ops list has drifted from its body",
+			c.name, op.ID)
+		hit[op.ID] = true
+		// Query-param discipline on real traffic: only the table's
+		// spec-mirrored parameters may ever leave the client.
+		for param := range rc.query {
+			assert.Contains(t, op.QueryParams, param,
+				"case %q sent undeclared query param %q on %s", c.name, param, op.ID)
+		}
+	}
+	for _, op := range c.ops {
+		assert.True(t, hit[op],
+			"case %q declares %s but never sent it live — a stale ops entry keeps the "+
+				"coverage gate green while live coverage is gone", c.name, op)
+	}
 }
 
 // TestLiveIntegration runs every registered case against the real API,
@@ -373,7 +416,7 @@ func TestLiveIntegration(t *testing.T) {
 		// The backward scan picks the FINAL attempt of a retried request.
 		LastStatus: func(opID string) (int, bool) {
 			for _, rc := range slices.Backward(transport.recorded()) {
-				if id, ok := matchOperation(rc); ok && id == opID {
+				if op, ok := matchOperation(rc); ok && op.ID == opID {
 					return rc.status, true
 				}
 			}
@@ -387,33 +430,26 @@ func TestLiveIntegration(t *testing.T) {
 	integrationMu.Unlock()
 	slices.SortStableFunc(cases, func(a, b integrationCase) int { return a.order - b.order })
 
+	// Per-case request accounting: budget regressions must be attributable
+	// long before the suite-wide hard cap bursts. Sequential suite, and
+	// subtest cleanups finish before t.Run returns — a plain map is safe.
+	caseCounts := map[string]int{}
+
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// The suite is sequential, so a before/after window attributes
 			// every recorded request to this case. The check runs from a
 			// Cleanup registered FIRST: cleanups run LIFO, so it sees the
-			// case's own cleanup traffic (deletes, restores) too. Every
-			// recorded operation must be one the case declares — set
-			// semantics, so retries cannot double-count.
+			// case's own cleanup traffic (deletes, restores) too. Both
+			// directions are enforced — recorded ⊆ ops ∪ condOps AND
+			// ops ⊆ recorded — with set semantics, so retries cannot
+			// double-count and a stale ops entry cannot hide lost coverage.
 			before := len(transport.recorded())
 			t.Cleanup(func() {
-				declared := map[string]bool{}
-				for _, op := range c.ops {
-					declared[op] = true
-				}
-				// assert, not require: FailNow mid-cleanup would report only
-				// the first drift and hide the rest — each rerun costs a
-				// full quota slice, so every drift must surface in one run.
-				for _, rc := range transport.recorded()[before:] {
-					opID, ok := matchOperation(rc)
-					if !assert.True(t, ok, "case %q sent %s %s, which matches no contract operation",
-						c.name, rc.method, rc.path) {
-						continue
-					}
-					assert.True(t, declared[opID],
-						"case %q hit %s but does not declare it — its ops list has drifted from its body",
-						c.name, opID)
-				}
+				window := transport.recorded()[before:]
+				checkCaseWindow(t, c, window)
+				caseCounts[c.name] = len(window)
+				t.Logf("case %q: %d live requests", c.name, len(window))
 			})
 			c.run(t, env) // no t.Parallel: sequential by doctrine
 		})
@@ -427,6 +463,9 @@ func TestLiveIntegration(t *testing.T) {
 
 	calls := transport.calls.Load()
 	t.Logf("live suite made %d requests", calls)
+	for _, name := range slices.Sorted(maps.Keys(caseCounts)) {
+		t.Logf("  %3d  %s", caseCounts[name], name)
+	}
 	t.Logf("response header keys observed: %v", transport.headerKeyUnion())
 	t.Logf("quota-shaped headers observed (expected none per API_NOTES.md): %v",
 		transport.rateHeaderValues())
