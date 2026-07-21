@@ -48,9 +48,9 @@ type countingTransport struct {
 
 	mu          sync.Mutex
 	seen        []recordedCall
-	headerKeys  map[string]struct{}
-	rateHeaders []string // "Key: value" for names matching rate|limit|quota
-	violations  []string // per-request invariant violations, asserted once
+	headerKeys  map[string]map[string]struct{} // status class ("2xx", "429", …) → key set
+	rateHeaders []string                       // "status Key: value" for names matching rate|limit|quota
+	violations  []string                       // per-request invariant violations, asserted once
 }
 
 // recordedCall is one live request/response as the transport saw it.
@@ -145,7 +145,9 @@ func (ct *countingTransport) RoundTrip(req *http.Request) (*http.Response, error
 }
 
 // record appends rc and folds the response headers into the discovery
-// sets, all under the mutex.
+// sets, all under the mutex. Header keys are bucketed by status class:
+// if a rate-limit header exists only near the quota (or only on 429s),
+// an organic throttle self-documents which headers arrived with it.
 func (ct *countingTransport) record(rc recordedCall, header http.Header) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
@@ -153,14 +155,32 @@ func (ct *countingTransport) record(rc recordedCall, header http.Header) {
 	if header == nil {
 		return
 	}
+	class := statusClass(rc.status)
 	if ct.headerKeys == nil {
-		ct.headerKeys = map[string]struct{}{}
+		ct.headerKeys = map[string]map[string]struct{}{}
+	}
+	if ct.headerKeys[class] == nil {
+		ct.headerKeys[class] = map[string]struct{}{}
 	}
 	for key, values := range header {
-		ct.headerKeys[key] = struct{}{}
+		ct.headerKeys[class][key] = struct{}{}
 		if rateHeaderRe.MatchString(key) {
-			ct.rateHeaders = append(ct.rateHeaders, key+": "+strings.Join(values, ","))
+			ct.rateHeaders = append(ct.rateHeaders,
+				class+" "+key+": "+strings.Join(values, ","))
 		}
+	}
+}
+
+// statusClass buckets a status for header discovery: throttle and server
+// errors keep their exact code, everything else folds to its class.
+func statusClass(status int) string {
+	switch {
+	case status == 429 || status >= 500:
+		return strconv.Itoa(status)
+	case status >= 200 && status < 300:
+		return "2xx"
+	default:
+		return "4xx"
 	}
 }
 
@@ -171,11 +191,19 @@ func (ct *countingTransport) recorded() []recordedCall {
 	return slices.Clone(ct.seen)
 }
 
-// headerKeyUnion returns the sorted union of response-header keys seen.
+// headerKeyUnion returns the sorted union of response-header keys seen,
+// prefixed by status class.
 func (ct *countingTransport) headerKeyUnion() []string {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
-	return slices.Sorted(maps.Keys(ct.headerKeys))
+	var out []string
+	for class, keys := range ct.headerKeys {
+		for key := range keys {
+			out = append(out, class+" "+key)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // rateHeaderValues returns every quota-shaped header observed, with its

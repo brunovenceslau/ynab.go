@@ -74,6 +74,10 @@ Entry template:
   Instead its transport records the union of response-header keys (plus
   values for any key matching `rate|limit|quota`) and logs them at suite
   end, so a renamed or returning header would be spotted in one run.
+  Open hypothesis: the header may be emitted only near or at the quota
+  (or only on 429s) — untestable deliberately without burning the whole
+  hourly budget, so the discovery log buckets header keys by status
+  class; an organic 429 will settle it in one run.
 - **Status:** open
 
 ## plan_id `default` — resolves only for OAuth grants, 404.2 under a PAT
