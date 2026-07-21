@@ -21,7 +21,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// The archived predecessor's tags (github.com/brunomvsouza/ynab.go)
-// were cached by the module proxy under this path before their rename
-// to archive/* — they were never valid versions of this module.
+// Retract everything below the rewrite. v0.1.0 is this module's own
+// pre-rewrite tag (the old api/ code, go.mod already declaring this
+// path) — the proxy's current @latest, and the most dangerous entry.
+// v1.0.0-v1.5.0 are the predecessor's tags: those without a go.mod
+// the proxy resolves under this path too, those with one are
+// path-mismatch-blocked. Retract removes the whole range from @latest;
+// an explicit pin still downloads with a warning, which is why this
+// exists.
 retract [v0.1.0, v1.5.0]

@@ -93,8 +93,11 @@ Entry template:
   sentinel RESOLVED (200, settings returned) — both branches are now
   live-proven, and a write under `scope=read-only` answered exactly
   `403.3 unauthorized_scope`, confirming the documented taxonomy.
-- **Impact:** documented on the `PlanIDDefault` constant; TestLiveOAuth
-  pins the positive path, the PAT 404.2 branch, and the 403.3 sentinel.
+- **Impact:** documented on the `PlanIDDefault` constant. TestLiveOAuth
+  pins the positive path and the 403.3 sentinel under an OAuth grant;
+  the PAT 404.2 branch rests on the manual probe above (no PAT-based
+  test provokes it — a passing OAuth run has a default plan and never
+  reaches the 404 branch).
 - **Status:** open
 
 ## import_id — uniqueness survives transaction deletion
@@ -134,7 +137,7 @@ Entry template:
   spec.
 - **Status:** open
 
-## OAuth refresh tokens — rotated on every exchange, old ones stay valid
+## OAuth refresh tokens — rotated on every exchange, ancestors invalidated once the chain advances
 
 - **Date:** 2026-07-20
 - **Docs say:** the OAuth docs describe `grant_type=refresh_token`

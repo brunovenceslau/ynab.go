@@ -110,7 +110,8 @@ environment variables:
 
 Budget discipline: YNAB's quota is ~200 requests/hour per token; a
 full `make integration` run costs ~85 and logs its per-case counts.
-Token-endpoint calls (app.ynab.com) do not count against it.
+Token-endpoint calls (app.ynab.com) are a separate host and are not
+believed to count against the api.ynab.com quota (inferred, not probed).
 
 One refresh chain per environment: YNAB invalidates a refresh token's
 ancestors once its successor is used, so CI and a local checkout must

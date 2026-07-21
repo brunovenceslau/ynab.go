@@ -21,8 +21,7 @@ const (
 // [SetNull] (send an explicit JSON null); the zero Optional is unset.
 //
 // Write models tag Optional fields with omitzero (Go 1.24+), and the
-// unset state — and only the unset state — is what json omits. The zero value
-// of Optional is unset.
+// unset state — and only the unset state — is what json omits.
 //
 // Optional appears in write models only; it has no UnmarshalJSON. Nullable
 // read fields are plain pointers instead.

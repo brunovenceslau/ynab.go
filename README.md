@@ -134,12 +134,13 @@ Observed-vs-documented API divergences live in [API_NOTES.md](API_NOTES.md).
 ## Upgrading from the archived v1.x line
 
 This module replaces the archived v1.x releases. It is a clean break —
-budget → plan, one package, no source compatibility. The old versions stay
-installable forever from the Go module proxy under their original path:
-`go get github.com/brunomvsouza/ynab.go@v1.5.0`. They cannot be fetched
-through `pkg.venceslau.dev/ynab` (their `go.mod` declares the old module
-path); the `archive/*` tags in this repository exist for browsing that
-history. See the [CHANGELOG](CHANGELOG.md) for the migration summary.
+budget → plan, one package, no source compatibility. The predecessor's
+versions stay installable from the module proxy under their original
+paths (`go.bmvs.io/ynab` up to v1.3.0, then
+`github.com/brunomvsouza/ynab.go`); the `archive/*` tags here browse
+that history. Under `pkg.venceslau.dev/ynab` those old versions — and
+this module's own pre-rewrite v0.1.0 — are retracted, so `go get`
+resolves to the current release; see the [CHANGELOG](CHANGELOG.md).
 
 ## Support
 

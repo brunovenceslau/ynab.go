@@ -9,13 +9,17 @@ All notable changes to this module are documented here, in
 ## [1.6.0] - 2026-07-18
 
 Version numbering note: this is the first release of the rewrite, and
-it starts at 1.6.0 rather than 1.0.0. The archived predecessor's tags
-(v0.1.0-v1.5.0) were cached by the Go module proxy under this module
-path before their rename to `archive/*`; those cache entries are
-permanent, and Go's retract mechanism requires the retracting version
-to be the highest. 1.6.0 sits above them and retracts the range — see
-`retract` in go.mod — so `go get pkg.venceslau.dev/ynab` resolves
-cleanly.
+it starts at 1.6.0 rather than 1.0.0. Nineteen older versions are
+permanently cached by the Go module proxy under this path: this
+module's own pre-rewrite tag v0.1.0 (the old code, go.mod already
+declaring this path — currently the proxy's `@latest`), plus the
+predecessor's v1.0.0-v1.5.0. Retract requires the retracting version
+to be the highest, so 1.6.0 sits above the range and retracts it (see
+`retract` in go.mod): `go get pkg.venceslau.dev/ynab` now resolves to
+1.6.0, and none of the old versions can be selected by `@latest` or a
+version range. Explicitly pinning a retracted version still downloads
+it with a warning — that is Go's designed behavior, and the reason
+retract exists rather than deletion.
 
 The greenfield rewrite: a new, frozen public surface covering all 44
 operations of the YNAB API v1 (OpenAPI 1.86.0).
@@ -33,7 +37,7 @@ operations of the YNAB API v1 (OpenAPI 1.86.0).
 - Sentinel error taxonomy with class + sub-code matching, pre-flight
   `*ArgumentError` for spec-stated invariants, and built-in write-safe
   retries.
-- Zero runtime dependencies; `github.com/stretchr/testify` test-only.
+- Zero runtime dependencies; `testify` and `kin-openapi` test-only.
 
 ### Upgrading from the archived v1.x line
 
@@ -45,13 +49,14 @@ gone. Start from the
 examples; the concepts map one-to-one (budget → plan), but no source
 compatibility is provided or implied.
 
-Existing consumers keep working untouched: every released version
-(v0.1.0–v1.5.0) is cached permanently by the Go module proxy under its
-original path — `go get github.com/brunomvsouza/ynab.go@v1.5.0` — and
-that cache survives any repository rename. The `archive/v*` tags in this
-repository preserve the same history for humans; they cannot be fetched
-as `pkg.venceslau.dev/ynab` because their `go.mod` declares the old
-module path.
+Existing consumers of the predecessor keep working: its released
+versions stay downloadable from the module proxy under their original
+paths — `go.bmvs.io/ynab` for v1.0.0-v1.3.0, then
+`github.com/brunomvsouza/ynab.go` for v1.1.4-v1.5.0 — and the cache
+survives any repository rename. The `archive/v*` tags preserve that
+history for humans. (Under `pkg.venceslau.dev/ynab` the old versions
+are retracted: `@latest` and version ranges never pick them, though an
+explicit pin still resolves with a warning.)
 
 [Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.6.0...HEAD
 [1.6.0]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.6.0
