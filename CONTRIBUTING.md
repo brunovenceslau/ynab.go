@@ -40,9 +40,11 @@ are missing.
   confronted with the vendored `openapi.yaml` or https://api.ynab.com.
   Observed divergences go into `API_NOTES.md` at the moment of discovery —
   never ship a workaround without its ledger entry.
-- **Zero runtime dependencies.** `github.com/stretchr/testify` is the only
-  test dependency. Adding any other dependency — including test-only — is an
-  ask-first change: open an issue before the PR.
+- **Zero runtime dependencies.** Test-only dependencies are exactly two:
+  `github.com/stretchr/testify` (assertions) and
+  `github.com/getkin/kin-openapi` (live spec-conformance validation).
+  Adding any other dependency — including test-only — is an ask-first
+  change: open an issue before the PR.
 - **Surface changes are spec-before-code.** The public API is deliberate and
   frozen per release. Propose surface changes in an issue first; PRs that
   grow the surface without prior agreement will be declined regardless of

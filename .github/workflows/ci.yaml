@@ -63,6 +63,10 @@ jobs:
         if: matrix.go != '1.25.x'
         run: make actionlint
 
+      - name: make apidiff
+        if: matrix.go != '1.25.x'
+        run: make apidiff
+
       - name: make check-version-selftest
         if: matrix.go != '1.25.x'
         run: make check-version-selftest

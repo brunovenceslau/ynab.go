@@ -5,8 +5,8 @@
 package ynab_test
 
 // Gate G7's zero-dependency half: the non-test dependency closure of
-// package ynab must be standard library only. testify exists solely in
-// test files, which this closure excludes.
+// package ynab must be standard library only. testify and kin-openapi
+// exist solely in test files, which this closure excludes.
 
 import (
 	"os/exec"

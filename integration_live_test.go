@@ -690,6 +690,7 @@ func TestLiveIntegration(t *testing.T) {
 		}
 	}
 	checkFieldCoverage(t, transport.recorded(), casesWithTraffic, len(cases))
+	checkSpecConformance(t, transport.recorded())
 	t.Logf("response header keys observed: %v", transport.headerKeyUnion())
 	t.Logf("quota-shaped headers observed (expected none per API_NOTES.md): %v",
 		transport.rateHeaderValues())
