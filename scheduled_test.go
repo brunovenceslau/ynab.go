@@ -438,6 +438,23 @@ func TestScheduledDateWindow(t *testing.T) {
 	}
 }
 
+func TestScheduledZeroDateIsRequired(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("no request must be sent on a pre-flight failure")
+	}))
+	t.Cleanup(srv.Close)
+	client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+
+	_, err := client.Plan("p-1").Scheduled.Create(t.Context(),
+		ynab.ScheduledTransactionSpec{AccountID: "ac1", Amount: -1})
+	var argErr *ynab.ArgumentError
+	require.ErrorAs(t, err, &argErr)
+	require.Equal(t, "date", argErr.Field)
+	require.Equal(t, "date is required", argErr.Reason, "a zero date must not masquerade as a window violation")
+}
+
 func TestScheduledUpdateDelete(t *testing.T) {
 	t.Parallel()
 

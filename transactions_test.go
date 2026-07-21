@@ -7,7 +7,10 @@ package ynab_test
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -210,4 +213,23 @@ func TestTransactionFilterEncode(t *testing.T) {
 			require.Equal(t, tt.want, ynab.EncodeTransactionFilter(tt.filter))
 		})
 	}
+}
+
+func TestUpdateBatchAnnotatesPatchIndex(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("no request must be sent on a pre-flight failure")
+	}))
+	t.Cleanup(srv.Close)
+	client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+
+	long := strings.Repeat("x", 501)
+	_, err := client.Plan("p-1").Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{
+		ynab.PatchByID("tr1", ynab.TransactionUpdate{Memo: ynab.Set("ok")}),
+		ynab.PatchByID("tr2", ynab.TransactionUpdate{Memo: ynab.Set(long)}),
+	})
+	var argErr *ynab.ArgumentError
+	require.ErrorAs(t, err, &argErr)
+	require.Contains(t, argErr.Reason, "(patch 1)", "the failing element must be named, like CreateBatch's (spec N)")
 }

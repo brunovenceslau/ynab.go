@@ -137,6 +137,8 @@ type ScheduledTransactionSpec struct {
 func checkScheduledDate(op string, d Date) error {
 	today := Today()
 	switch {
+	case d.IsZero():
+		return &ArgumentError{Op: op, Field: "date", Reason: "date is required"}
 	case d.Before(today):
 		return &ArgumentError{Op: op, Field: "date", Reason: "must not be in the past"}
 	case d.After(today.AddMonths(60)):

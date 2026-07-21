@@ -307,3 +307,12 @@ func TestRetryExhaustionReturnsLastError(t *testing.T) {
 	require.Equal(t, int32(3), attempts.Load())
 	require.Equal(t, http.StatusServiceUnavailable, decodedStatus, "the final 503 is decoded, not swallowed")
 }
+
+func TestRetryAfterDelayOverflowClamps(t *testing.T) {
+	t.Parallel()
+
+	// 1e10 seconds parses fine but the multiply by time.Second would wrap
+	// negative — the documented tri-state has no negative arm.
+	d := transport.RetryAfterDelay("10000000000")
+	require.Positive(t, d, "an overflowing Retry-After must clamp, never wrap negative")
+}

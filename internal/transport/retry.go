@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -157,6 +158,9 @@ func RetryAfterDelay(v string) time.Duration {
 		return 0
 	}
 	if secs, err := strconv.Atoi(v); err == nil && secs >= 0 {
+		if secs > int(math.MaxInt64/int64(time.Second)) {
+			return math.MaxInt64 // clamp: the multiply would wrap negative
+		}
 		return time.Duration(secs) * time.Second
 	}
 	if t, err := http.ParseTime(v); err == nil {
@@ -169,7 +173,7 @@ func RetryAfterDelay(v string) time.Duration {
 
 // sleeper is a reused backoff timer whose sleep is always cancelable: it
 // selects on ctx.Done, so cancellation during backoff returns promptly.
-// go.mod declares Go 1.24, so the 1.23+ timer semantics apply — Stop and
+// go.mod declares Go 1.25, so the 1.23+ timer semantics apply — Stop and
 // Reset need no channel drain (draining would block on the unbuffered
 // timer channel).
 type sleeper struct {

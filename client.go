@@ -62,14 +62,16 @@ type RetryPolicy struct {
 // NewWithTokenSource.
 type Client struct {
 	tokenSource TokenSource
-	httpClient  *http.Client
-	baseURL     *url.URL
-	userAgent   string
-	timeout     time.Duration
-	retry       RetryPolicy
-	retryOff    bool
-	limiter     Limiter
-	logger      *slog.Logger
+	// constructorOp names the public constructor for config-error Ops.
+	constructorOp string
+	httpClient    *http.Client
+	baseURL       *url.URL
+	userAgent     string
+	timeout       time.Duration
+	retry         RetryPolicy
+	retryOff      bool
+	limiter       Limiter
+	logger        *slog.Logger
 
 	// configErr is the first option failure; every method surfaces it as
 	// *ArgumentError before any I/O (the config-error contract).
@@ -88,9 +90,13 @@ func (t staticToken) Token(context.Context) (string, error) { return string(t), 
 // New returns a Client authenticating with a fixed personal-access token.
 // Failable options never make New return an error: the first option
 // failure is stored and surfaced by every method as *ArgumentError before
-// any I/O.
+// any I/O — an empty token trips that contract too.
 func New(token string, opts ...Option) *Client {
-	return NewWithTokenSource(staticToken(token), opts...)
+	c := newClient("ynab.New", staticToken(token), opts)
+	if token == "" && c.configErr == nil {
+		c.configErr = &ArgumentError{Op: "ynab.New", Field: "token", Reason: "token must not be empty"}
+	}
+	return c
 }
 
 // NewWithTokenSource returns a Client that asks ts for a bearer token
@@ -98,19 +104,26 @@ func New(token string, opts ...Option) *Client {
 // The option-failure contract of New applies unchanged; a nil ts trips it
 // too instead of panicking.
 func NewWithTokenSource(ts TokenSource, opts ...Option) *Client {
+	return newClient("ynab.NewWithTokenSource", ts, opts)
+}
+
+// newClient is the shared constructor body; op names the public
+// constructor for the config-error contract.
+func newClient(op string, ts TokenSource, opts []Option) *Client {
 	var configErr error
 	if ts == nil {
 		ts = staticToken("")
-		configErr = &ArgumentError{Op: "ynab.NewWithTokenSource", Field: "ts", Reason: "token source must not be nil"}
+		configErr = &ArgumentError{Op: op, Field: "ts", Reason: "token source must not be nil"}
 	}
 	c := &Client{
-		tokenSource: ts,
-		configErr:   configErr,
-		httpClient:  http.DefaultClient,
-		userAgent:   "pkg.venceslau.dev/ynab/" + Version,
-		timeout:     defaultTimeout,
-		retry:       defaultRetry,
-		logger:      slog.New(slog.DiscardHandler),
+		constructorOp: op,
+		tokenSource:   ts,
+		configErr:     configErr,
+		httpClient:    http.DefaultClient,
+		userAgent:     "pkg.venceslau.dev/ynab/" + Version,
+		timeout:       defaultTimeout,
+		retry:         defaultRetry,
+		logger:        slog.New(slog.DiscardHandler),
 	}
 	c.baseURL, _ = url.Parse(defaultBaseURL) // a constant; cannot fail
 	for _, opt := range opts {
@@ -171,12 +184,15 @@ func WithBaseURL(rawURL string) Option {
 	return Option{apply: func(c *Client) {
 		u, err := url.Parse(rawURL)
 		switch {
+		// Credentials first: every other branch echoes rawURL into an
+		// error string users will log, so a credential-bearing URL must
+		// never reach them.
+		case err == nil && u.User != nil:
+			c.storeConfigErr("WithBaseURL", "URL must not carry credentials")
 		case err != nil || !u.IsAbs() || u.Host == "":
 			c.storeConfigErr("WithBaseURL", "not an absolute URL: "+rawURL)
 		case u.Scheme != "http" && u.Scheme != "https":
 			c.storeConfigErr("WithBaseURL", "scheme must be http or https: "+rawURL)
-		case u.User != nil:
-			c.storeConfigErr("WithBaseURL", "URL must not carry credentials")
 		case u.RawQuery != "" || u.Fragment != "":
 			c.storeConfigErr("WithBaseURL", "URL must not carry a query or fragment: "+rawURL)
 		default:
@@ -290,7 +306,7 @@ func (c *Client) RawDo(ctx context.Context, method, path string, q url.Values, b
 // first (it names the option the caller must fix first).
 func (c *Client) storeConfigErr(option, reason string) {
 	if c.configErr == nil {
-		c.configErr = &ArgumentError{Op: "ynab.New", Field: option, Reason: reason}
+		c.configErr = &ArgumentError{Op: c.constructorOp, Field: option, Reason: reason}
 	}
 }
 

@@ -275,7 +275,3 @@ func TestContractReadErrorPropagation(t *testing.T) {
 		})
 	}
 }
-
-// fixtureModels maps every fixture file to its decode target: wrapper key
-// under the envelope's data plus the public model. TestFixturesDecodeStrict
-// strict-decodes each one, so a typo'd fixture key can never silently

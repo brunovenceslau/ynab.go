@@ -590,6 +590,10 @@ func (s *TransactionsService) UpdateBatch(ctx context.Context, patches []Transac
 			}
 		}
 		if err := p.validate("Transactions.UpdateBatch"); err != nil {
+			var argErr *ArgumentError
+			if errors.As(err, &argErr) {
+				argErr.Reason += " (patch " + strconv.Itoa(i) + ")"
+			}
 			return nil, err
 		}
 	}

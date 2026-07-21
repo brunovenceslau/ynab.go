@@ -185,3 +185,36 @@ func TestWithRetryPolicyPartialFill(t *testing.T) {
 	require.Equal(t, defaultRetry.MaxBackoff, c.retry.MaxBackoff)
 	require.False(t, c.retry.RetryWrites)
 }
+
+func TestShipReviewRegressions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty token trips the config-error contract", func(t *testing.T) {
+		t.Parallel()
+
+		var argErr *ArgumentError
+		require.ErrorAs(t, New("").configError(), &argErr)
+		require.Equal(t, "ynab.New", argErr.Op)
+		require.Equal(t, "token", argErr.Field)
+	})
+
+	t.Run("option failures name the constructor that ran them", func(t *testing.T) {
+		t.Parallel()
+
+		c := NewWithTokenSource(staticToken("t"), WithTimeout(0))
+		var argErr *ArgumentError
+		require.ErrorAs(t, c.configError(), &argErr)
+		require.Equal(t, "ynab.NewWithTokenSource", argErr.Op)
+	})
+
+	t.Run("credential-bearing base URL never echoes into the error", func(t *testing.T) {
+		t.Parallel()
+
+		// The scheme is also invalid: the credentials check must win so
+		// the secret cannot ride an echoed rawURL into user logs.
+		c := New("t", WithBaseURL("ftp://user:hunter2@host/v1"))
+		err := c.configError()
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "hunter2")
+	})
+}
