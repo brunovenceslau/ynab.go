@@ -45,8 +45,11 @@ smoke:
 	CGO_ENABLED=0 go test -tags=smoke -count=1 -run 'TestLiveSmoke' ./...
 
 # -p 1: the live suite is never concurrent with itself.
+# -v: the suite's t.Logf telemetry (per-case request counts, header
+# discovery, SK sequence) is the audit trail — without -v a passing run
+# swallows it and CI logs cannot prove what actually ran.
 integration:
-	CGO_ENABLED=0 go test -tags=integration -count=1 -p 1 -run 'TestLive' ./...
+	CGO_ENABLED=0 go test -tags=integration -count=1 -p 1 -run 'TestLive' -v ./...
 
 # Fails if go.mod/go.sum are untidy; running it locally is also the fix.
 tidy-check:
