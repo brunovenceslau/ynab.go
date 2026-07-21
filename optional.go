@@ -16,7 +16,9 @@ const (
 )
 
 // Optional models the tri-state every YNAB write needs:
-// unset (field omitted) | null (field cleared) | value.
+// unset (field omitted) | null (field cleared) | value. Its two
+// constructors are [Set] (send a value, zero values included) and
+// [SetNull] (send an explicit JSON null); the zero Optional is unset.
 //
 // Write models tag Optional fields with omitzero (Go 1.24+), and the
 // unset state — and only the unset state — is what json omits. The zero value
@@ -29,13 +31,13 @@ type Optional[T any] struct {
 	state optionalState
 }
 
-// Set returns an Optional holding v. The field is emitted even when v is the
-// zero value of T: Set(false), Set(0), and Set("") all reach the wire.
+// Set returns an [Optional] holding v. The field is emitted even when v is
+// the zero value of T: Set(false), Set(0), and Set("") all reach the wire.
 func Set[T any](v T) Optional[T] {
 	return Optional[T]{value: v, state: optionalValue}
 }
 
-// SetNull returns an Optional that serializes as JSON null — "clear this
+// SetNull returns an [Optional] that serializes as JSON null — "clear this
 // field" on the server. Omitting the field (the unset zero value) leaves it
 // unchanged instead; the two are different operations.
 func SetNull[T any]() Optional[T] {
