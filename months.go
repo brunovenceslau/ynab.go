@@ -79,9 +79,11 @@ func (s *MonthsService) List(ctx context.Context, opts ...ListOption) ([]MonthSu
 }
 
 // Get returns a single month with its categories. Month accepts
-// [CurrentMonth] — the server resolves its own current month. A month
-// outside the plan's range answers [ErrResourceNotFound]; a zero Month
-// is a pre-flight [*ArgumentError].
+// [CurrentMonth] — the server resolves its own current month, and the
+// response carries the CONCRETE month it resolved to (IsCurrent
+// reports false on it): the sentinel is a question, the answer names
+// the month. A month outside the plan's range answers
+// [ErrResourceNotFound]; a zero Month is a pre-flight [*ArgumentError].
 //
 // YNAB operationId: getPlanMonth
 func (s *MonthsService) Get(ctx context.Context, m Month) (*MonthDetail, error) {
