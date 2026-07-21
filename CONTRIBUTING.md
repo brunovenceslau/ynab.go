@@ -85,6 +85,27 @@ what your change touches:
 The gates will list exactly which registrations are missing if you
 forget one.
 
+## Running the live suites
+
+The unit, contract, and fixture gates need nothing but Go and make.
+The live suites talk to the real YNAB API and are driven entirely by
+environment variables:
+
+| Variable | Used by | Meaning |
+|---|---|---|
+| `YNAB_TEST_TOKEN` | `make smoke`, `make integration` | Personal Access Token of the **dedicated test account** — never a personal one; the suite writes. |
+| `YNAB_TEST_PLAN_ID` | `make integration` | The dedicated test plan's id. Required for the write suite: without it the runner refuses rather than guessing a plan. |
+| `YNAB_OAUTH_CLIENT_ID` / `YNAB_OAUTH_CLIENT_SECRET` | `make integration` (OAuth probes) | The OAuth application's credentials (Developer Settings → New Application, redirect URI `urn:ietf:wg:oauth:2.0:oob`). |
+| `YNAB_OAUTH_REFRESH_TOKEN` | OAuth probes | Refresh token from a full-scope consent grant (select a default plan during consent — it proves `PlanIDDefault`'s positive path). |
+| `YNAB_OAUTH_RO_REFRESH_TOKEN` | OAuth probes | Refresh token from a second, `scope=read-only` grant — proves the live `403.3 unauthorized_scope` on writes. |
+| `YNAB_OAUTH_TOKEN_FILE` | OAuth probes | Path of your `KEY=value` credentials file. **Set it**: YNAB invalidates refresh-token ancestors once the chain advances (see `API_NOTES.md`), so every rotation must be persisted or the stored credential dies. |
+| `YNAB_LIVE_REQUIRED` | all live suites | `1` turns every missing-credential skip into a loud failure. This repo's own environments (local + CI) always set it; leave it unset in a third-party clone and the live suites skip cleanly. |
+| `GH_SECRETS_PAT` | CI only | Fine-grained PAT (secrets read/write, this repo only) the integration workflow uses to write rotated refresh tokens back into the repo secrets. |
+
+Budget discipline: YNAB's quota is ~200 requests/hour per token; a
+full `make integration` run costs ~85 and logs its per-case counts.
+Token-endpoint calls (app.ynab.com) do not count against it.
+
 ## Triage promise
 
 Issues are acknowledged within 14 days and resolved — an accept/decline
