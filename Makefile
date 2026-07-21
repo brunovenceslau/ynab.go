@@ -7,7 +7,9 @@ XEXP_VERSION := v0.0.0-20260718201538-764159d718ef
 GOLANGCI_LINT := CGO_ENABLED=0 go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOVULNCHECK := CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
-GORELEASE := CGO_ENABLED=0 go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
+# GORELEASE_CMD is the pinned gorelease invocation without the cgo prefix, so
+# scripts/apidiff.sh can run it as an argv (a leading VAR=val is not an arg).
+GORELEASE_CMD := go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
 	check-version-selftest local-ci go-latest-check apidiff examples
@@ -85,14 +87,11 @@ check-version-selftest:
 # and belongs to the archived predecessor's module path, so an implicit
 # base would produce a garbage cross-module diff). Before the first
 # family release the target says so and passes; after v1.6.0 it bites
-# on every run, against an explicit base.
+# on every run, against an explicit base. The gate exempts one symbol —
+# the Version constant, release metadata that changes every release — while
+# still failing on any other incompatible change; see scripts/apidiff.sh.
 apidiff:
-	@base=$$(git tag -l 'v1.[6-9]*' 'v1.[1-9][0-9]*' 'v[2-9]*' | sort -V | tail -1); \
-	if [ -z "$$base" ]; then \
-		echo 'apidiff: no released tag in this module family yet — activates after v1.6.0'; \
-	else \
-		$(GORELEASE) -base=$$base; \
-	fi
+	@CGO_ENABLED=0 scripts/apidiff.sh $(GORELEASE_CMD)
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
 local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff coverage
