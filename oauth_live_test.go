@@ -100,7 +100,7 @@ func TestLiveOAuth(t *testing.T) {
 	clientSecret := os.Getenv("YNAB_OAUTH_CLIENT_SECRET")
 	refresh := os.Getenv("YNAB_OAUTH_REFRESH_TOKEN")
 	if clientID == "" || clientSecret == "" || refresh == "" {
-		t.Skip("YNAB_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN not set — OAuth probes need a one-time consent grant")
+		skipOrFail(t, "YNAB_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN not set — OAuth probes need a one-time consent grant")
 	}
 
 	src := &refreshingTokenSource{
@@ -140,7 +140,7 @@ func TestLiveOAuth(t *testing.T) {
 	// sentinel taxonomy. Requires the second, read-only grant.
 	roRefresh := os.Getenv("YNAB_OAUTH_RO_REFRESH_TOKEN")
 	if roRefresh == "" {
-		t.Log("YNAB_OAUTH_RO_REFRESH_TOKEN not set — skipping the read-only-scope 403 probe")
+		skipOrFail(t, "YNAB_OAUTH_RO_REFRESH_TOKEN not set — the read-only-scope 403 probe needs the second grant")
 		return
 	}
 	roSrc := &refreshingTokenSource{clientID: clientID, clientSecret: clientSecret, refreshToken: roRefresh}

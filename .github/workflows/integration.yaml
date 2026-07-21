@@ -1,0 +1,40 @@
+# The full live-integration suite — every operation against the real
+# API, writes create→verify→cleanup on the dedicated test plan, plus
+# the OAuth probes. Secrets exist only in this repository's own
+# contexts (schedule/dispatch/push to main — never fork PRs), and
+# YNAB_LIVE_REQUIRED=1 turns any missing-credential skip into a loud
+# failure: live coverage cannot silently erode here.
+# Actions are SHA-pinned (tag in the comment); bump deliberately.
+name: integration
+
+on:
+  schedule:
+    - cron: '11 7 * * 1' # weekly, Monday 07:11 UTC — after drift and smoke
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '1.26.x'
+
+      - name: make integration
+        env:
+          YNAB_LIVE_REQUIRED: '1'
+          YNAB_TEST_TOKEN: ${{ secrets.YNAB_TEST_TOKEN }}
+          YNAB_TEST_PLAN_ID: ${{ secrets.YNAB_TEST_PLAN_ID }}
+          YNAB_OAUTH_CLIENT_ID: ${{ secrets.YNAB_OAUTH_CLIENT_ID }}
+          YNAB_OAUTH_CLIENT_SECRET: ${{ secrets.YNAB_OAUTH_CLIENT_SECRET }}
+          YNAB_OAUTH_REFRESH_TOKEN: ${{ secrets.YNAB_OAUTH_REFRESH_TOKEN }}
+          YNAB_OAUTH_RO_REFRESH_TOKEN: ${{ secrets.YNAB_OAUTH_RO_REFRESH_TOKEN }}
+        run: make integration

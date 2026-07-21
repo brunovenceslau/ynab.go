@@ -35,5 +35,6 @@ jobs:
 
       - name: make smoke
         env:
+          YNAB_LIVE_REQUIRED: '1' # a missing secret must fail loud, never skip green
           YNAB_TEST_TOKEN: ${{ secrets.YNAB_TEST_TOKEN }}
         run: make smoke

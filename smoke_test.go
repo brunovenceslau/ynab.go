@@ -22,6 +22,11 @@ import (
 func TestLiveSmoke(t *testing.T) {
 	token := os.Getenv("YNAB_TEST_TOKEN")
 	if token == "" {
+		// Same contract as the integration runner's skipOrFail (separate
+		// build tag, so the two cannot share the helper).
+		if os.Getenv("YNAB_LIVE_REQUIRED") == "1" {
+			t.Fatal("YNAB_LIVE_REQUIRED=1 but YNAB_TEST_TOKEN is not set")
+		}
 		t.Skip("YNAB_TEST_TOKEN not set — the smoke runs read-only against the real API")
 	}
 

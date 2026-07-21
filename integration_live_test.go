@@ -32,6 +32,18 @@ import (
 	"pkg.venceslau.dev/ynab/internal/contract"
 )
 
+// skipOrFail skips for missing live credentials — except under
+// YNAB_LIVE_REQUIRED=1 (set by this repo's own environments, local and
+// CI), where a missing credential is a loud failure: a skip there would
+// silently erase live coverage. Third-party clones keep the skip.
+func skipOrFail(t *testing.T, reason string) {
+	t.Helper()
+	if os.Getenv("YNAB_LIVE_REQUIRED") == "1" {
+		t.Fatalf("YNAB_LIVE_REQUIRED=1 but %s", reason)
+	}
+	t.Skip(reason)
+}
+
 // countingTransport counts requests and records every request/response
 // pair — method, path, query, status, content type, body, and any
 // server_knowledge the envelope carried — so the runner can attribute
@@ -421,11 +433,11 @@ func checkCaseWindow(t *testing.T, c integrationCase, window []recordedCall) {
 func TestLiveIntegration(t *testing.T) {
 	token := os.Getenv("YNAB_TEST_TOKEN")
 	if token == "" {
-		t.Skip("YNAB_TEST_TOKEN not set — live integration runs only against a dedicated test plan")
+		skipOrFail(t, "YNAB_TEST_TOKEN not set — live integration runs only against a dedicated test plan")
 	}
 	planID := os.Getenv("YNAB_TEST_PLAN_ID")
 	if planID == "" {
-		t.Skip("YNAB_TEST_PLAN_ID not set — the suite writes, and writes only ever touch the dedicated test plan")
+		skipOrFail(t, "YNAB_TEST_PLAN_ID not set — the suite writes, and writes only ever touch the dedicated test plan")
 	}
 
 	// The counting transport and a captured debug log turn two promises
