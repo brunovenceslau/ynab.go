@@ -194,9 +194,13 @@ func (ct *countingTransport) rateHeaderValues() []string {
 func allowedStatuses(opID string) []int {
 	switch opID {
 	case "createAccount", "createCategory", "createCategoryGroup", "createPayee",
-		"createScheduledTransaction", "createTransaction":
+		"createScheduledTransaction":
 		// The spec declares exactly 201 for every create.
 		return []int{201}
+	case "createTransaction":
+		// 201, plus the deliberate duplicate-import_id probe's 409: the
+		// transactions-writes case records a real 409 every run.
+		return []int{201, 409}
 	case "importTransactions":
 		// 200 "nothing to import" vs 201 "imported" — both documented.
 		return []int{200, 201}
