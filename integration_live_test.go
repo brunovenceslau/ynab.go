@@ -8,9 +8,12 @@ package ynab_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +25,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"pkg.venceslau.dev/ynab"
@@ -46,6 +50,7 @@ type countingTransport struct {
 	seen        []recordedCall
 	headerKeys  map[string]struct{}
 	rateHeaders []string // "Key: value" for names matching rate|limit|quota
+	violations  []string // per-request invariant violations, asserted once
 }
 
 // recordedCall is one live request/response as the transport saw it.
@@ -67,8 +72,48 @@ var rateHeaderRe = regexp.MustCompile(`(?i)rate|limit|quota`)
 // field record -1, never a fake 0.
 var skRe = regexp.MustCompile(`"server_knowledge":\s*(\d+)`)
 
+// checkf records a violated per-request invariant. The suite asserts the
+// collected set empty once at the end — never FailNow inside RoundTrip.
+func (ct *countingTransport) checkf(cond bool, format string, args ...any) {
+	if cond {
+		return
+	}
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	ct.violations = append(ct.violations, fmt.Sprintf(format, args...))
+}
+
+// checkRequest collects the per-request invariants only live traffic can
+// prove: the packaged default base URL (every fixture test overrides it,
+// so https + api.ynab.com is exercised end-to-end only here) and the
+// Accept header (asserted in no other test). Authorization and User-Agent
+// are re-checked globally as well — unit-pinned per request shape at
+// internal/transport/transport_test.go.
+func (ct *countingTransport) checkRequest(req *http.Request) {
+	ct.checkf(req.URL.Scheme == "https" && req.URL.Host == "api.ynab.com",
+		"%s %s escaped the packaged base URL", req.Method, req.URL)
+	auth := req.Header.Get("Authorization")
+	ct.checkf(strings.HasPrefix(auth, "Bearer ") && len(auth) > len("Bearer "),
+		"%s %s carries a malformed Authorization header", req.Method, req.URL.Path)
+	ct.checkf(len(req.Header.Values("Authorization")) == 1,
+		"%s %s carries %d Authorization headers — exactly one credential header allowed",
+		req.Method, req.URL.Path, len(req.Header.Values("Authorization")))
+	ct.checkf(strings.HasPrefix(req.Header.Get("User-Agent"), "pkg.venceslau.dev/ynab/"),
+		"%s %s carries User-Agent %q", req.Method, req.URL.Path, req.Header.Get("User-Agent"))
+	ct.checkf(req.Header.Get("Accept") == "application/json",
+		"%s %s carries Accept %q", req.Method, req.URL.Path, req.Header.Get("Accept"))
+}
+
+// allViolations returns a snapshot of the collected violations.
+func (ct *countingTransport) allViolations() []string {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
+	return slices.Clone(ct.violations)
+}
+
 func (ct *countingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	ct.calls.Add(1)
+	ct.checkRequest(req)
 	rc := recordedCall{method: req.Method, path: req.URL.Path, query: req.URL.Query(), sk: -1}
 
 	resp, err := http.DefaultTransport.RoundTrip(req)
@@ -142,6 +187,143 @@ func (ct *countingTransport) rateHeaderValues() []string {
 	return slices.Clone(ct.rateHeaders)
 }
 
+// allowedStatuses maps an operation to the statuses the spec declares
+// for it; everything else must answer plain 200. The retry pipeline's
+// consumable statuses (429/500/503) are tolerated everywhere because the
+// transport records every attempt, including retried ones.
+func allowedStatuses(opID string) []int {
+	switch opID {
+	case "createAccount", "createCategory", "createCategoryGroup", "createPayee",
+		"createScheduledTransaction", "createTransaction":
+		// The spec declares exactly 201 for every create.
+		return []int{201}
+	case "importTransactions":
+		// 200 "nothing to import" vs 201 "imported" — both documented.
+		return []int{200, 201}
+	case "getScheduledTransactions":
+		// The empty-plan 404 the client folds into an empty list.
+		return []int{200, 404}
+	case "deleteTransaction", "deleteScheduledTransaction":
+		// Tolerant cleanup re-deletes record a real 404 every run.
+		return []int{200, 404}
+	case "getPayeeLocationById":
+		// The suite's deliberate unknown-id 404 probe.
+		return []int{200, 404}
+	default:
+		return []int{200}
+	}
+}
+
+// assertResponseInvariants checks every recorded response against the
+// spec's status taxonomy, requires application/json on 2xx (exactly where
+// the client decodes unconditionally), and proves the envelope invariant
+// on real traffic. assert, not require: one drifted response must not
+// hide the rest of a run that costs a full quota slice to repeat.
+func assertResponseInvariants(t *testing.T, transport *countingTransport) {
+	t.Helper()
+	for _, rc := range transport.recorded() {
+		if rc.status == 0 {
+			continue // transport error — the case itself reported it
+		}
+		opID, ok := matchOperation(rc)
+		if !ok {
+			continue // the per-case window check already failed this
+		}
+		retryable := rc.status == 429 || rc.status == 500 || rc.status == 503
+		assert.True(t, slices.Contains(allowedStatuses(opID), rc.status) || retryable,
+			"%s answered undocumented status %d (%s %s)", opID, rc.status, rc.method, rc.path)
+		if retryable {
+			continue // an interposing edge layer may legitimately answer non-JSON here
+		}
+		if rc.status >= 200 && rc.status < 300 {
+			mt, _, mimeErr := mime.ParseMediaType(rc.contentType)
+			if mimeErr != nil {
+				assert.Fail(t, "unparseable Content-Type",
+					"op %s answered Content-Type %q: %v", opID, rc.contentType, mimeErr)
+			} else {
+				assert.Equal(t, "application/json", mt,
+					"op %s answered Content-Type %q — the client decodes 2xx as JSON unconditionally",
+					opID, rc.contentType)
+			}
+		}
+		assertEnvelope(t, opID, rc)
+	}
+}
+
+// assertEnvelope proves the envelope invariant the client assumes per
+// decode, on real traffic: a 2xx always carries data and never error; a
+// non-2xx the inverse.
+func assertEnvelope(t *testing.T, opID string, rc recordedCall) {
+	t.Helper()
+	var envelope struct {
+		Data  json.RawMessage `json:"data"`
+		Error json.RawMessage `json:"error"`
+	}
+	if err := json.Unmarshal(rc.body, &envelope); err != nil {
+		assert.Fail(t, "non-JSON envelope", "op %s (status %d) answered a non-JSON body: %v",
+			opID, rc.status, err)
+		return
+	}
+	dataSet, errSet := rawSet(envelope.Data), rawSet(envelope.Error)
+	if rc.status >= 200 && rc.status < 300 {
+		assert.True(t, dataSet && !errSet,
+			"op %s: a 2xx must carry non-null data and a null error (status %d)", opID, rc.status)
+	} else {
+		assert.True(t, errSet && !dataSet,
+			"op %s: a non-2xx must carry a non-null error and null data (status %d)", opID, rc.status)
+	}
+}
+
+// rawSet reports a present, non-null JSON value.
+func rawSet(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
+// assertServerKnowledgeMonotonic requires each operation stream's
+// server_knowledge sequence non-decreasing in wall-clock order — the
+// documented per-(plan, stream) contract (sync.go). The merged
+// cross-stream sequence is only logged: whether the server backs every
+// stream with one plan-global counter is unconfirmed, so it must not be
+// asserted until real traffic says so.
+func assertServerKnowledgeMonotonic(t *testing.T, transport *countingTransport) {
+	t.Helper()
+	lastSK := map[string]int64{}
+	var merged []int64
+	for _, rc := range transport.recorded() {
+		if rc.sk < 0 || rc.status < 200 || rc.status > 299 {
+			continue // skip-tolerant: sk-less envelopes and error answers
+		}
+		opID, ok := matchOperation(rc)
+		if !ok {
+			continue
+		}
+		if prev, seen := lastSK[opID]; seen {
+			assert.GreaterOrEqual(t, rc.sk, prev,
+				"server_knowledge regressed on %s: %s %s answered %d after %d",
+				opID, rc.method, rc.path, rc.sk, prev)
+		}
+		lastSK[opID] = rc.sk
+		merged = append(merged, rc.sk)
+	}
+	t.Logf("server_knowledge merged cross-stream sequence (%d samples): %v", len(merged), merged)
+}
+
+// assertPlanScopedWrites turns the dedicated-test-plan doctrine into an
+// assertion: every non-GET request must stay under the test plan's path.
+// It catches exactly the two real hazards — an accidental write through
+// the read-only PlanIDLastUsed alias, or a hard-coded plan id.
+func assertPlanScopedWrites(t *testing.T, transport *countingTransport, planID string) {
+	t.Helper()
+	prefix := "/v1/plans/" + planID + "/"
+	for _, rc := range transport.recorded() {
+		if rc.method == http.MethodGet {
+			continue
+		}
+		assert.True(t, strings.HasPrefix(rc.path, prefix),
+			"write %s %s escaped the dedicated test plan", rc.method, rc.path)
+	}
+}
+
 // matchOperation maps a recorded live request to its operationId by
 // matching against the contract table's path templates, after stripping
 // the client's /v1 base-path prefix.
@@ -206,11 +388,16 @@ func TestLiveIntegration(t *testing.T) {
 				for _, op := range c.ops {
 					declared[op] = true
 				}
+				// assert, not require: FailNow mid-cleanup would report only
+				// the first drift and hide the rest — each rerun costs a
+				// full quota slice, so every drift must surface in one run.
 				for _, rc := range transport.recorded()[before:] {
 					opID, ok := matchOperation(rc)
-					require.True(t, ok, "case %q sent %s %s, which matches no contract operation",
-						c.name, rc.method, rc.path)
-					require.True(t, declared[opID],
+					if !assert.True(t, ok, "case %q sent %s %s, which matches no contract operation",
+						c.name, rc.method, rc.path) {
+						continue
+					}
+					assert.True(t, declared[opID],
 						"case %q hit %s but does not declare it — its ops list has drifted from its body",
 						c.name, opID)
 				}
@@ -219,6 +406,12 @@ func TestLiveIntegration(t *testing.T) {
 		})
 	}
 
+	// Wire-level invariants over the whole recorded run, asserted once.
+	require.Empty(t, transport.allViolations(), "per-request invariant violations")
+	assertResponseInvariants(t, transport)
+	assertServerKnowledgeMonotonic(t, transport)
+	assertPlanScopedWrites(t, transport, planID)
+
 	calls := transport.calls.Load()
 	t.Logf("live suite made %d requests", calls)
 	t.Logf("response header keys observed: %v", transport.headerKeyUnion())
@@ -226,5 +419,11 @@ func TestLiveIntegration(t *testing.T) {
 		transport.rateHeaderValues())
 	require.LessOrEqual(t, calls, int64(120), "the suite must stay well under the 200/h budget")
 	require.NotContains(t, logBuf.String(), token, "the token must never reach the logs")
+	require.NotContains(t, logBuf.String(), "Bearer ", "the credential scheme must never reach the logs")
+	// Exact non-vacuity: every request must have produced exactly one
+	// logged request line, tying the WithLogger wiring to the transport's
+	// ground-truth counter — the redaction check covered ALL traffic.
+	require.Equal(t, calls, int64(strings.Count(logBuf.String(), "ynab: request")),
+		"every live request must produce exactly one logged request line")
 	require.NotZero(t, logBuf.Len(), "the redaction assertion must not pass vacuously")
 }
