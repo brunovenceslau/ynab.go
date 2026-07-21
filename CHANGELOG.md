@@ -6,7 +6,7 @@ All notable changes to this module are documented here, in
 
 ## [Unreleased]
 
-## [1.6.0] - 2026-07-18
+## [1.6.0] - 2026-07-21
 
 Version numbering note: this is the first release of the rewrite, and
 it starts at 1.6.0 rather than 1.0.0. Nineteen older versions are
