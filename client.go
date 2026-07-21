@@ -16,7 +16,7 @@ import (
 
 // Version is this library's release version, as sent in the
 // User-Agent header.
-const Version = "1.0.0"
+const Version = "1.6.0"
 
 // defaultBaseURL is the documented YNAB API root.
 const defaultBaseURL = "https://api.ynab.com/v1"

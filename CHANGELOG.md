@@ -6,7 +6,16 @@ All notable changes to this module are documented here, in
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-07-18
+## [1.6.0] - 2026-07-18
+
+Version numbering note: this is the first release of the rewrite, and
+it starts at 1.6.0 rather than 1.0.0. The archived predecessor's tags
+(v0.1.0-v1.5.0) were cached by the Go module proxy under this module
+path before their rename to `archive/*`; those cache entries are
+permanent, and Go's retract mechanism requires the retracting version
+to be the highest. 1.6.0 sits above them and retracts the range — see
+`retract` in go.mod — so `go get pkg.venceslau.dev/ynab` resolves
+cleanly.
 
 The greenfield rewrite: a new, frozen public surface covering all 44
 operations of the YNAB API v1 (OpenAPI 1.86.0).
@@ -44,5 +53,5 @@ repository preserve the same history for humans; they cannot be fetched
 as `pkg.venceslau.dev/ynab` because their `go.mod` declares the old
 module path.
 
-[Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.0.0
+[Unreleased]: https://github.com/brunovenceslau/ynab.go/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/brunovenceslau/ynab.go/releases/tag/v1.6.0
