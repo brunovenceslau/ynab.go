@@ -12,7 +12,7 @@ ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(
 GORELEASE_CMD := go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
-	check-version-selftest local-ci go-latest-check apidiff examples
+	check-version-selftest local-ci go-latest-check apidiff apidiff-selftest examples
 
 test:
 	go test -race -shuffle=on ./...
@@ -93,8 +93,15 @@ check-version-selftest:
 apidiff:
 	@CGO_ENABLED=0 scripts/apidiff.sh $(GORELEASE_CMD)
 
+# The network-free proof that apidiff.sh's Version exemption is exact: it must
+# pass a Version value bump yet still fail every other break (removal, kind
+# change, a break in another package, a gorelease crash). Twin of
+# check-version-selftest; no real gorelease, no crafted API break.
+apidiff-selftest:
+	@scripts/apidiff-selftest.sh
+
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
-local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff coverage
+local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff apidiff-selftest coverage
 
 # The toolchain twin of the spec-drift watch: fails when go.dev lists a
 # newer stable Go than the newest one pinned in the workflows, so the

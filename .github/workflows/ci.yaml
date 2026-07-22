@@ -71,6 +71,10 @@ jobs:
         if: matrix.go != '1.25.x'
         run: make apidiff
 
+      - name: make apidiff-selftest
+        if: matrix.go != '1.25.x'
+        run: make apidiff-selftest
+
       - name: make check-version-selftest
         if: matrix.go != '1.25.x'
         run: make check-version-selftest
