@@ -3,7 +3,7 @@ module pkg.venceslau.dev/ynab
 go 1.25
 
 require (
-	github.com/getkin/kin-openapi v0.143.0
+	github.com/getkin/kin-openapi v0.144.0
 	github.com/stretchr/testify v1.11.1
 )
 
