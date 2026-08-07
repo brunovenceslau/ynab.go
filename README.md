@@ -2,6 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/pkg.venceslau.dev/ynab.svg)](https://pkg.go.dev/pkg.venceslau.dev/ynab)
 [![CI](https://img.shields.io/github/actions/workflow/status/brunovenceslau/ynab.go/ci.yaml?branch=main&label=ci)](https://github.com/brunovenceslau/ynab.go/actions/workflows/ci.yaml)
+[![spec-drift](https://github.com/brunovenceslau/ynab.go/actions/workflows/drift.yaml/badge.svg)](https://github.com/brunovenceslau/ynab.go/actions/workflows/drift.yaml)
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue)](LICENSE)
 
 A complete Go client for the [YNAB API v1](https://api.ynab.com): all 44
