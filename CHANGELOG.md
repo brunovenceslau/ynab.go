@@ -23,6 +23,20 @@ All notable changes to this module are documented here, in
   is structurally unreachable — `TransactionUpdate` carries no split legs.
   Godoc only; no behavior change.
 
+### Security
+
+- Hardened the fetch that vendors `openapi.yaml`, in `make update-spec` and in
+  the drift workflow that mirrors it. Dropped `-L`: the endpoint answers 200
+  with zero redirects, and following one would let whatever host a `Location`
+  header names supply the bytes — measured against a local server, `-fsSL`
+  silently vendors a cross-host redirect's body. Added `--remove-on-error`, so
+  a partial download is deleted rather than left on disk as truncated YAML
+  (also measured), which matters because every operation and the version line
+  precede `components:`, so a body cut there still scans as 44 valid ops and
+  passes every offline gate. Added `--max-time` to match the workflow.
+  No code, API, or behavior change; the vendored spec this fetch writes ships
+  inside the module zip, so its provenance is part of the release supply chain.
+
 ## [1.6.1] - 2026-07-21
 
 ### Added

@@ -26,7 +26,7 @@ jobs:
 
       - name: fetch live spec    # local equivalent: the update-spec curl, into a temp file
         run: |
-          curl --proto '=https' --tlsv1.2 --max-time 60 -fsSL \
+          curl --proto '=https' --tlsv1.2 --max-time 60 -fsS --remove-on-error \
             https://api.ynab.com/papi/open_api_spec.yaml -o /tmp/live_spec.yaml
 
       - name: diff against vendored

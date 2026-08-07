@@ -48,8 +48,18 @@ vulncheck:
 # update-spec overwrites the pinned vendored spec (1.86.0) with today's live
 # spec. If run before a release: restore with `git checkout -- openapi.yaml`
 # and re-assert `version: 1.86.0` — re-vendoring is an ask-first change.
+#
+# The fetch flags are supply-chain controls on an artifact that ships inside
+# the module zip. --proto '=https' pins the scheme, --tlsv1.2 sets a floor,
+# -f keeps a 4xx/5xx error page off disk, and --max-time mirrors drift.yaml.
+# No -L: the endpoint answers 200 directly, and following a redirect would
+# let whatever host a Location names supply the bytes. --remove-on-error
+# deletes a partial download — every operation and the version line precede
+# components:, so a body cut there still scans as 44 valid ops and passes
+# every offline gate.
 update-spec:
-	curl --proto '=https' --tlsv1.2 -fsSL https://api.ynab.com/papi/open_api_spec.yaml -o openapi.yaml
+	curl --proto '=https' --tlsv1.2 --max-time 60 -fsS --remove-on-error \
+		https://api.ynab.com/papi/open_api_spec.yaml -o openapi.yaml
 	git diff --stat openapi.yaml
 
 # -count=1: live-API runs must never be served from the test cache.
