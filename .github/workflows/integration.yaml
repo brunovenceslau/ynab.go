@@ -9,7 +9,7 @@ name: integration
 
 on:
   schedule:
-    - cron: '11 7 * * 1' # weekly, Monday 07:11 UTC — after drift and smoke
+    - cron: '11 7 * * 1' # weekly, Monday 07:11 UTC — last of the weekly watches
   workflow_dispatch:
 
 permissions:

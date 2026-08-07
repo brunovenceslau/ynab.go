@@ -113,9 +113,10 @@ apidiff-selftest:
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
 local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff apidiff-selftest coverage
 
-# The toolchain twin of the spec-drift watch: fails when go.dev lists a
-# newer stable Go than the newest one pinned in the workflows, so the
-# matrix never silently goes stale. Bumping stays a deliberate act.
+# The check behind .github/workflows/go-drift.yaml, which runs it weekly:
+# fails when go.dev lists a newer stable Go than the newest one pinned in
+# the workflows, so the matrix never silently goes stale. Bumping stays a
+# deliberate act.
 go-latest-check:
 	@latest=$$(curl --proto '=https' --tlsv1.2 --max-time 30 -fsSL 'https://go.dev/dl/?mode=json' \
 		| sed -n 's/^ *"version": *"go\([0-9]*\.[0-9]*\)[.0-9]*",$$/\1/p' | head -1); \
