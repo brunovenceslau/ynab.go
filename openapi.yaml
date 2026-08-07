@@ -2905,7 +2905,9 @@ components:
           type: array
           description: An array of subtransactions to configure a transaction as a split.
             Updating `subtransactions` on an existing split transaction is not
-            supported.
+            supported and will return an error.  Splits are not allowed on
+            tracking accounts or on transfers between on-budget accounts; a
+            transfer to a tracking account can be a split.
           items:
             $ref: "#/components/schemas/SaveSubTransaction"
     SaveSubTransaction:

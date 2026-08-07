@@ -372,6 +372,11 @@ type TransactionSpec struct {
 	// "YNAB:<milliunits>:<date>:<n>".
 	ImportID Optional[string] `json:"import_id,omitzero"`
 
+	// Splits carries the legs of a split transaction. The API rejects
+	// splits on tracking accounts and on transfers between on-budget
+	// accounts; a transfer to a tracking account may be split. Account
+	// type is not part of this payload, so the server enforces that —
+	// this package cannot.
 	Splits []SubtransactionSpec `json:"subtransactions,omitzero"`
 }
 
@@ -495,6 +500,10 @@ func (s *TransactionsService) CreateBatch(ctx context.Context, specs []Transacti
 // [TransactionsService.Update] and the patches built by
 // [PatchByID]/[PatchByImportID]. Unset fields stay unchanged on the
 // server; [SetNull] clears.
+//
+// This package sets splits at creation only, through [TransactionSpec]:
+// the API does not support updating subtransactions on an existing split
+// transaction and answers with an error.
 type TransactionUpdate struct {
 	AccountID Optional[string]     `json:"account_id,omitzero"`
 	Date      Optional[Date]       `json:"date,omitzero"`
