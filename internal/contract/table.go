@@ -31,6 +31,22 @@ type Operation struct {
 // update-spec run cannot slip through.
 const SpecVersion = "1.86.0"
 
+// SpecSHA256 pins the vendored openapi.yaml by content, not by name.
+// SpecVersion alone cannot do that: upstream amends the spec in place
+// without moving info.version — it did exactly that in 1.86.0, editing a
+// description while the version string stayed put. No offline gate covers
+// anything below components: either; only the live conformance layer (G8,
+// build tag integration) validates against those schemas, and it needs a
+// token. Without this pin a renamed write field, a tightened maxLength, a
+// new enum value, or a body truncated past the last operationId (every
+// operationId precedes components:, so the 44-operation count still holds)
+// would reach main unopposed on a PR.
+//
+// Re-vendoring therefore becomes two edits in one commit — the spec and
+// this constant — which a reviewer sees together. The test prints the
+// replacement digest on mismatch; see CONTRIBUTING.md for the rule.
+const SpecSHA256 = "da7a78345b34b0fa6e50c39709cf860cb869c70d137d506c925d8b1886f3a98b"
+
 // Table returns all 44 rows of the coverage contract, transcribed from the
 // frozen public surface. Query parameters mirror the vendored spec.
 func Table() []Operation {

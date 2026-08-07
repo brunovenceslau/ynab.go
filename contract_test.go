@@ -5,6 +5,8 @@
 package ynab_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -31,6 +33,27 @@ func TestContractSpecDiff(t *testing.T) {
 	require.Len(t, contract.Table(), 44)
 
 	require.Empty(t, contract.DiffSpec(contract.Table(), spec))
+}
+
+// TestContractSpecContent pins the vendored spec by content; see
+// [contract.SpecSHA256] for why the version pin cannot. The version and
+// operation-count pins catch a re-vendor only when it moves those; this is
+// the one assertion that fires on every re-vendor, including the
+// description-only kind upstream has already shipped once.
+func TestContractSpecContent(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("openapi.yaml")
+	require.NoError(t, err)
+
+	sum := sha256.Sum256(raw)
+	require.Equal(t, contract.SpecSHA256, hex.EncodeToString(sum[:]),
+		"vendored openapi.yaml does not match its pin.\n"+
+			"If update-spec ran by accident: git checkout -- openapi.yaml\n"+
+			"If this is a deliberate re-vendor: review the whole spec diff,\n"+
+			"description-only included, then set contract.SpecSHA256 to the\n"+
+			"actual value above, in this commit. See CONTRIBUTING.md;\n"+
+			"re-vendoring is ask-first.")
 }
 
 // TestContractDocLines scans the root package for `// YNAB operationId:`

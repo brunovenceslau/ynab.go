@@ -1,0 +1,13 @@
+# openapi.yaml is pinned by content (contract.SpecSHA256), so its bytes must
+# survive checkout unchanged. Without this, a clone with core.autocrlf=true
+# materializes CRLF and fails the pin while every other gate stays green —
+# and `git checkout -- openapi.yaml` re-applies the conversion, so the
+# obvious remedy loops. CI is Linux-only and would never surface it.
+openapi.yaml -text
+
+# The shell gates are executed, not just read: check-version.sh is the
+# release gate and both apidiff scripts run in local-ci. Under the same
+# CRLF checkout, all three fail `bash -n` (measured: 43, 78 and 148 CRs)
+# with a syntax error in a file nobody edited. eol=lf, not -text, so a
+# script committed with CRLF is normalized rather than preserved.
+*.sh text eol=lf
