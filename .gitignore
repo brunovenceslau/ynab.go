@@ -6,3 +6,8 @@
 # The vendored OpenAPI spec is a tracked repo artifact — the contract-test
 # source of truth. A host-level ignore matches it, so re-include it here.
 !/openapi.yaml
+
+# update-spec stages the download beside the artifact so the move is atomic
+# and same-filesystem, and keeps the file when the shape check refuses it so
+# the maintainer can look at what arrived. Neither is ever committed.
+/openapi.yaml.*

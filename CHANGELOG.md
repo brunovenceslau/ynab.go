@@ -57,6 +57,22 @@ All notable changes to this module are documented here, in
   which is the case a value check can never see. Mutation-tested: a
   `maxLength` moved, an enum value added, one removed, a new unmapped bound,
   and either Go side edited — six for six. Test-only; no public surface.
+- `make update-spec` now fetches to a temp file and only replaces the vendored
+  spec once `scripts/spec-shape.sh` agrees the download carries the same
+  operation count as the file it would overwrite. A shape check, not a
+  validity one — the content pin is what covers the bytes. This closes the gap the
+  fetch flags cannot reach: a redirect is not an error under `-f`, so
+  `--remove-on-error` never fires on one, and curl wrote the 302's own body —
+  attacker-chosen, not merely empty — at exit 0, destroying the vendored
+  artifact while the recipe reported success. Three controls now, none
+  subsuming another: curl's non-zero exit covers a truncated transfer, which
+  keeps the operation count and so is invisible to the shape check; the shape
+  check covers a body whose count differs; the content pin covers the bytes. A network-free
+  self-test of 17 fixtures, wired into `local-ci` and CI, pins the parts a
+  coarse suite would miss — a near-miss pair fixing *how* the count is
+  computed, distinct exit codes for "not a spec" and "called wrong", a
+  missing or operationless baseline, and a refusal to answer at all when the
+  input cannot be scanned. Tooling only; no module byte changes.
 
 ## [1.6.1] - 2026-07-21
 
