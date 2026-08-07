@@ -57,7 +57,12 @@ are missing.
   same PR.
 - **Do not run `make update-spec`** casually — it overwrites the pinned
   vendored spec. If you did: `git checkout -- openapi.yaml`. Re-vendoring is
-  ask-first.
+  ask-first, in any amount — description-only counts. A deliberate re-vendor
+  is two edits in one commit: the spec, and `contract.SpecSHA256` in
+  `internal/contract/table.go`, which pins it by content. `make contract`
+  fails and prints the replacement digest. Review the whole spec diff before
+  you paste it — the digest proves the bytes were declared, not that anyone
+  read them.
 
 ## Which tests does my change need?
 

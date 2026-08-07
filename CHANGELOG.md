@@ -36,6 +36,16 @@ All notable changes to this module are documented here, in
   passes every offline gate. Added `--max-time` to match the workflow.
   No code, API, or behavior change; the vendored spec this fetch writes ships
   inside the module zip, so its provenance is part of the release supply chain.
+- Pinned `openapi.yaml` by content: `contract.SpecSHA256`, asserted by a new
+  contract test. The version pin could not do this — upstream amends the spec
+  in place without moving `info.version`, exactly as it did earlier in this
+  same `[Unreleased]` block. Measured before the pin: a hostile `servers:` url,
+  a `maxLength` tightened from 500 to 50, an amended description, a body
+  truncated to 53% of its bytes, and a single appended newline each passed
+  every offline gate; all five now fail. Re-vendoring becomes two edits in
+  one commit — the spec and the constant — which is the deliberate act the
+  project already required but could not enforce. The assertion is test-only
+  and the constant lives in `internal/`, so no public surface moved.
 
 ## [1.6.1] - 2026-07-21
 
