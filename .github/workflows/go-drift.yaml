@@ -1,0 +1,37 @@
+# G6's toolchain half: fail when go.dev lists a stable newer than the
+# newest version pinned in the workflows, so the matrices never silently
+# go stale. Red-only — bumping the toolchain is a deliberate human change,
+# and this repository opens no automatic PRs.
+#
+# Split out of spec-drift deliberately. A workflow status badge reports the
+# RUN conclusion, so while these shared a file a stale Go pin turned the
+# spec-drift badge red with the vendored spec perfectly current — the badge
+# asserted the wire contract had moved when it had not. One alarm per
+# workflow keeps each signal readable from the outside.
+#
+# Named for the condition, not the subject, matching spec-drift: `go-version`
+# would collide with the setup-go input key of the same name, which five
+# other files use to mean "which Go we build with" — including the very pin
+# that go-latest-check tells you to bump.
+# Actions are SHA-pinned (tag in the comment); bump deliberately.
+name: go-drift
+
+on:
+  schedule:
+    - cron: '29 6 * * 1' # weekly, Monday 06:29 UTC — between drift and smoke
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: make go-latest-check
+        run: make go-latest-check
