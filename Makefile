@@ -13,7 +13,7 @@ GORELEASE_CMD := go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
 	check-version-selftest local-ci go-latest-check apidiff apidiff-selftest examples \
-	spec-shape-selftest
+	spec-shape-selftest fetch-flags fetch-flags-selftest
 
 test:
 	go test -race -shuffle=on ./...
@@ -78,6 +78,18 @@ update-spec:
 	chmod 0644 openapi.yaml
 	git diff --stat openapi.yaml
 
+# The spec-fetch flags were reasoned about at length and enforced by
+# nothing: a future edit could restore -L or drop --remove-on-error with
+# every gate green. This turns those comments into a check, and pins that
+# update-spec never computes the content digest itself.
+fetch-flags:
+	@scripts/fetch-flags.sh Makefile .github/workflows/drift.yaml
+
+# The network-free proof that fetch-flags.sh is not vacuous: every flag it
+# claims to require, removed in turn, must be caught.
+fetch-flags-selftest:
+	@scripts/fetch-flags-selftest.sh
+
 # The network-free proof that spec-shape.sh accepts the spec and refuses
 # every other document update-spec can plausibly download. Twin of
 # check-version-selftest and apidiff-selftest; no curl, fixtures only.
@@ -134,7 +146,8 @@ apidiff-selftest:
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
 local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest \
-	apidiff apidiff-selftest spec-shape-selftest coverage
+	apidiff apidiff-selftest spec-shape-selftest \
+	fetch-flags fetch-flags-selftest coverage
 
 # The check behind .github/workflows/go-drift.yaml, which runs it weekly:
 # fails when go.dev lists a newer stable Go than the newest one pinned in

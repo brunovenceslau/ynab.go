@@ -83,6 +83,14 @@ jobs:
         if: matrix.go != '1.25.x'
         run: make spec-shape-selftest
 
+      - name: make fetch-flags
+        if: matrix.go != '1.25.x'
+        run: make fetch-flags
+
+      - name: make fetch-flags-selftest
+        if: matrix.go != '1.25.x'
+        run: make fetch-flags-selftest
+
       - name: make coverage
         if: matrix.go != '1.25.x'
         run: make coverage
