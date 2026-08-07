@@ -3,6 +3,9 @@
 # the diff as an artifact. Red-only — re-vendoring is a deliberate human
 # change, never automated (and this repository opens no automatic PRs).
 #
+# Red means drift and nothing else. A failed fetch warns and leaves the run
+# green: see the fetch step for why that trade is the right way round.
+#
 # This workflow watches the spec and nothing else. Its toolchain twin lives
 # in go-drift.yaml: a status badge reports the RUN conclusion, so while
 # the two shared a file a stale Go pin turned the spec-drift badge red with
@@ -27,12 +30,54 @@ jobs:
         with:
           persist-credentials: false
 
+      # Same flags as the update-spec recipe, plus retries and an exit-code
+      # split. This job's conclusion is a public badge, and the only thing it
+      # is entitled to assert is "the vendored spec drifted". A DNS blip at
+      # 06:17 on a Monday is not that, and would otherwise paint the README
+      # red for a week — the trigger is weekly, so nothing re-runs it — while
+      # openapi.yaml is byte-identical to live.
+      #
+      # But warn-and-green cannot be the answer for EVERY failure. Under -f a
+      # moved spec URL is a 404, and swallowing that would leave the badge
+      # green while nothing was compared for months: a false red gets
+      # investigated, a false green does not. So the two are separated by
+      # curl's exit code — connection-class failures warn, an endpoint that
+      # answered and refused stays red.
+      #
+      # --retry-all-errors is what makes the retries reach the case this is
+      # about. Bare --retry covers only transient HTTP classes (408, 429,
+      # 5xx) and does NOT retry a refused connection at all — measured, exit
+      # 7 comes back in 0.0s without the flag and after 15.0s with it.
       - name: fetch live spec    # local equivalent: the update-spec curl, into a temp file
+        id: fetch
         run: |
+          rc=0
           curl --proto '=https' --tlsv1.2 --max-time 60 -fsS --remove-on-error \
-            https://api.ynab.com/papi/open_api_spec.yaml -o /tmp/live_spec.yaml
+            --retry 3 --retry-all-errors --retry-delay 5 \
+            https://api.ynab.com/papi/open_api_spec.yaml -o /tmp/live_spec.yaml || rc=$?
+          case $rc in
+            0)
+              echo 'fetched=true' >> "$GITHUB_OUTPUT"
+              ;;
+            6|7|28|35|52|56)
+              # DNS, connect, timeout, TLS, empty reply, reset — the network
+              # was in the way and the endpoint never answered.
+              echo 'fetched=false' >> "$GITHUB_OUTPUT"
+              echo "::warning::could not reach api.ynab.com after retries (curl exit $rc) — spec drift NOT checked this run. This is a fetch failure, not drift."
+              ;;
+            *)
+              # 22 is -f on an HTTP status >= 400: the endpoint answered and
+              # refused. A moved or renamed spec URL lands here, and it is the
+              # most likely long-term failure of a third-party endpoint —
+              # permanent, not a blip, and silence would leave the badge green
+              # while nothing was compared for months.
+              echo "::error::spec fetch failed definitively (curl exit $rc) — the endpoint answered and refused. This is not a network blip; check whether the spec URL moved."
+              exit 1
+              ;;
+          esac
 
       - name: diff against vendored
+        if: steps.fetch.outputs.fetched == 'true'
         run: |
           if ! diff -u openapi.yaml /tmp/live_spec.yaml > /tmp/spec.diff; then
             echo '::error::live OpenAPI spec drifted from the vendored 1.86.0 pin — download the spec-diff artifact and re-vendor deliberately'
