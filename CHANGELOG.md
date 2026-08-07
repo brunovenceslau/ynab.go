@@ -6,6 +6,23 @@ All notable changes to this module are documented here, in
 
 ## [Unreleased]
 
+### Changed
+
+- Re-vendored `openapi.yaml` from the live YNAB spec. Upstream amended one
+  description — `SaveTransactionWithOptionalFields.subtransactions`, the
+  shared save-transaction schema — without bumping the spec version, which
+  stays 1.86.0. No path, field, type, or enum moved, so the public surface is
+  unchanged and no upgrade action is needed.
+- Documented the two split-write rules the amended description states, on
+  `TransactionSpec.Splits` and `TransactionUpdate`: the API rejects splits on
+  tracking accounts and on transfers between on-budget accounts (a transfer
+  *to* a tracking account may be split), and updating the subtransactions of
+  an existing split transaction returns an error. Both are enforced by the
+  server: the write payload does not carry account type, so the
+  tracking-account rule cannot be checked before the request; the update rule
+  is structurally unreachable — `TransactionUpdate` carries no split legs.
+  Godoc only; no behavior change.
+
 ## [1.6.1] - 2026-07-21
 
 ### Added
