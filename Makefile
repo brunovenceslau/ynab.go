@@ -12,7 +12,8 @@ ACTIONLINT := CGO_ENABLED=0 go run github.com/rhysd/actionlint/cmd/actionlint@$(
 GORELEASE_CMD := go run golang.org/x/exp/cmd/gorelease@$(XEXP_VERSION)
 
 .PHONY: test vet lint contract coverage update-spec smoke integration vulncheck tidy-check actionlint \
-	check-version-selftest local-ci go-latest-check apidiff apidiff-selftest examples
+	check-version-selftest local-ci go-latest-check apidiff apidiff-selftest examples \
+	spec-shape-selftest
 
 test:
 	go test -race -shuffle=on ./...
@@ -51,16 +52,37 @@ vulncheck:
 #
 # The fetch flags are supply-chain controls on an artifact that ships inside
 # the module zip. --proto '=https' pins the scheme, --tlsv1.2 sets a floor,
-# -f keeps a 4xx/5xx error page off disk, and --max-time mirrors drift.yaml.
-# No -L: the endpoint answers 200 directly, and following a redirect would
-# let whatever host a Location names supply the bytes. --remove-on-error
-# deletes a partial download — every operation and the version line precede
-# components:, so a body cut there still scans as 44 valid ops and passes
-# every offline gate.
+# -f keeps a 4xx/5xx error page off disk, --max-time mirrors drift.yaml, and
+# --remove-on-error is belt-and-braces now that a rejected download never
+# becomes the artifact anyway. No -L: the endpoint answers 200 directly, and
+# following a redirect would let whatever host a Location names supply the
+# bytes. What actually covers a truncated transfer is curl's non-zero exit,
+# which aborts the recipe before the move.
+#
+# The download is staged beside the artifact — same filesystem, so the move
+# is a rename — and replaces it only once scripts/spec-shape.sh agrees the
+# operation count matches. That header explains what the check does and does
+# not buy; it is not repeated here. On refusal the staged file is left in
+# place, deliberately, so the maintainer can read what arrived.
+#
+# chmod because mktemp creates 0600 and the tracked artifact is 0644.
 update-spec:
+	@set -e; tmp=$$(mktemp ./openapi.yaml.XXXXXX); \
+	trap 'rm -f "$$tmp"' EXIT; \
 	curl --proto '=https' --tlsv1.2 --max-time 60 -fsS --remove-on-error \
-		https://api.ynab.com/papi/open_api_spec.yaml -o openapi.yaml
+		https://api.ynab.com/papi/open_api_spec.yaml -o "$$tmp"; \
+	if ! scripts/spec-shape.sh openapi.yaml "$$tmp"; then \
+		trap - EXIT; exit 1; \
+	fi; \
+	mv "$$tmp" openapi.yaml; \
+	chmod 0644 openapi.yaml
 	git diff --stat openapi.yaml
+
+# The network-free proof that spec-shape.sh accepts the spec and refuses
+# every other document update-spec can plausibly download. Twin of
+# check-version-selftest and apidiff-selftest; no curl, fixtures only.
+spec-shape-selftest:
+	@scripts/spec-shape-selftest.sh
 
 # -count=1: live-API runs must never be served from the test cache.
 # CGO_ENABLED=0: no -race here, so cgo buys nothing and blocks nothing.
@@ -111,7 +133,8 @@ apidiff-selftest:
 	@scripts/apidiff-selftest.sh
 
 # Everything the CI's full leg runs, locally — burn zero Actions minutes.
-local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest apidiff apidiff-selftest coverage
+local-ci: lint examples test contract vulncheck tidy-check actionlint check-version-selftest \
+	apidiff apidiff-selftest spec-shape-selftest coverage
 
 # The check behind .github/workflows/go-drift.yaml, which runs it weekly:
 # fails when go.dev lists a newer stable Go than the newest one pinned in

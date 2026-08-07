@@ -79,6 +79,10 @@ jobs:
         if: matrix.go != '1.25.x'
         run: make check-version-selftest
 
+      - name: make spec-shape-selftest
+        if: matrix.go != '1.25.x'
+        run: make spec-shape-selftest
+
       - name: make coverage
         if: matrix.go != '1.25.x'
         run: make coverage
