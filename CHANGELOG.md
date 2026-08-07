@@ -46,6 +46,17 @@ All notable changes to this module are documented here, in
   one commit — the spec and the constant — which is the deliberate act the
   project already required but could not enforce. The assertion is test-only
   and the constant lives in `internal/`, so no public surface moved.
+- Pinned the transcribed wire constants to the spec they came from. The five
+  `maxLength` constants and the five string-enum sets were copied out of
+  `openapi.yaml` by hand and, until now, nothing checked they still matched:
+  the content pin notices that the spec moved, but a maintainer who reviews
+  the diff and re-pins the digest can still leave a stale bound behind, and
+  the client would go on rejecting payloads the server accepts. Two contract
+  tests now diff both, in both directions — a changed value fails on
+  comparison, and a bound or enum upstream *adds* fails on completeness,
+  which is the case a value check can never see. Mutation-tested: a
+  `maxLength` moved, an enum value added, one removed, a new unmapped bound,
+  and either Go side edited — six for six. Test-only; no public surface.
 
 ## [1.6.1] - 2026-07-21
 
