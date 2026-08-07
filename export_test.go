@@ -43,3 +43,14 @@ func EncodeTransactionFilter(f TransactionFilter) url.Values {
 func ValidateTransactionSpec(s TransactionSpec) error {
 	return s.validate("Transactions.Create")
 }
+
+// The transcribed wire bounds, exposed so the contract test can diff them
+// against the maxLength values the vendored spec declares. They are the
+// only numbers in this package copied from the spec by hand.
+const (
+	ImportIDMax             = importIDMax
+	TransactionPayeeNameMax = transactionPayeeNameMax
+	MemoMax                 = memoMax
+	PayeeNameMax            = payeeNameMax
+	CategoryGroupNameMax    = categoryGroupNameMax
+)
