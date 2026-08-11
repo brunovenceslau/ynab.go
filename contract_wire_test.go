@@ -30,6 +30,12 @@ import (
 // transaction, subtransaction and scheduled-transaction payloads bound
 // payee_name and memo identically, and ScheduledTransactionSpec.validate
 // reuses the transaction constants rather than declaring its own.
+//
+// A row here claims enforcement but does not prove it — the table pins the
+// spec side only. Each row's teeth are a behavior test rejecting at the
+// bound (mutation-verified: moving a row to the waiver table with a bogus
+// reason passes this file; deleting the enforcement code does not pass the
+// behavior test). A new row needs its rejection test in the same commit.
 var wireBounds = map[[2]string]int{
 	{"NewTransaction", "import_id"}:                     ynab.ImportIDMax,
 	{"NewTransaction", "payee_name"}:                    ynab.TransactionPayeeNameMax,
@@ -38,6 +44,7 @@ var wireBounds = map[[2]string]int{
 	{"ExistingTransaction", "memo"}:                     ynab.MemoMax,
 	{"SaveTransactionWithOptionalFields", "payee_name"}: ynab.TransactionPayeeNameMax,
 	{"SaveTransactionWithOptionalFields", "memo"}:       ynab.MemoMax,
+	{"SaveTransactionWithIdOrImportId", "import_id"}:    ynab.ImportIDMax,
 	{"SaveTransactionWithIdOrImportId", "payee_name"}:   ynab.TransactionPayeeNameMax,
 	{"SaveTransactionWithIdOrImportId", "memo"}:         ynab.MemoMax,
 	{"SaveSubTransaction", "payee_name"}:                ynab.TransactionPayeeNameMax,
@@ -53,14 +60,10 @@ var wireBounds = map[[2]string]int{
 // with the reason. A bound belongs here rather than in wireBounds only when
 // leaving it unchecked is a decision someone made; the completeness
 // assertion accepts either table, so the spec can never declare a bound
-// that goes entirely unremarked.
-var wireBoundsUnenforced = map[[2]string]string{
-	{"SaveTransactionWithIdOrImportId", "import_id"}: "PatchByImportID's key reaches the wire " +
-		"unchecked: TransactionPatch embeds TransactionUpdate, which has no ImportID field, so " +
-		"UpdateBatch validates everything except this. A >36-character key comes back a server " +
-		"400 instead of an *ArgumentError. Tracked as a follow-up; enforcing it is a behavior " +
-		"change and belongs in its own commit.",
-}
+// that goes entirely unremarked. Currently empty: the last waiver —
+// SaveTransactionWithIdOrImportId.import_id, PatchByImportID's identity —
+// was lifted when TransactionPatch.validate started bounding the key.
+var wireBoundsUnenforced = map[[2]string]string{}
 
 // wireEnums maps every enum the spec declares on a NAMED schema to the Go
 // enum type that mirrors it. The Go members come from the same AST scan

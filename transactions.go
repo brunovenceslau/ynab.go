@@ -536,13 +536,26 @@ func PatchByID(id string, update TransactionUpdate) TransactionPatch {
 }
 
 // PatchByImportID addresses a batch update by import id (lookup only —
-// changing an import id is not allowed by the API). Live caveat: the
-// server resolves the lookup only for transactions that entered through
-// the import pipeline (linked accounts); an API-created transaction
-// carrying the same import_id answers 400 "transaction does not exist"
-// (probed live 2026-07-20 — see API_NOTES.md).
+// changing an import id is not allowed by the API). The key is bounded at
+// 36 characters, the same spec bound Create enforces on
+// [TransactionSpec.ImportID]. Live caveat: the server resolves the lookup
+// only for transactions that entered through the import pipeline (linked
+// accounts); an API-created transaction carrying the same import_id
+// answers 400 "transaction does not exist" (probed live 2026-07-20 — see
+// API_NOTES.md).
 func PatchByImportID(importID string, update TransactionUpdate) TransactionPatch {
 	return TransactionPatch{importID: importID, TransactionUpdate: update}
+}
+
+// validate applies the embedded update's bounds plus the one the identity
+// carries: the spec bounds import_id at 36 characters on batch patches
+// exactly as it does at creation. The id identity is deliberately not
+// bounded — the spec declares no maxLength on it.
+func (p TransactionPatch) validate(op string) error {
+	if err := checkRuneMax(op, "import_id", p.importID, importIDMax); err != nil {
+		return err
+	}
+	return p.TransactionUpdate.validate(op)
 }
 
 // MarshalJSON emits the update fields plus exactly one identity key.
