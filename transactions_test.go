@@ -7,6 +7,7 @@ package ynab_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -232,4 +233,54 @@ func TestUpdateBatchAnnotatesPatchIndex(t *testing.T) {
 	var argErr *ynab.ArgumentError
 	require.ErrorAs(t, err, &argErr)
 	require.Contains(t, argErr.Reason, "(patch 1)", "the failing element must be named, like CreateBatch's (spec N)")
+}
+
+func TestUpdateBatchBoundsImportIDIdentity(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("no request must be sent on a pre-flight failure")
+	}))
+	t.Cleanup(srv.Close)
+	client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+
+	// 37 code points: one past the spec's 36. The bound counts runes, not
+	// bytes — ééé… would be 74 bytes at 37 runes and must fail identically.
+	_, err := client.Plan("p-1").Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{
+		ynab.PatchByID("tr1", ynab.TransactionUpdate{Memo: ynab.Set("ok")}),
+		ynab.PatchByImportID(strings.Repeat("é", 37), ynab.TransactionUpdate{}),
+	})
+	var argErr *ynab.ArgumentError
+	require.ErrorAs(t, err, &argErr)
+	require.Equal(t, "import_id", argErr.Field)
+	require.Contains(t, argErr.Reason, "(patch 1)")
+}
+
+func TestUpdateBatchIDIdentityIsUnbounded(t *testing.T) {
+	t.Parallel()
+
+	// The spec declares maxLength on import_id only; a long transaction id
+	// must reach the wire. The fake captures the body, because "unbounded"
+	// means sent intact — a request merely going out would also pass if a
+	// refactor silently dropped or truncated the identity.
+	bodyCh := make(chan []byte, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodyCh <- b
+		_, _ = w.Write([]byte(`{"data":{"transactions":[],"transaction_ids":[],` +
+			`"duplicate_import_ids":[],"server_knowledge":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := ynab.New("t", ynab.WithBaseURL(srv.URL), ynab.WithRetryDisabled())
+
+	_, err := client.Plan("p-1").Transactions.UpdateBatch(t.Context(), []ynab.TransactionPatch{
+		ynab.PatchByID(strings.Repeat("x", 100), ynab.TransactionUpdate{}),
+		// And the boundary itself: exactly 36 runes of import_id pass.
+		ynab.PatchByImportID(strings.Repeat("é", 36), ynab.TransactionUpdate{}),
+	})
+	require.NoError(t, err)
+
+	body := string(<-bodyCh)
+	require.Contains(t, body, strings.Repeat("x", 100), "the unbounded id must reach the wire intact")
+	require.Contains(t, body, strings.Repeat("é", 36), "the boundary import_id must reach the wire intact")
 }

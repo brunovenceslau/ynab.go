@@ -8,6 +8,14 @@ All notable changes to this module are documented here, in
 
 ### Changed
 
+- `TransactionsService.UpdateBatch` now pre-flights the import-id identity
+  of a `PatchByImportID` patch against the spec's 36-character bound and
+  answers `*ArgumentError` naming the patch index, exactly as it already
+  did for `payee_name` and `memo`. Previously an over-long key reached the
+  wire and came back a server 400. Only the import-id identity is affected:
+  keys of 36 characters or fewer, and every `PatchByID` patch, behave as
+  before — the spec declares no bound on transaction ids, so none is
+  enforced.
 - Re-vendored `openapi.yaml` from the live YNAB spec. Upstream amended one
   description — `SaveTransactionWithOptionalFields.subtransactions`, the
   shared save-transaction schema — without bumping the spec version, which
