@@ -104,8 +104,7 @@ func structLintProblems(roots []reflect.Type) []string {
 			return
 		}
 
-		for i := range t.NumField() {
-			f := t.Field(i)
+		for f := range t.Fields() {
 			if !f.IsExported() {
 				// encoding/json still promotes and serializes the exported
 				// fields of an unexported embedded struct — those must not
@@ -233,8 +232,8 @@ func optionalEmitProblem(
 // field at all — all-plain payloads (AccountSpec) have nothing for the
 // set-zero net to catch.
 func hasOptionalField(t reflect.Type) bool {
-	for i := range t.NumField() {
-		if isOptionalType(t.Field(i).Type) {
+	for field := range t.Fields() {
+		if isOptionalType(field.Type) {
 			return true
 		}
 	}

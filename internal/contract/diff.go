@@ -50,7 +50,8 @@ func DiffSpec(table []Operation, spec *Spec) []string {
 		if op.Method != http.MethodGet && specOp.HasBody == isBodiless(op.ID) {
 			problems = append(problems, fmt.Sprintf(
 				"%s: spec requestBody presence %v contradicts bodilessOps (bodiless=%v)",
-				op.ID, specOp.HasBody, isBodiless(op.ID)))
+				op.ID, specOp.HasBody, isBodiless(op.ID),
+			))
 		}
 		problems = append(problems, diffParams(op.ID, op.QueryParams, specOp.QueryParams)...)
 	}

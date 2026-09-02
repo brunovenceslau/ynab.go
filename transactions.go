@@ -419,8 +419,7 @@ func (s TransactionSpec) validate(op string) error {
 			checkOptRuneMax(op, "payee_name", leg.PayeeName, transactionPayeeNameMax),
 			checkOptRuneMax(op, "memo", leg.Memo, memoMax),
 		); err != nil {
-			var argErr *ArgumentError
-			if errors.As(err, &argErr) {
+			if argErr, ok := errors.AsType[*ArgumentError](err); ok {
 				argErr.Reason += " (split " + strconv.Itoa(i) + ")"
 			}
 			return err
@@ -481,8 +480,7 @@ func (s *TransactionsService) Create(
 func (s *TransactionsService) CreateBatch(ctx context.Context, specs []TransactionSpec) (*BatchResult, error) {
 	for i, spec := range specs {
 		if err := spec.validate("Transactions.CreateBatch"); err != nil {
-			var argErr *ArgumentError
-			if errors.As(err, &argErr) {
+			if argErr, ok := errors.AsType[*ArgumentError](err); ok {
 				argErr.Reason += " (spec " + strconv.Itoa(i) + ")"
 			}
 			return nil, err
@@ -612,8 +610,7 @@ func (s *TransactionsService) UpdateBatch(ctx context.Context, patches []Transac
 			}
 		}
 		if err := p.validate("Transactions.UpdateBatch"); err != nil {
-			var argErr *ArgumentError
-			if errors.As(err, &argErr) {
+			if argErr, ok := errors.AsType[*ArgumentError](err); ok {
 				argErr.Reason += " (patch " + strconv.Itoa(i) + ")"
 			}
 			return nil, err

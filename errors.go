@@ -220,16 +220,14 @@ func IsRetryable(err error) bool {
 		return false
 	}
 
-	var argErr *ArgumentError
-	if errors.As(err, &argErr) {
+	if _, ok := errors.AsType[*ArgumentError](err); ok {
 		return false
 	}
 
 	if errors.Is(err, ErrRateLimited) || errors.Is(err, ErrServerError) || errors.Is(err, ErrServiceUnavailable) {
 		return true
 	}
-	var apiErr *Error
-	if errors.As(err, &apiErr) {
+	if _, ok := errors.AsType[*Error](err); ok {
 		return false // every other API status is a terminal 4xx-class answer
 	}
 
@@ -244,8 +242,7 @@ func IsRetryable(err error) bool {
 	// deadline must stay non-retryable. The transport case always wraps
 	// the deadline (url.Error, OpError, …); the bare case is the naked
 	// context value itself — a wrapper-less net.Error that is the deadline.
-	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if netErr, ok := errors.AsType[net.Error](err); ok {
 		bareCallerDeadline := errors.Unwrap(netErr) == nil && errors.Is(netErr, context.DeadlineExceeded)
 		return !bareCallerDeadline
 	}

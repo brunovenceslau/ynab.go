@@ -155,7 +155,7 @@ func TestAccountsList(t *testing.T) {
 					Balance:          -395032000,
 					ClearedBalance:   -395032000,
 					UnclearedBalance: 0,
-					TransferPayeeID:  ptr("pa222222-2222-2222-2222-222222222222"),
+					TransferPayeeID:  new("pa222222-2222-2222-2222-222222222222"),
 					DebtInterestRates: ynab.LoanAccountPeriodicValue{
 						"2024-01-01": 3500,
 						"2025-06-01": 4250,

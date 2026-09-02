@@ -479,8 +479,7 @@ func modelFieldTags() map[string]struct{} {
 			return
 		}
 		seen[t] = struct{}{}
-		for i := range t.NumField() {
-			f := t.Field(i)
+		for f := range t.Fields() {
 			if f.Anonymous {
 				walk(f.Type)
 				continue

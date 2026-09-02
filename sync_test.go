@@ -146,7 +146,7 @@ func TestSyncableAdapters(t *testing.T) {
 			name: "HybridTransaction",
 			s: ynab.HybridTransaction{
 				TransactionBase:     ynab.TransactionBase{ID: "h", Deleted: true},
-				ParentTransactionID: ptr("NOT-the-key"),
+				ParentTransactionID: new("NOT-the-key"),
 			},
 			id: "h",
 		},
@@ -173,7 +173,5 @@ func TestSyncableAdapters(t *testing.T) {
 		})
 	}
 }
-
-func ptr[T any](v T) *T { return &v }
 
 // TestEnumValidTables covers every enum's Valid across its full value set

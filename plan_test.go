@@ -126,7 +126,7 @@ func TestPlans(t *testing.T) {
 
 		require.Equal(t, &ynab.PlanList{
 			Plans:       []ynab.PlanSummary{goldenFamilyPlanSummary(), goldenSideHustlePlanSummary()},
-			DefaultPlan: ptr(goldenFamilyPlanSummary()),
+			DefaultPlan: new(goldenFamilyPlanSummary()),
 		}, got)
 
 		require.Equal(t, "/plans", rec.URL.Path)

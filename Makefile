@@ -1,5 +1,5 @@
 # Tool pins — never @latest. Bump deliberately, one place only.
-GOLANGCI_LINT_VERSION := v2.12.2
+GOLANGCI_LINT_VERSION := v2.13.0
 GOVULNCHECK_VERSION := v1.6.0
 ACTIONLINT_VERSION := v1.7.12
 XEXP_VERSION := v0.0.0-20260718201538-764159d718ef

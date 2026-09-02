@@ -154,7 +154,7 @@ func TestPayeesGet(t *testing.T) {
 	got, err := client.Plan("p-1").Payees.Get(t.Context(), "pa111111-1111-1111-1111-111111111111")
 	require.NoError(t, err)
 	require.Equal(t, "/plans/p-1/payees/pa111111-1111-1111-1111-111111111111", rec.URL.Path)
-	require.Equal(t, ptr(goldenPayees()[0]), got)
+	require.Equal(t, new(goldenPayees()[0]), got)
 }
 
 func TestPayeesCreate(t *testing.T) {

@@ -204,8 +204,7 @@ func pointerFieldPaths(t reflect.Type) []string {
 			return
 		}
 		seen[t] = struct{}{}
-		for i := range t.NumField() {
-			f := t.Field(i)
+		for f := range t.Fields() {
 			if !f.IsExported() {
 				if f.Anonymous {
 					walk(f.Type, prefix)

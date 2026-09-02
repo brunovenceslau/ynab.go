@@ -286,16 +286,16 @@ func TestScheduledList(t *testing.T) {
 				DateNext:  ynab.NewDate(2026, time.August, 1),
 				Frequency: ynab.FrequencyMonthly,
 				Amount:    -1500000,
-				Memo:      ptr("rent"),
+				Memo:      new("rent"),
 				AccountID: "ac111111-1111-1111-1111-111111111111",
-				PayeeID:   ptr("pa555555-5555-5555-5555-555555555555"),
+				PayeeID:   new("pa555555-5555-5555-5555-555555555555"),
 				Deleted:   false,
 			},
 			AmountFormatted: "-$1,500.00",
 			AmountCurrency:  -1500,
 			AccountName:     "Checking",
-			PayeeName:       ptr("Landlord"),
-			CategoryName:    ptr("Split"),
+			PayeeName:       new("Landlord"),
+			CategoryName:    new("Split"),
 			Subtransactions: []ynab.ScheduledSubtransaction{
 				{
 					ScheduledSubtransactionBase: goldenScheduledRentLegBase(),
@@ -381,7 +381,7 @@ func TestScheduledGet(t *testing.T) {
 	got, err := client.Plan("p-1").Scheduled.Get(t.Context(), "sc111111-1111-1111-1111-111111111111")
 	require.NoError(t, err)
 	require.Equal(t, "/plans/p-1/scheduled_transactions/sc111111-1111-1111-1111-111111111111", rec.URL.Path)
-	require.Equal(t, ptr(goldenRentScheduled()), got)
+	require.Equal(t, new(goldenRentScheduled()), got)
 }
 
 func TestScheduledExtremeNumerics(t *testing.T) {

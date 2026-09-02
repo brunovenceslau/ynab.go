@@ -120,7 +120,7 @@ func TestPayeeLocations(t *testing.T) {
 		got, err := client.Plan("p-1").PayeeLocations.Get(t.Context(), "pl111111-1111-1111-1111-111111111111")
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payee_locations/pl111111-1111-1111-1111-111111111111", rec.URL.Path)
-		require.Equal(t, ptr(goldenPayeeLocations()[0]), got)
+		require.Equal(t, new(goldenPayeeLocations()[0]), got)
 	})
 
 	t.Run("list by payee", func(t *testing.T) {
@@ -128,7 +128,8 @@ func TestPayeeLocations(t *testing.T) {
 
 		client, rec := serveFixture(t, "payee_locations/by_payee.json", 0)
 		locations, err := client.Plan("p-1").PayeeLocations.ListByPayee(
-			t.Context(), "pa111111-1111-1111-1111-111111111111")
+			t.Context(), "pa111111-1111-1111-1111-111111111111",
+		)
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payees/pa111111-1111-1111-1111-111111111111/payee_locations", rec.URL.Path)
 		require.Equal(t, goldenPayeeLocations()[:1], locations)

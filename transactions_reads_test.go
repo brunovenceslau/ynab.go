@@ -63,7 +63,8 @@ func init() {
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			txns, _, err := c.Plan("p-1").Transactions.ListByAccount(
-				t.Context(), "ac1", ynab.TransactionFilter{})
+				t.Context(), "ac1", ynab.TransactionFilter{},
+			)
 			return txns, err
 		},
 	})
@@ -74,7 +75,8 @@ func init() {
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			rows, _, err := c.Plan("p-1").Transactions.ListByCategory(
-				t.Context(), "ca1", ynab.TransactionFilter{})
+				t.Context(), "ca1", ynab.TransactionFilter{},
+			)
 			return rows, err
 		},
 	})
@@ -85,7 +87,8 @@ func init() {
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			rows, _, err := c.Plan("p-1").Transactions.ListByPayee(
-				t.Context(), "pa1", ynab.TransactionFilter{})
+				t.Context(), "pa1", ynab.TransactionFilter{},
+			)
 			return rows, err
 		},
 	})
@@ -96,7 +99,8 @@ func init() {
 		call: func(t *testing.T, c *ynab.Client) (any, error) {
 			t.Helper()
 			txns, _, err := c.Plan("p-1").Transactions.ListByMonth(
-				t.Context(), ynab.CurrentMonth(), ynab.TransactionFilter{})
+				t.Context(), ynab.CurrentMonth(), ynab.TransactionFilter{},
+			)
 			return txns, err
 		},
 	})
@@ -265,7 +269,8 @@ func TestTransactionsHybridLists(t *testing.T) {
 
 		client, rec := serveFixture(t, "transactions/hybrid.json", 0)
 		rows, sk, err := client.Plan("p-1").Transactions.ListByCategory(
-			t.Context(), "ca1", ynab.TransactionFilter{})
+			t.Context(), "ca1", ynab.TransactionFilter{},
+		)
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/categories/ca1/transactions", rec.URL.Path)
 		require.Equal(t, ynab.ServerKnowledge(6100), sk)
@@ -279,7 +284,8 @@ func TestTransactionsHybridLists(t *testing.T) {
 		// response without the key must yield 0, never an error.
 		client, rec := serveFixture(t, "transactions/hybrid_no_server_knowledge.json", 0)
 		rows, sk, err := client.Plan("p-1").Transactions.ListByPayee(
-			t.Context(), "pa1", ynab.TransactionFilter{})
+			t.Context(), "pa1", ynab.TransactionFilter{},
+		)
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/payees/pa1/transactions", rec.URL.Path)
 		require.Zero(t, sk, "absent key decodes to zero — never advance a cursor from it")
@@ -306,7 +312,8 @@ func TestTransactionsListByMonth(t *testing.T) {
 
 		client, rec := serveFixture(t, "transactions/list.json", 0)
 		_, _, err := client.Plan("p-1").Transactions.ListByMonth(
-			t.Context(), ynab.NewMonth(2026, time.July), ynab.TransactionFilter{})
+			t.Context(), ynab.NewMonth(2026, time.July), ynab.TransactionFilter{},
+		)
 		require.NoError(t, err)
 		require.Equal(t, "/plans/p-1/months/2026-07-01/transactions", rec.URL.Path)
 	})
@@ -316,7 +323,8 @@ func TestTransactionsListByMonth(t *testing.T) {
 
 		client, rec := serveFixture(t, "transactions/list.json", 0)
 		_, _, err := client.Plan("p-1").Transactions.ListByMonth(
-			t.Context(), ynab.Month{}, ynab.TransactionFilter{})
+			t.Context(), ynab.Month{}, ynab.TransactionFilter{},
+		)
 		var argErr *ynab.ArgumentError
 		require.ErrorAs(t, err, &argErr)
 		require.Equal(t, "Transactions.ListByMonth", argErr.Op)
