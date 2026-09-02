@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.25.x', '1.26.x']
+        go: ['1.26.x', '1.27.x']
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -39,11 +39,11 @@ jobs:
         run: go version
 
       - name: make vet
-        if: matrix.go == '1.25.x'
+        if: matrix.go == '1.26.x'
         run: make vet
 
       - name: make lint
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make lint
 
       - name: make examples
@@ -56,47 +56,47 @@ jobs:
         run: make contract
 
       - name: make vulncheck
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make vulncheck
 
       - name: make tidy-check
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make tidy-check
 
       - name: make actionlint
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make actionlint
 
       - name: make apidiff
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make apidiff
 
       - name: make apidiff-selftest
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make apidiff-selftest
 
       - name: make check-version-selftest
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make check-version-selftest
 
       - name: make spec-shape-selftest
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make spec-shape-selftest
 
       - name: make fetch-flags
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make fetch-flags
 
       - name: make fetch-flags-selftest
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make fetch-flags-selftest
 
       - name: make coverage
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         run: make coverage
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.go != '1.25.x'
+        if: matrix.go != '1.26.x'
         with:
           name: coverage
           path: cover.out

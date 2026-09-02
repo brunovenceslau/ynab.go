@@ -23,7 +23,7 @@ jobs:
         # Same matrix as ci — smoke every supported Go against the real
         # API. The suite is read-only, so the legs cannot interfere and
         # need no per-version namespacing.
-        go: ['1.25.x', '1.26.x']
+        go: ['1.26.x', '1.27.x']
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:

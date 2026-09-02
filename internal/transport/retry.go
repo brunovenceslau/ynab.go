@@ -173,7 +173,7 @@ func RetryAfterDelay(v string) time.Duration {
 
 // sleeper is a reused backoff timer whose sleep is always cancelable: it
 // selects on ctx.Done, so cancellation during backoff returns promptly.
-// go.mod declares Go 1.25, so the 1.23+ timer semantics apply — Stop and
+// go.mod declares Go 1.26, so the 1.23+ timer semantics apply — Stop and
 // Reset need no channel drain (draining would block on the unbuffered
 // timer channel).
 type sleeper struct {

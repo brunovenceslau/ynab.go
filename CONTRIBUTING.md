@@ -12,7 +12,7 @@ cd ynab.go
 make lint test contract
 ```
 
-That's the whole setup: a Go 1.25+ toolchain and `make`. Linting runs
+That's the whole setup: a Go 1.26+ toolchain and `make`. Linting runs
 golangci-lint through `go run` at a pinned version — nothing to install,
 nothing at `@latest`.
 

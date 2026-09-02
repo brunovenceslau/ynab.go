@@ -20,7 +20,7 @@ persistence layer, not a budgeting engine — a wire-faithful client.
 go get pkg.venceslau.dev/ynab
 ```
 
-Requires Go 1.25+ (the minimum in [go.mod](go.mod)). The public API follows
+Requires Go 1.26+ (the minimum in [go.mod](go.mod)). The public API follows
 [SemVer](https://semver.org): the v1 surface is frozen, and every change is
 recorded in the [CHANGELOG](CHANGELOG.md).
 

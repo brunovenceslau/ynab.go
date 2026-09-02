@@ -151,21 +151,30 @@ local-ci: lint examples test contract vulncheck tidy-check actionlint check-vers
 
 # The check behind .github/workflows/go-drift.yaml, which runs it weekly:
 # fails when go.dev lists a newer stable Go than the newest one pinned in
-# the workflows, so the matrix never silently goes stale. Bumping stays a
-# deliberate act.
+# the workflows, so the matrix never silently goes stale. Policy: the CI
+# window tracks the last two stable minors — latest and latest-1 (assumed
+# to stay on the same "1.x" line; a major bump would need this rewritten).
+# go.mod's floor pins to latest-1, so the floor leg is always the older of
+# the two matrix legs. Bumping stays a deliberate act.
 go-latest-check:
 	@latest=$$(curl --proto '=https' --tlsv1.2 --max-time 30 -fsSL 'https://go.dev/dl/?mode=json' \
 		| sed -n 's/^ *"version": *"go\([0-9]*\.[0-9]*\)[.0-9]*",$$/\1/p' | head -1); \
-	pinned=$$(grep -rho '1\.[0-9]*\.x' .github/workflows/*.yaml | sort -t. -k2 -n | tail -1 | sed 's/\.x//'); \
-	if [ -z "$$latest" ] || [ -z "$$pinned" ]; then \
-		echo 'error: could not resolve latest ('"$$latest"') or pinned ('"$$pinned"') Go version'; exit 1; fi; \
-	echo "latest stable: go$$latest — newest pinned: go$$pinned.x"; \
-	if [ "$$latest" != "$$pinned" ]; then \
-		echo "error: Go $$latest is out — bump the matrices in ci.yaml/smoke.yaml and go-version in release.yaml"; \
-		exit 1; fi; \
-	floor=$$(sed -n 's/^go \([0-9]*\.[0-9]*\)$$/\1/p' go.mod); \
-	for v in $$(grep -rho '1\.[0-9]*\.x' .github/workflows/*.yaml | sed 's/\.x//' | sort -u); do \
-		if [ "$$v" != "$$latest" ] && [ "$$v" != "$$floor" ]; then \
-			echo "error: workflow pin go$$v.x is neither the go.mod floor ($$floor) nor latest ($$latest)"; \
+	if [ -z "$$latest" ]; then \
+		echo 'error: could not resolve latest Go version'; exit 1; fi; \
+	prev=$$(echo "$$latest" | awk -F. '{print $$1"."$$2-1}'); \
+	pins=$$(grep -rho '1\.[0-9]*\.x' .github/workflows/*.yaml | sed 's/\.x//' | sort -u); \
+	echo "latest stable: go$$latest — required window: go$$prev.x, go$$latest.x"; \
+	for v in $$prev $$latest; do \
+		if ! echo "$$pins" | grep -qx "$$v"; then \
+			echo "error: Go $$latest is out — workflow pin go$$v.x is missing; the CI window must be {go$$prev.x, go$$latest.x} (bump the matrices in ci.yaml/smoke.yaml, the pins in release.yaml/integration.yaml, and go.mod's floor to $$prev)"; \
 			exit 1; fi; \
-	done
+	done; \
+	for v in $$pins; do \
+		if [ "$$v" != "$$prev" ] && [ "$$v" != "$$latest" ]; then \
+			echo "error: workflow pin go$$v.x is outside the two-minor window (go$$prev.x, go$$latest.x) — bump or drop it"; \
+			exit 1; fi; \
+	done; \
+	floor=$$(sed -n 's/^go \([0-9]*\.[0-9]*\)$$/\1/p' go.mod); \
+	if [ "$$floor" != "$$prev" ]; then \
+		echo "error: go.mod floor is $$floor but the policy floor (latest-1) is $$prev"; \
+		exit 1; fi

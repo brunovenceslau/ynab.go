@@ -1,6 +1,6 @@
 module pkg.venceslau.dev/ynab
 
-go 1.25
+go 1.26
 
 require (
 	github.com/getkin/kin-openapi v0.144.0
