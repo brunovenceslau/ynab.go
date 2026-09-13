@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -90,6 +91,31 @@ func (s *refreshingTokenSource) persist() error {
 	return os.WriteFile(s.persistFile, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
 }
 
+// oauthErrorDetail renders a non-200 token-endpoint response for the
+// failure message. An OAuth error payload carries only `error` and
+// `error_description` and never a token, so quoting it leaks nothing
+// while turning a bare status code into a diagnosis: invalid_grant is a
+// spent or revoked refresh token, invalid_client is bad client
+// credentials. A body that is not an OAuth error is reported verbatim,
+// bounded, so an HTML error page cannot flood the log.
+func oauthErrorDetail(body io.Reader) string {
+	raw, err := io.ReadAll(io.LimitReader(body, 4096))
+	if err != nil {
+		return "<unreadable body: " + err.Error() + ">"
+	}
+	var oerr struct {
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if json.Unmarshal(raw, &oerr) == nil && oerr.Error != "" {
+		if oerr.Description != "" {
+			return oerr.Error + " (" + oerr.Description + ")"
+		}
+		return oerr.Error
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 // Token implements ynab.TokenSource; consulted before every attempt.
 func (s *refreshingTokenSource) Token(ctx context.Context) (string, error) {
 	s.mu.Lock()
@@ -117,7 +143,8 @@ func (s *refreshingTokenSource) Token(ctx context.Context) (string, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("oauth_live_test: token endpoint answered %d", resp.StatusCode)
+		return "", fmt.Errorf("oauth_live_test: token endpoint answered %d: %s",
+			resp.StatusCode, oauthErrorDetail(resp.Body))
 	}
 	var tok struct {
 		AccessToken  string `json:"access_token"`
